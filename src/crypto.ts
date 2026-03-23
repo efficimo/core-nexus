@@ -2,10 +2,7 @@ const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
 const PBKDF2_ITERATIONS = 100_000;
 
-async function deriveKey(
-  password: string,
-  salt: ArrayBuffer,
-): Promise<CryptoKey> {
+async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -27,20 +24,13 @@ async function deriveKey(
   );
 }
 
-export async function encrypt(
-  plaintext: string,
-  password: string,
-): Promise<string> {
+export async function encrypt(plaintext: string, password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 
   const key = await deriveKey(password, salt.buffer as ArrayBuffer);
   const ciphertext = new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      key,
-      new TextEncoder().encode(plaintext),
-    ),
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)),
   );
 
   const result = new Uint8Array(SALT_LENGTH + IV_LENGTH + ciphertext.length);
@@ -51,10 +41,7 @@ export async function encrypt(
   return btoa(String.fromCharCode.apply(null, Array.from(result)));
 }
 
-export async function decrypt(
-  base64Data: string,
-  password: string,
-): Promise<string> {
+export async function decrypt(base64Data: string, password: string): Promise<string> {
   const binary = atob(base64Data);
   const data = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -66,11 +53,7 @@ export async function decrypt(
   const ciphertext = data.slice(SALT_LENGTH + IV_LENGTH);
 
   const key = await deriveKey(password, salt.buffer as ArrayBuffer);
-  const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    key,
-    ciphertext,
-  );
+  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
 
   return new TextDecoder().decode(plaintext);
 }

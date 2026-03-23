@@ -20,17 +20,12 @@ export const useObservableValueState = <Value>(
 
   useEffect(() => {
     const subscription = observable.subscribe((nextValue) => {
-      setState((prevState) =>
-        !isEqual(prevState, nextValue) ? nextValue : prevState,
-      );
+      setState((prevState) => (!isEqual(prevState, nextValue) ? nextValue : prevState));
     });
     return () => {
       subscription?.unsubscribe();
     };
   }, [observable]);
 
-  return useMemo(
-    () => [state, ObservableSetterFactory(observable)],
-    [state, observable],
-  );
+  return useMemo(() => [state, ObservableSetterFactory(observable)], [state, observable]);
 };

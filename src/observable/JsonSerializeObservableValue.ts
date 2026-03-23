@@ -5,10 +5,7 @@ export class JsonSerializeObservableValue<Value> extends DerivedObservableValue<
   Value | null,
   string | null
 > {
-  constructor(
-    source: ObservableValueInterface<string | null>,
-    defaultValue?: Value,
-  ) {
+  constructor(source: ObservableValueInterface<string | null>, defaultValue?: Value) {
     super(
       source,
       (derivedValue: string | null) => {

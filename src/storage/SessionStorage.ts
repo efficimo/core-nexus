@@ -1,9 +1,7 @@
 import { BaseStorage } from "./BaseStorage";
 import type { SessionStorageKeys } from "./StorageKeys";
 
-class _SessionStorage extends BaseStorage<
-  keyof SessionStorageKeys | string
-> {
+class _SessionStorage extends BaseStorage<keyof SessionStorageKeys | string> {
   static _instance: _SessionStorage | null = null;
 
   static getInstance(): _SessionStorage {

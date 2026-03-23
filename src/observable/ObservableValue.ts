@@ -2,8 +2,7 @@ import { isEqual } from "./isEqual";
 import { isSetFunction, type SetFunction } from "./isSetFunction";
 import { Observable, type ObservableInterface, type Subscriber } from "./Observable";
 
-export interface ObservableValueInterface<Value>
-  extends ObservableInterface<Value> {
+export interface ObservableValueInterface<Value> extends ObservableInterface<Value> {
   getValue: () => Value;
   next: (value: Value | SetFunction<Value>) => Promise<void>;
 }

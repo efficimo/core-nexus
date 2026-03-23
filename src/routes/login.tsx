@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { decryptUserEntry } from "@/crypto";
-import { LocalStorage } from "@/storage/LocalStorage";
 import usersJson from "@/data/users.json";
+import { LocalStorage } from "@/storage/LocalStorage";
 
 const users = usersJson as Record<string, string>;
 
@@ -75,9 +75,7 @@ function Login() {
             style={{ display: "block", width: "100%", marginTop: "0.25rem" }}
           />
         </div>
-        {error && (
-          <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>
-        )}
+        {error && <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>}
         <button type="submit" disabled={loading}>
           {loading ? "Connexion..." : "Se connecter"}
         </button>

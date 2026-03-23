@@ -6,7 +6,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <div>
+    <div className={"core-box"}>
       <h1>Core Nexus</h1>
       <p>Le quartier general des Pixel Architects.</p>
     </div>

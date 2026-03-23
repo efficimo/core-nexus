@@ -44,28 +44,18 @@ export class BaseStorage<StorageKey extends string> {
     defaultValue?: string | null,
   ): StorageObservable<StorageKey> {
     if (this.#observables[storageKey] == null) {
-      this.#observables[storageKey] = createObservable(
-        this.#storage,
-        storageKey,
-        defaultValue,
-      );
+      this.#observables[storageKey] = createObservable(this.#storage, storageKey, defaultValue);
     }
 
     return this.#observables[storageKey];
   }
 
-  public getSerializedObservable<
-    StorageKeyParam extends StorageKey,
-    Value,
-  >(
+  public getSerializedObservable<StorageKeyParam extends StorageKey, Value>(
     storageKey: StorageKeyParam,
     defaultValue?: Value,
   ): JsonSerializeObservableValue<Value> {
     return new JsonSerializeObservableValue(
-      this.getObservable(
-        storageKey,
-        defaultValue == null ? null : JSON.stringify(defaultValue),
-      ),
+      this.getObservable(storageKey, defaultValue == null ? null : JSON.stringify(defaultValue)),
       defaultValue,
     );
   }
@@ -84,9 +74,7 @@ export class BaseStorage<StorageKey extends string> {
     this.getObservable(storageKey).next(data);
   }
 
-  public has<StorageKeyParam extends StorageKey>(
-    storageKey: StorageKeyParam,
-  ): boolean {
+  public has<StorageKeyParam extends StorageKey>(storageKey: StorageKeyParam): boolean {
     for (let i = 0; i < this.#storage.length; i++) {
       if (this.#storage.key(i) === storageKey) {
         return true;
@@ -96,9 +84,7 @@ export class BaseStorage<StorageKey extends string> {
     return false;
   }
 
-  public remove<StorageKeyParam extends StorageKey>(
-    storageKey: StorageKeyParam,
-  ): void {
+  public remove<StorageKeyParam extends StorageKey>(storageKey: StorageKeyParam): void {
     this.getObservable(storageKey).next(null);
   }
 

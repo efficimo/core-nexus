@@ -1,15 +1,9 @@
-import {
-  ObservableValue,
-  type ObservableValueInterface,
-} from "./ObservableValue";
+import { ObservableValue, type ObservableValueInterface } from "./ObservableValue";
 
 type From<Value, DerivedValue> = (derivedValue: DerivedValue) => Value;
 type To<Value, DerivedValue> = (value: Value) => DerivedValue;
 
-export class DerivedObservableValue<
-  Value,
-  DerivedValue,
-> extends ObservableValue<Value> {
+export class DerivedObservableValue<Value, DerivedValue> extends ObservableValue<Value> {
   #source: ObservableValueInterface<DerivedValue>;
   #from: From<Value, DerivedValue>;
   #to: To<Value, DerivedValue>;

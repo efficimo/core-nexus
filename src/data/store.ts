@@ -6,20 +6,17 @@ import type { Sigil } from "@/types/sigil";
 import type { Skill } from "@/types/skill";
 import type { Spark } from "@/types/spark";
 
-const jsonModules = import.meta.glob<Record<string, unknown>>(
-  ["./**/*.json", "!./users.json"],
-  { eager: true, import: "default" },
-);
+const jsonModules = import.meta.glob<Record<string, unknown>>(["./**/*.json", "!./users.json"], {
+  eager: true,
+  import: "default",
+});
 
 const encModules = import.meta.glob<string>("./**/*.json.enc", {
   eager: true,
   import: "default",
 });
 
-async function decryptData<T>(
-  name: string,
-  dataKey: string,
-): Promise<Record<string, T>> {
+async function decryptData<T>(name: string, dataKey: string): Promise<Record<string, T>> {
   const jsonKey = `./${name}.json`;
   if (jsonModules[jsonKey]) {
     return jsonModules[jsonKey] as Record<string, T>;
@@ -150,9 +147,7 @@ class Store {
     }));
   }
 
-  async getSkillsByArchitect(
-    architectId: string,
-  ): Promise<{ skill: Skill; level: number }[]> {
+  async getSkillsByArchitect(architectId: string): Promise<{ skill: Skill; level: number }[]> {
     await this.ensureLoaded();
     const architect = await this.getArchitect(architectId);
     if (!architect) return [];
@@ -162,14 +157,10 @@ class Store {
         return skill ? { skill, level: s.level } : undefined;
       }),
     );
-    return results.filter(
-      (s): s is { skill: Skill; level: number } => s !== undefined,
-    );
+    return results.filter((s): s is { skill: Skill; level: number } => s !== undefined);
   }
 
-  async getArchitectsBySkill(
-    skillId: string,
-  ): Promise<{ architect: Architect; level: number }[]> {
+  async getArchitectsBySkill(skillId: string): Promise<{ architect: Architect; level: number }[]> {
     await this.ensureLoaded();
     const architects = await this.getArchitects();
     return architects
@@ -177,9 +168,7 @@ class Store {
         const entry = a.skills.find((s) => s.skillId === skillId);
         return entry ? { architect: a, level: entry.level } : undefined;
       })
-      .filter(
-        (e): e is { architect: Architect; level: number } => e !== undefined,
-      );
+      .filter((e): e is { architect: Architect; level: number } => e !== undefined);
   }
 
   async getSigilsByArchitect(architectId: string): Promise<Sigil[]> {
@@ -192,9 +181,7 @@ class Store {
     await this.ensureLoaded();
     const sigil = await this.getSigil(sigilId);
     if (!sigil) return [];
-    const results = await Promise.all(
-      sigil.architectIds.map((id) => this.getArchitect(id)),
-    );
+    const results = await Promise.all(sigil.architectIds.map((id) => this.getArchitect(id)));
     return results.filter((a): a is Architect => a !== undefined);
   }
 }

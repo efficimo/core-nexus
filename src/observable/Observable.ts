@@ -14,9 +14,7 @@ export class Observable<Value> implements ObservableInterface<Value> {
     this.#subscriptions.push(subscriber);
 
     return new Subscription(() => {
-      this.#subscriptions = this.#subscriptions.filter(
-        (fn) => fn !== subscriber,
-      );
+      this.#subscriptions = this.#subscriptions.filter((fn) => fn !== subscriber);
     });
   }
 
