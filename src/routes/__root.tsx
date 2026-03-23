@@ -12,7 +12,7 @@ import { LocalStorage } from "@/storage/LocalStorage";
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => {
     if (
-      location.pathname !== "/login" &&
+      location.href !== "/login" &&
       !LocalStorage.get("#core-nexus/data-key")
     ) {
       throw redirect({ to: "/login" });
@@ -22,8 +22,8 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
-  const { pathname } = useLocation();
-  const isLogin = pathname === "/login";
+  const location = useLocation();
+  const isLogin = location.href === "/login";
 
   return (
     <>
