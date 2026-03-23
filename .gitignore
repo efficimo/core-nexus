@@ -1,0 +1,11 @@
+.idea
+.vite
+node_modules
+dist
+*.local
+.DS_Store
+src/routeTree.gen.ts
+
+# Fichiers de data dechiffres (dev only)
+src/data/**/*.json
+!src/data/users.json
