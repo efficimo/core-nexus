@@ -29,6 +29,12 @@
       transition: all 0.3s ease;
     }
 
+    footer > span {
+        width: 100%;
+        display: flex;
+        justify-content:space-around;
+    }
+
     /* Effet glow subtil */
     .core-box::before {
       content: "";
@@ -95,6 +101,18 @@
     .core-box p {
       opacity: 0.85;
       line-height: 1.6;
+    }
+
+    .nav {
+        display: flex;
+        flex-direction:row;
+        justify-content:space-between;
+        gap: 8px;
+    }
+
+    .nav > div {
+        display: flex;
+        flex-direction: row;
     }
     </style>
   <body>
