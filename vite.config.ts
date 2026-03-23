@@ -4,7 +4,7 @@ import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import path from "path";
 
 export default defineConfig({
-  base: "/core-nexus/",
+  base: process.env.VITE_BASE_PATH || "/",
   plugins: [
     react(),
     TanStackRouterVite(),
