@@ -13,7 +13,7 @@ export function Navbar() {
   return (
     <div className="nav">
       <div>
-        <img src="public/images/economist-tall.gif" alt="required ad placement" />
+        <img src={`${import.meta.env.BASE_URL}images/economist-tall.gif`} alt="required ad placement" />
         <nav>
           <Link to="/">Core Nexus</Link>
           <ul>
@@ -37,7 +37,7 @@ export function Navbar() {
           </ul>
         </nav>
       </div>
-      <img src="public/images/scottrade-tall.gif" alt="necessary ad" />
+      <img src={`${import.meta.env.BASE_URL}images/scottrade-tall.gif`} alt="necessary ad" />
     </div>
   );
 }
