@@ -1,19 +1,20 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { store } from "@/data/store";
+import { architectQueryOptions, sigilsByArchitectQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/architects/$architectId")({
-  loader: async ({ params }) => {
-    const [architect, sigils] = await Promise.all([
-      store.getArchitect(params.architectId),
-      store.getSigilsByArchitect(params.architectId),
-    ]);
-    return { architect, sigils };
-  },
+  loader: ({ context: { queryClient }, params: { architectId } }) =>
+    Promise.all([
+      queryClient.ensureQueryData(architectQueryOptions(architectId)),
+      queryClient.ensureQueryData(sigilsByArchitectQueryOptions(architectId)),
+    ]),
   component: ArchitectDetail,
 });
 
 function ArchitectDetail() {
-  const { architect, sigils } = Route.useLoaderData();
+  const { architectId } = Route.useParams();
+  const { data: architect } = useSuspenseQuery(architectQueryOptions(architectId));
+  const { data: sigils } = useSuspenseQuery(sigilsByArchitectQueryOptions(architectId));
 
   if (!architect) {
     return <p>Architecte introuvable.</p>;

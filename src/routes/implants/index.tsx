@@ -1,13 +1,14 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { store } from "@/data/store";
+import { implantsQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/implants/")({
-  loader: () => store.getImplants(),
+  loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(implantsQueryOptions()),
   component: ImplantsIndex,
 });
 
 function ImplantsIndex() {
-  const implants = Route.useLoaderData();
+  const { data: implants } = useSuspenseQuery(implantsQueryOptions());
 
   return (
     <div>

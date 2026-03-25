@@ -10,17 +10,6 @@ export default defineConfig({
     react(),
     tanstackRouter(),
     {
-      name: "json-enc",
-      transform(code, id) {
-        if (id.endsWith(".json.enc")) {
-          return {
-            code: `export default ${JSON.stringify(code.trim())};`,
-            map: null,
-          };
-        }
-      },
-    },
-    {
       name: "copy-404",
       closeBundle() {
         copyFileSync(

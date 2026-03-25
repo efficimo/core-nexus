@@ -1,16 +1,24 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { decryptUserEntry } from "@/crypto";
-import usersJson from "@/data/users.json";
 import { LocalStorage } from "@/storage/LocalStorage";
 
-const users = usersJson as Record<string, string>;
+const usersSchema = z.record(z.string(), z.string());
+
+async function fetchUsers(): Promise<Record<string, string>> {
+  const res = await fetch(`${import.meta.env.BASE_URL}data/users.json`);
+  if (!res.ok) throw new Error("Failed to fetch users.json");
+  return usersSchema.parse(await res.json());
+}
 
 export const Route = createFileRoute("/login")({
+  loader: fetchUsers,
   component: Login,
 });
 
 function Login() {
+  const users = Route.useLoaderData();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

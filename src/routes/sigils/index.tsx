@@ -1,13 +1,14 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { store } from "@/data/store";
+import { sigilsQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/sigils/")({
-  loader: () => store.getSigils(),
+  loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(sigilsQueryOptions()),
   component: SigilsIndex,
 });
 
 function SigilsIndex() {
-  const sigils = Route.useLoaderData();
+  const { data: sigils } = useSuspenseQuery(sigilsQueryOptions());
 
   return (
     <div>

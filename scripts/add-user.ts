@@ -6,7 +6,7 @@ import { encrypt, decrypt } from "../src/crypto";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const rootDir = resolve(__dirname, "..");
-const usersFile = resolve(rootDir, "src/data/users.json");
+const usersFile = resolve(rootDir, "public/data/users.json");
 const dataKeyFile = resolve(rootDir, ".datakey.local");
 
 function loadDataKey(): string {

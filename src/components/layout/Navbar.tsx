@@ -1,10 +1,15 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LocalStorage } from "@/storage/LocalStorage";
+import { SessionStorage } from "@/storage/SessionStorage";
 
 export function Navbar() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
+    queryClient.clear();
+    SessionStorage.clear();
     LocalStorage.remove("#core-nexus/data-key");
     LocalStorage.remove("#core-nexus/user-email");
     navigate({ to: "/login" });

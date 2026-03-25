@@ -7,5 +7,5 @@ dist
 src/routeTree.gen.ts
 
 # Fichiers de data dechiffres (dev only)
-src/data/**/*.json
-!src/data/users.json
+public/data/**/*.json
+!public/data/users.json

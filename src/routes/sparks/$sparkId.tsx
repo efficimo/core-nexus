@@ -1,13 +1,16 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { store } from "@/data/store";
+import { sparkQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/sparks/$sparkId")({
-  loader: ({ params }) => store.getSpark(params.sparkId),
+  loader: ({ context: { queryClient }, params: { sparkId } }) =>
+    queryClient.ensureQueryData(sparkQueryOptions(sparkId)),
   component: SparkDetail,
 });
 
 function SparkDetail() {
-  const spark = Route.useLoaderData();
+  const { sparkId } = Route.useParams();
+  const { data: spark } = useSuspenseQuery(sparkQueryOptions(sparkId));
 
   if (!spark) {
     return <p>Spark introuvable.</p>;

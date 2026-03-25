@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const dataDir = resolve(__dirname, "../src/data");
+const dataDir = resolve(__dirname, "../public/data");
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q: string): Promise<string> =>

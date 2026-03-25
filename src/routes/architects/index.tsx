@@ -1,13 +1,14 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { store } from "@/data/store";
+import { architectsQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/architects/")({
-  loader: () => store.getArchitects(),
+  loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(architectsQueryOptions()),
   component: ArchitectsIndex,
 });
 
 function ArchitectsIndex() {
-  const architects = Route.useLoaderData();
+  const { data: architects } = useSuspenseQuery(architectsQueryOptions());
 
   return (
     <div>

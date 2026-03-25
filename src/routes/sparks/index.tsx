@@ -1,13 +1,14 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { store } from "@/data/store";
+import { sparksQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/sparks/")({
-  loader: () => store.getSparks(),
+  loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(sparksQueryOptions()),
   component: SparksIndex,
 });
 
 function SparksIndex() {
-  const sparks = Route.useLoaderData();
+  const { data: sparks } = useSuspenseQuery(sparksQueryOptions());
 
   return (
     <div>
