@@ -1,0 +1,127 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-031                                         ║
+║  L'ÉCOLE DES ARCHITECTES                                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🏫⚛️
+
+DÉSIGNATION     : Pédagogie React Avancée — Opération Transmission du Cycle de Vie
+CODENAME        : ECOLE-DES-ARCHITECTES
+PHASE           : [ALPHA]
+CLASSIFICATION  : Intelligence & Formation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Tout Architecte Recrue doit comprendre les mécanismes profonds du Terminal
+de Combat React. Ce protocole crée une section /school dans le Terminal
+où trois composants pédagogiques révèlent les pièges les plus courants
+du cycle de vie React à travers des démonstrations vivantes.
+
+  LE COMPOSANT GROGNON (Renders inutiles) — Ce composant change de couleur
+  (vert → rouge) chaque fois qu'il est re-rendu par son parent. L'Architecte
+  Recrue comprend immédiatement quand son code cause des rendus inutiles.
+  Défi : l'encapsuler dans React.memo et le maintenir vert.
+
+  LE COMPOSANT MÉMOIRE DE POISSON (useRef vs useState) — Deux compteurs :
+  l'un en useRef, l'autre en useState. Seul le useState déclenche un re-rendu
+  et met à jour l'affichage. La Recrue voit que le DOM est un reflet du dernier
+  rendu — pas de la réalité actuelle des variables.
+  ⚠ Les deux compteurs doivent être incrémentés dans des handlers de clic —
+  pas dans le corps du composant. Sinon, le ref s'incrémente à chaque render.
+
+  LE PORTAIL TEMPOREL (Closures et setTimeout) — Cliquer "Journaliser" affiche
+  l'état dans 3 secondes. Cliquer "Incrémenter" 5 fois entre les deux révèle
+  que le journal montre l'état au moment du clic, pas l'état actuel.
+  Solution avancée : useRef pour capturer la valeur future.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Page /school avec les 3 composants pédagogiques interactifs
+  2. GrumpyArchitect : compteur de renders avec React.memo challenge
+     Note React 19 : ref est maintenant une prop normale, plus besoin de
+     forwardRef pour les composants mémoïsés
+  3. GoldfishMemory : démonstration useRef (silencieux) vs useState (réactif)
+     Les deux compteurs incrémentés dans des onClick handlers uniquement
+  4. TemporalPortal : piège des closures en async avec solution useRef
+
+  PATTERNS AVANCÉS (niveau Maître-Patterniste)
+  5. Composants Composés : <NexusTabs> partageant l'état entre <TabList>
+     et <TabPanel> via Context sans prop drilling
+  6. Custom Hook useWhyDidYouUpdate() : log précis de la prop qui a causé
+     le re-rendu (outil de debug de production)
+  7. Render Props → Custom Hooks : montrer l'évolution du pattern
+     (Render Props toujours valide mais Custom Hook est le style moderne)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - React.memo (mémoïsation de composant)
+  - useRef (persistance sans re-rendu + capture de valeur dans closures)
+  - useEffect (cycle de vie)
+  - Context API (partage d'état sans props)
+  - Compound Components Pattern (état partagé via Context interne)
+  - Custom Hooks (abstraction de logique avec état)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2 jours                 │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Page /school avec navigation entre les 7 modules
+  [ ] Composant GrumpyArchitect (render counter + React.memo challenge)
+  [ ] Composant GoldfishMemory (useRef vs useState visualisé — handlers only)
+  [ ] Composant TemporalPortal (closure trap + solution useRef)
+  [ ] Composant <NexusTabs> (Compound Components avec Context)
+  [ ] Hook useWhyDidYouUpdate() (outil de debug réutilisable)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION DE GRANDE VALEUR PÉDAGOGIQUE, UN PIÈGE SUBTIL
+
+  ★ APPRÉCIATION
+  Cette mission est la plus concrète pour transmettre les connaissances React
+  à une équipe mixte. Les trois composants pédagogiques couvrent les bugs les
+  plus fréquents en production React. Le piège des closures (TemporalPortal)
+  est le plus souvent méconnu même par des développeurs expérimentés.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - PIÈGE GOLDFISHMEMORY : Si le ref.current est incrémenté dans le corps
+    du composant (pas dans un handler), il s'incrémente à chaque rendu,
+    y compris les doubles renders du mode Strict React (développement).
+    Le composant pédagogique doit impérativement incrémenter dans onClick
+    handlers pour montrer le comportement correct. Exemple :
+      // ❌ FAUX — dans le corps du composant
+      const renders = useRef(0); renders.current++;
+      // ✓ CORRECT — dans un handler
+      const handleClick = () => { refCount.current++; };
+  - REACT.MEMO EN REACT 19 : ref est maintenant une prop normale (plus besoin
+    de forwardRef dans React 19). Le composant GrumpyArchitect peut accepter
+    ref directement. Bon point pédagogique à mentionner si l'équipe migre.
+  - RENDER PROPS → CUSTOM HOOKS : Le pattern Render Props est encore valide
+    et certaines bibliothèques (downshift, react-table legacy) l'utilisent.
+    Mais montrer les deux versions (Render Props puis Custom Hook équivalent)
+    dans la démo est la meilleure façon d'expliquer l'évolution. Le Custom Hook
+    est plus composable, plus testable, et ne crée pas de wrapper dans le DOM.
+  - STRICTMODE ET DOUBLE RENDER : En développement avec StrictMode, React
+    appelle les composants deux fois pour détecter les effets de bord. Le
+    compteur de renders dans GrumpyArchitect doit gérer cela proprement
+    (utiliser useRef initialisé à 0, incrémenter dans useEffect avec cleanup).
+
+  ✦ RECOMMANDATION
+  Commencer par TemporalPortal — c'est le bug le plus fréquent en production
+  et le plus "révélateur" pour les Recrues. Ensuite GrumpyArchitect + memo.
+  Finir par Compound Components et useWhyDidYouUpdate qui sont les outils
+  les plus immédiatement réutilisables dans le vrai code du projet.

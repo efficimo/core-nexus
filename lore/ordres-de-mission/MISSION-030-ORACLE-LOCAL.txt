@@ -1,0 +1,123 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-030                                         ║
+║  L'ORACLE LOCAL                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🧠🔮
+
+DÉSIGNATION     : Intelligence Artificielle Embarquée — Opération Cerveau Souverain
+CODENAME        : ORACLE-LOCAL
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Intelligence & Formation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Pixel Architects ne confient pas leurs secrets aux Tours de Commandement
+externes. Leur intelligence aussi est souveraine.
+
+Ce protocole embarque un moteur d'inférence directement dans le Terminal
+de Combat via Transformers.js. Les modèles tournent localement — aucune
+donnée ne quitte jamais le Terminal. Zéro coût d'infrastructure. Zéro
+exposition des Archives.
+
+  RECHERCHE SÉMANTIQUE — L'Architecte tape "bug qui fige l'interface".
+  L'Oracle comprend le sens, pas juste les mots, et remonte les Anomalies
+  pertinentes même si elles n'utilisent pas ces termes exacts.
+
+  DÉTECTION DE DOUBLONS — Avant l'enregistrement d'une nouvelle Anomalie,
+  l'Oracle analyse sa description et avertit si une Anomalie similaire
+  existe déjà dans le Codex.
+
+  AUTO-SUGGESTION DE TAGS — L'Oracle lit le titre d'une nouvelle Anomalie
+  et propose automatiquement les tags les plus pertinents basés sur les
+  patterns observés dans les Archives existantes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Intégrer @huggingface/transformers (v3) avec un modèle d'embedding léger
+     (Xenova/all-MiniLM-L6-v2 — ~23Mo quantisé) dans un Web Worker dédié
+     ⚠ Le package s'appelait @xenova/transformers (v2) — renommé en
+       @huggingface/transformers depuis la v3 (2024). Utiliser la v3.
+  2. Indexer les Anomalies au démarrage (génération d'embeddings Float32Array
+     de 384 dimensions, persistés dans IndexedDB pour éviter le recalcul)
+  3. Barre de recherche sémantique : distance cosinus entre la requête
+     et les embeddings indexés, top-K résultats
+  4. Détection de doublons au moment de la création d'une Anomalie
+     (seuil de similarité configurable, ex: > 0.85 = doublon probable)
+  5. Auto-suggestion de tags sur la page de création/édition
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @huggingface/transformers v3 (anciennement @xenova/transformers)
+    Runtime WASM + ONNX. Modèle : Xenova/all-MiniLM-L6-v2 (~23Mo quantisé)
+    Les modèles sont téléchargés depuis Hugging Face Hub au premier lancement
+    puis mis en cache dans le Cache API du navigateur (persistant).
+  - Web Workers (inférence hors thread principal — OBLIGATOIRE : le chargement
+    du modèle ONNX peut bloquer plusieurs secondes)
+  - Algorithme de similarité cosinus (calcul sur Float32Array 384 dimensions)
+  - IndexedDB (persistance des embeddings pour éviter recalcul au redémarrage)
+  - TanStack Query (hook de recherche sémantique avec debounce)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)      │
+  │ Durée estimée : 4-5 jours               │
+  │ Effort        : Élevé                   │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] inference.worker.ts (@huggingface/transformers v3 + embeddings)
+  [ ] Module VectorIndex.ts (indexation + recherche cosinus top-K)
+  [ ] SearchBar avec mode sémantique (toggle lexical / sémantique)
+  [ ] Panneau de détection de doublons dans le formulaire d'Anomalie
+  [ ] Suggestion de tags automatique (composant TagSuggester)
+  [ ] Indicateur de chargement du modèle (première visite ~23Mo)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION IMPRESSIONNANTE, DEUX CORRECTIONS ET UN DÉFI UX
+
+  ★ APPRÉCIATION
+  La recherche sémantique locale est probablement la feature la plus
+  "magique" perçue par un utilisateur non technique. Taper "freeze UI"
+  et retrouver une Anomalie intitulée "interface bloquée" — sans serveur,
+  sans API payante — c'est le genre de démonstration qui change les mentalités
+  sur ce que le navigateur peut faire.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION PACKAGE : Le package s'appelle désormais @huggingface/transformers
+    depuis la version 3 (sortie en 2024). L'ancien @xenova/transformers
+    (v2) est archivé. Utiliser v3 pour les nouvelles intégrations.
+    Import : import { pipeline } from '@huggingface/transformers';
+  - PREMIER CHARGEMENT : Le modèle all-MiniLM-L6-v2 pèse ~23Mo (quantisé ONNX).
+    Il est téléchargé depuis Hugging Face Hub au premier lancement, puis
+    mis en cache dans le Cache API du navigateur. Afficher obligatoirement
+    une barre de progression (pipeline progress callback) pour la première visite.
+    Les visites suivantes sont instantanées.
+  - WORKER OBLIGATOIRE : Le chargement du modèle et l'inférence ONNX peuvent
+    bloquer le thread principal plusieurs secondes. Toujours exécuter dans
+    un Web Worker. Utiliser Comlink ou un protocole postMessage maison.
+  - INDEXEDDB POUR LES EMBEDDINGS : Persister les Float32Array (384 × 4 = 1536 octets
+    par Anomalie). Versionner l'index (si le modèle change, invalider le cache).
+  - WebGPU : @huggingface/transformers v3 supporte l'accélération WebGPU via
+    l'option device: 'webgpu'. Sur Chrome 113+, peut multiplier la vitesse
+    d'inférence par 5-10x. Tester en fallback conditionnel.
+
+  ✦ RECOMMANDATION
+  Phase 1 : Worker + chargement modèle + embedding d'une seule Anomalie.
+  Valider que le modèle se charge et produit des vecteurs cohérents.
+  Phase 2 : indexer tout le Codex + similarité cosinus + persistance IndexedDB.
+  Phase 3 : intégrer dans SearchBar et formulaire d'Anomalie.
+  Ne pas oublier l'UX du premier chargement — c'est le seul moment
+  "lent" de l'expérience et il doit être géré gracieusement.

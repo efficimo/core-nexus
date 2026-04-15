@@ -1,0 +1,130 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-024                                         ║
+║  LE CRÉNEAU FANTÔME                                                     ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⏱️👻
+
+DÉSIGNATION     : Traitement Différé dans les Silences du Processeur — Opération Temps Mort
+CODENAME        : CRENEAU-FANTOME
+PHASE           : [BETA]
+CLASSIFICATION  : Moteur & Performance
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Terminal de Combat ne dort jamais — mais son processeur, si. Entre deux
+interactions, entre deux rendus, il existe des créneaux fantômes : des
+intervalles de silence où le moteur JavaScript attend, sans rien faire de
+vital. Ce protocole exploite ces silences.
+
+requestIdleCallback permet d'enregistrer des tâches à exécuter uniquement
+quand le navigateur est inoccupé — entre les frames, après les événements,
+pendant les pauses utilisateur. Le callback reçoit un objet deadline qui
+expose timeRemaining() : le temps disponible avant que le navigateur ait
+besoin du thread à nouveau. Si le délai est insuffisant, la tâche peut
+se découper et reprendre au prochain créneau.
+
+Dans le Terminal : collecte de métriques comportementales, prétraitement
+de Codex en arrière-plan, génération d'index de recherche, précalcul de
+statistiques — sans jamais impacter la fluidité de l'interface à 60fps.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Implémenter un dispatcher de tâches différées avec requestIdleCallback :
+     function scheduleIdleTask(task) {
+       if ('requestIdleCallback' in window) {
+         requestIdleCallback(task, { timeout: 2000 })
+       } else {
+         setTimeout(task, 0)   // fallback — Safari historiquement absent
+       }
+     }
+
+  2. Découpe de tâches longues avec deadline.timeRemaining() :
+     requestIdleCallback(deadline => {
+       while (deadline.timeRemaining() > 0 && queue.length > 0) {
+         processNextItem(queue.shift())
+       }
+       if (queue.length > 0) scheduleIdleTask(deadline => ...)
+     })
+
+  3. Cas d'usage concrets dans le Terminal :
+     a) Collecte comportementale : tracker les patterns de navigation
+        (quelles Anomalies consultées, combien de temps, etc.) → envoi
+        différé vers le datastore sans bloquer les interactions
+     b) Indexation de recherche : reconstruire l'index de recherche
+        full-text après un import massif de Codex — en arrière-plan
+     c) Précalcul de statistiques : agréger les métriques de vélocité
+        (anomalies/sprint, temps de résolution moyen) sans bloquer le rendu
+     d) Nettoyage de cache : purger les entrées obsolètes de l'IndexedDB
+        lors des moments de calme
+
+  4. Annulation propre avec cancelIdleCallback lors du démontage des composants
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - requestIdleCallback(callback, { timeout }) — Chrome/Edge/Firefox (pas Safari)
+    Le paramètre timeout force l'exécution même si le navigateur reste occupé
+  - IdleDeadline.timeRemaining() — ms disponibles avant la prochaine frame
+  - IdleDeadline.didTimeout — boolean si le timeout a forcé l'exécution
+  - cancelIdleCallback(id) — annulation (cleanup React useEffect)
+  - Fallback : setTimeout(fn, 0) pour Safari (scheduleIdleTask helper)
+  - Pattern de file d'attente : Array ou WeakMap pour les tâches chunked
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : demi-journée            │
+  │ Effort        : Faible                  │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Helper scheduleIdleTask(fn, timeout?) avec fallback Safari
+  [ ] IdleTaskQueue : file d'attente avec découpe timeRemaining()
+  [ ] Module BehaviorTracker : collecte comportementale via idle tasks
+  [ ] Module SearchIndexer : reconstruction d'index différée post-import
+  [ ] Module StatsAggregator : précalcul de métriques en arrière-plan
+  [ ] Nettoyage automatique : cancelIdleCallback dans les useEffect cleanup
+  [ ] Indicateur discret (optionnel) : "recalcul en cours..." si la tâche prend trop longtemps
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — API SOUS-ESTIMÉE, IMPACT RÉEL SUR LA FLUIDITÉ
+
+  ★ APPRÉCIATION
+  API trompeusement simple mais avec un ratio effort/impact exceptionnel.
+  Déplacer la collecte de métriques et la reconstruction d'index dans les
+  créneaux fantômes transforme des opérations "on hésite à les faire car
+  elles ralentissent l'UI" en tâches transparentes. Le Terminal devient
+  plus intelligent sans que l'Architecte ne ressente aucune friction.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - SAFARI : requestIdleCallback n'a jamais été implémenté nativement dans
+    Safari (WebKit refuse, arguant des risques fingerprinting). Le fallback
+    setTimeout(fn, 0) s'exécute immédiatement — pas un vrai idle. Pour Safari,
+    préférer setTimeout(fn, 100) pour un délai minimal, ou Web Workers.
+  - TIMEOUT OBLIGATOIRE pour les tâches critiques : sans timeout, si le
+    navigateur reste occupé en permanence (page très chargée), la tâche
+    n'est jamais exécutée. Toujours passer { timeout: 2000 } pour les
+    tâches qui doivent s'exécuter dans un délai raisonnable.
+  - NE PAS faire de manipulation DOM dans un idle callback. Le but est le
+    traitement de données. Les mises à jour UI doivent passer par requestAnimationFrame.
+  - DÉCOUPAGE OBLIGATOIRE pour les tâches > 50ms : si une tâche prend plus
+    de 50ms, elle bloque le thread malgré tout. Toujours utiliser la boucle
+    while(timeRemaining > 0) avec chunking.
+
+  ✦ RECOMMANDATION
+  Commencer par le cas d'usage collecte comportementale — c'est le plus simple
+  et le plus représentatif. Implémenter le scheduleIdleTask helper avec fallback
+  (10 lignes), puis wrapper les appels de tracking existants. Résultat immédiat
+  et mesurable avec les DevTools Performance.

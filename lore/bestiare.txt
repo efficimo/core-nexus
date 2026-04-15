@@ -1,0 +1,157 @@
+🐜 Bestiaire des Bugs
+🦀 1. Le NullKrab
+
+Origine : Null Pointer Exception
+Forme : Crabe translucide aux pinces fragmentées
+
+Un crustacé fantomatique dont le corps contient… du vide.
+
+➡️ Il apparaît lorsque quelque chose est invoqué alors qu’il n’existe pas.
+➡️ Ses pinces “attrapent le néant”, provoquant des crashs systémiques.
+➡️ Là où il marche, les structures logiques cessent d’exister.
+
+Pouvoir :
+→ Efface les références de la réalité.
+
+🐛 2. Le Loop Mantis
+
+Origine : Infinite Loop
+Forme : Mante religieuse mécanique
+
+Une créature qui répète éternellement le même mouvement.
+
+➡️ Elle piège ses proies dans des cycles temporels.
+➡️ Ses membres segmentés reproduisent les mêmes gestes à l’infini.
+
+Pouvoir :
+→ Enferme les systèmes dans une boucle sans sortie.
+
+🦂 3. Le Race Scorpion
+
+Origine : Race Condition
+Forme : Scorpion à multiples queues
+
+Chaque queue agit dans un temps légèrement différent.
+
+➡️ Il frappe avant même que la cible ne sache qu’il attaque.
+➡️ Ses actions désynchronisées provoquent chaos et incohérence.
+
+Pouvoir :
+→ Fait agir deux réalités en même temps… avec des résultats imprévisibles.
+
+🐞 4. Le Cache Beetle
+
+Origine : Cache Invalidation
+Forme : Scarabée cristallin
+
+Son dos est composé de couches de mémoire ancienne.
+
+➡️ Il protège des données mortes en les faisant passer pour vivantes.
+➡️ Très difficile à détecter : tout semble correct… jusqu’à ce que tout casse.
+
+Pouvoir :
+→ Maintient des illusions d’état obsolète.
+
+🦗 5. Le Off-by-One Locust
+
+Origine : Off-by-One Error
+Forme : Sauterelle asymétrique
+
+Elle a toujours… une patte en trop.
+
+➡️ Elle dévore une unité de trop ou en laisse une derrière elle.
+➡️ Ses attaques semblent presque justes… mais jamais exactes.
+
+Pouvoir :
+→ Déséquilibre les structures numériques.
+
+🦞 6. Le Deadlock Lobster
+
+Origine : Deadlock
+Forme : Homard bicéphale
+
+Ses deux têtes se tiennent mutuellement en joue.
+
+➡️ Incapable d’avancer, il bloque toute progression autour de lui.
+➡️ Les systèmes proches deviennent figés.
+
+Pouvoir :
+→ Immobilisation totale des flux.
+
+🕷 7. Le Dependency Spider
+
+Origine : Dependency Hell
+Forme : Araignée fractale
+
+Chaque patte est reliée à une autre araignée invisible.
+
+➡️ Plus on tente de la détruire… plus d’autres apparaissent.
+➡️ Elle tisse des toiles de dépendances impossibles à démêler.
+
+Pouvoir :
+→ Empêche toute évolution du système.
+
+🦐 8. Le Memory Leech
+
+Origine : Memory Leak
+Forme : Crevette parasite
+
+Petite mais infiniment persistante.
+
+➡️ Elle s’accroche aux structures et ne les quitte jamais.
+➡️ Lentement, elle consomme toute la mémoire vitale.
+
+Pouvoir :
+→ Épuise progressivement les ressources.
+
+🐜 9. Le Phantom Ant
+
+Origine : Heisenbug
+Forme : Fourmi spectrale
+
+Visible seulement lorsqu’on ne la regarde pas.
+
+➡️ Disparaît dès qu’on tente de l’observer.
+➡️ Provoque des anomalies impossibles à reproduire.
+
+Pouvoir :
+→ Altère la réalité conditionnellement à l’observation.
+
+🦑 10. Le Merge Kraken
+
+Origine : Merge Conflict
+Forme : Poulpe-crabe
+
+Ses tentacules tirent la réalité dans plusieurs directions.
+
+➡️ Deux versions du monde tentent d’exister en même temps.
+➡️ Résultat : fragmentation du réel.
+
+Pouvoir :
+→ Déchire les timelines logiques.
+
+🐝 11. Le Latency Wasp
+
+Origine : Network Latency
+Forme : Guêpe luminescente
+
+Ses déplacements sont retardés… mais ses attaques arrivent soudainement.
+
+➡️ Elle désynchronise les communications.
+➡️ Les ordres arrivent trop tard.
+
+Pouvoir :
+→ Introduit du décalage temporel.
+
+🦀 12. Le Stack Overflow Hermit
+
+Origine : Stack Overflow
+Forme : Bernard-l’ermite couvert de symboles
+
+Il empile des coquilles… jusqu’à l’effondrement.
+
+➡️ Chaque attaque ajoute une couche supplémentaire.
+➡️ Jusqu’à ce que la structure s’écroule sur elle-même.
+
+Pouvoir :
+→ Saturation fatale.

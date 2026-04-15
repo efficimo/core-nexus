@@ -1,0 +1,2353 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-008                                         ║
+║  LE RÉSEAU MESH FANTÔME                                                  ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🕸️📡
+
+DÉSIGNATION     : Protocole de Routage Distribué Souverain — Opération Constellation
+CODENAME        : RESEAU-MESH-FANTOME
+PHASE           : [BETA]
+CLASSIFICATION  : Communications & Réseau
+DÉPENDANCES     : MISSION-001 (@efficimo/observable — peer dep), MISSION-016 (BroadcastChannel), MISSION-032 (Signal Proximitaire)
+LIENS           : MISSION-035 (Liaison-Bluetooth — détection de proximité BLE), MISSION-026 (Signal-Appel — Push natif piloté par événements Plexus), MISSION-009 (Interface Constellation — visualisation du mesh)
+LIVRABLE LIB    : packages/plexus/ → npm package 'plexus', provider-agnostic
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Pixel Architects opèrent sans serveur centralisé — c'est leur doctrine.
+Plusieurs Terminals de Combat, tournant sur des machines différentes,
+forment une Constellation : un réseau auto-organisé où chaque nœud connaît
+ses voisins directs, les voisins de ses voisins, et sait calculer le chemin
+le plus rapide vers n'importe quel Architecte du réseau.
+
+Ce protocole est implémenté sous la forme d'une bibliothèque autonome
+appelée **Plexus** — distribuable sur npm, utilisable dans n'importe quelle
+SPA, indépendante de Core Nexus. Un plexus est anatomiquement un réseau de
+nerfs ou de vaisseaux interconnectés : le nom décrit exactement ce que
+la lib construit entre les navigateurs.
+
+Plexus implémente un **routage distribué de type distance-vector** —
+la même logique que les routeurs Internet utilisent depuis les années 70,
+appliquée à des onglets de navigateur. Aucun nœud n'a une vue globale du
+réseau. Chacun ne connaît que ses connexions directes et ce que ses voisins
+lui ont rapporté. Ensemble, ils savent tout.
+
+Un message d'Alice vers Bob voyage en empruntant le chemin le plus court
+calculé par les tables de routage de chaque nœud intermédiaire — comme
+un paquet IP traversant des routeurs, mais entre des onglets Chrome.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IDENTITÉ DES NŒUDS — ID PERMANENT PAR NAVIGATEUR
+
+  Chaque navigateur génère un identifiant unique à la première ouverture
+  du Terminal, stocké en localStorage. Cet ID survive aux rechargements
+  et aux fermetures d'onglet.
+
+  Structure de l'identité :
+  {
+    "nodeId": "a3f8c2e1b7d09456",   // crypto.getRandomValues — 8 bytes hex
+    "userId": "Architecte-Kaito",   // nom choisi par l'utilisateur
+    "createdAt": 1712345678,
+    "version": "1.0"
+  }
+
+  Le nodeId est la clé de routage. L'userId est l'affichage humain.
+  Un même Architecte sur deux machines différentes a deux nodeIds distincts.
+  Deux onglets sur la même machine partagent le même nodeId (même localStorage).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ARCHITECTURE PLEXUS — INTERFACE BEACON ET PROVIDERS
+
+  Le mécanisme de signalisation (découverte de nœuds + échange SDP) est
+  abstrait derrière une interface **BeaconProvider**. Plexus ne connaît pas
+  GitHub, ni Gist, ni aucun service spécifique — il parle uniquement au
+  BeaconProvider. L'application choisit son provider.
+
+  INTERFACE BeaconProvider (TypeScript)
+  ─────────────────────────────────────
+  interface BeaconEntry {
+    nodeId      : string
+    userId      : string
+    sdpOffer    : string
+    freeSlots   : number
+    publishedAt : number
+  }
+
+  interface BeaconProvider {
+    // Publier sa présence (créer ou mettre à jour son entrée)
+    publish(entry: BeaconEntry): Promise<void>
+
+    // Retirer sa présence (slot plein ou déconnexion)
+    withdraw(nodeId: string): Promise<void>
+
+    // Lire toutes les entrées disponibles du lobby
+    list(): Promise<BeaconEntry[]>
+
+    // Poster une réponse SDP à une offre spécifique
+    reply(targetNodeId: string, sdpAnswer: string): Promise<void>
+
+    // Lire les réponses SDP adressées à ce nœud
+    readReplies(nodeId: string): Promise<string[]>
+
+    // Nettoyer les réponses déjà traitées
+    clearReplies(nodeId: string): Promise<void>
+  }
+
+  PROVIDERS INTÉGRÉS
+  ──────────────────
+  GistBeacon      — GitHub Gist comme lobby partagé (provider de référence)
+                    Requiert un Personal Access Token (scope: gist)
+                    Latence ~200-500ms par opération
+                    ⚠ CHIFFREMENT OBLIGATOIRE : les Gists sont potentiellement
+                    publics. GistBeacon chiffre toutes les entrées (BeaconEntry
+                    + SDPs) avec AES-GCM avant publication et déchiffre à la
+                    lecture. La clé est dérivée d'une passphrase partagée via
+                    PBKDF2 (Web Crypto API). Seuls les nœuds connaissant la
+                    passphrase peuvent rejoindre la Constellation.
+
+                    new GistBeacon({
+                      token        : githubToken,   // PAT scope: gist
+                      lobbyGistId  : "abc123",      // Gist du lobby
+                      passphrase   : "ma-phrase",   // partagée out-of-band
+                    })
+
+  MemoryBeacon    — Map en mémoire, aucun réseau, aucun BroadcastChannel
+                    Réservé aux tests unitaires et à l'intégration CI.
+                    Ne simule pas la latence ni la coordination inter-onglets —
+                    pour tester Plexus isolément, sans dépendance externe.
+                    Note : la coordination inter-onglets (Gateway/Satellite) est
+                    gérée séparément par BroadcastChannel (MISSION-016) et n'a
+                    pas besoin d'un BeaconProvider — ce sont deux couches distinctes.
+
+                    new MemoryBeacon()   // aucune option
+
+  PROVIDERS FUTURS (extensibles par l'utilisateur de la lib)
+  ──────────────────
+  PastebinBeacon  — Pastebin comme lobby (pas d'auth requise, mais TTL limité)
+  IpfsBeacon      — IPFS comme lobby décentralisé (aucun service tiers)
+  NostrBeacon     — Nostr relay comme signalisation (protocole décentralisé)
+  CustomBeacon    — n'importe quel stockage partagé accessible en HTTP
+
+  NOTE — Web Bluetooth comme BeaconProvider
+    Web Bluetooth n'est PAS un BeaconProvider dans Plexus. Un navigateur
+    ne peut jouer que le rôle Central BLE (client) — il ne peut pas
+    s'annoncer comme Peripheral. Deux navigateurs ne peuvent donc pas
+    s'échanger des SDPs directement en Bluetooth.
+    Son rôle dans Plexus est uniquement la détection de proximité
+    (local=true/false) — voir section INTÉGRATION MISSION-032/015.
+
+  MODÈLE OBSERVABLE — ÉVÉNEMENTS RÉACTIFS
+  ────────────────────────────────────────
+  Plexus utilise la librairie Observable de Core Nexus
+  (src/observable — Observable, ObservableValue, Subscription).
+
+  Deux types d'exposition :
+  • Observable<T>       — événements ponctuels (fire-and-forget)
+                          subscribe(fn) → Subscription { unsubscribe() }
+  • ObservableValue<T>  — état réactif avec valeur courante
+                          subscribe appelle fn immédiatement avec la valeur actuelle
+                          puis à chaque changement (deep equality, skip si inchangé)
+
+  ÉVÉNEMENTS — Observable<T> (ponctuels)
+  ┌──────────────────────────┬─────────────────────────────────────────────┐
+  │ Propriété                │ Payload T                                   │
+  ├──────────────────────────┼─────────────────────────────────────────────┤
+  │ onPeerConnecting         │ { nodeId: string }                          │
+  │ onPeerConnected          │ { nodeId: string, latency: number,          │
+  │                          │   local: boolean }                          │
+  │ onPeerSuspected          │ { nodeId: string, failCount: number }       │
+  │ onPeerFailed             │ { nodeId: string, reason: string }          │
+  │ onPeerReconnecting       │ { nodeId: string, attempt: number,          │
+  │                          │   nextRetry: number }                       │
+  │ onPeerLost               │ { nodeId: string }                          │
+  ├──────────────────────────┼─────────────────────────────────────────────┤
+  │ onMessageReceived        │ { stamps: Stamps, body: Body }              │
+  │ onMessageForwarded       │ { msgId: string, from: string, to: string,  │
+  │                          │   hops: string[] }                          │
+  │ onMessageDropped         │ { msgId: string, reason: DropReason }       │
+  │ onMessagePending         │ { envelope: PlexusEnvelope,                 │
+  │                          │   reason: "noRoute" | "peerFailed" }        │
+  │ onMessageExpired         │ { envelope: PlexusEnvelope,                 │
+  │                          │   attempts: number, age: number }           │
+  │ onRequest                │ { stamps: Stamps, body: ReqBody,            │
+  │                          │   reply: (body: ResBody) => void }          │
+  │ onResponse               │ { requestId: string, stamps: Stamps,        │
+  │                          │   body: ResBody, latency: number }          │
+  ├──────────────────────────┼─────────────────────────────────────────────┤
+  │ onBeaconPublished        │ { freeSlots: number }                       │
+  │ onBeaconWithdrawn        │ { reason: string }                          │
+  │ onMeshProposed           │ { targetNodeId: string }                    │
+  │ onMeshAccepted           │ { targetNodeId: string }                    │
+  │ onGatewayElected         │ { tabId: string }                           │
+  │ onGatewayLost            │ { tabId: string }                           │
+  └──────────────────────────┴─────────────────────────────────────────────┘
+
+  ÉTAT RÉACTIF — ObservableValue<T> (valeur courante + changements)
+  ┌──────────────────────────┬─────────────────────────────────────────────┐
+  │ Propriété                │ Type T                                      │
+  ├──────────────────────────┼─────────────────────────────────────────────┤
+  │ nodes                    │ Record<string, NodeEntry>                   │
+  │ capacity                 │ { freeSlots: number, publishing: boolean }  │
+  │ gatewayState             │ { isGateway: boolean, tabId: string }       │
+  └──────────────────────────┴─────────────────────────────────────────────┘
+
+  HOOKS — INTERCEPTION SYNCHRONE AVANT ACTION
+  Les hooks sont des intercepteurs enregistrés par l'utilisateur.
+  Retourner null annule l'action. Retourner une valeur modifiée la remplace.
+
+  node.hook('before:forward',  (msg: PlexusEnvelope)  => PlexusEnvelope | null)
+  node.hook('before:send',     (msg: PlexusEnvelope)  => PlexusEnvelope | null)
+  node.hook('before:connect',  (nodeId: string)      => string | null)
+  node.hook('before:publish',  (entry: BeaconEntry)  => BeaconEntry | null)
+
+  USAGE DANS CORE NEXUS
+  ─────────────────────
+  import { Observable, ObservableValue } from '@/observable'
+  import { Plexus, GistBeacon } from 'plexus'
+
+  const node = new Plexus({
+    identity  : { nodeId, userId },
+    beacon    : new GistBeacon({ token: githubToken, lobbyGistId, passphrase }),
+    maxDirect : 8,
+    publishMinFree  : 2,
+    lobbySlotThresh : 5,
+  })
+
+  // État réactif — appelé immédiatement avec la valeur courante puis à chaque changement
+  const sub1 = node.nodes.subscribe(nodes => renderConstellation(nodes))
+  const sub2 = node.capacity.subscribe(({ freeSlots }) => updateSlotIndicator(freeSlots))
+
+  // Événements ponctuels
+  const sub3 = node.onMessageReceived.subscribe(({ stamps, body }) => {
+    if (stamps.type === 'ANOMALIE_UPDATE') applyAnomalieUpdate(body)
+  })
+  const sub4 = node.onPeerConnected.subscribe(({ nodeId, local }) =>
+    console.log(`Pair connecté : ${nodeId} (${local ? 'local' : 'distant'})`)
+  )
+  const sub5 = node.onMessageDropped.subscribe(({ msgId, reason }) =>
+    console.warn('DROP', msgId, reason)
+  )
+
+  // Hook — journaliser sans modifier
+  node.hook('before:forward', msg => {
+    analytics.track('mesh:forward', { msgId: msg.msgId, hops: msg.hops.length })
+    return msg
+  })
+
+  // Nettoyage
+  sub1.unsubscribe()
+
+  await node.join()
+  await node.send({ to: 'nodeId-Bob', type: 'ANOMALIE_UPDATE', body: payload })
+  await node.broadcast({ type: 'SYNC_REQUEST', body: payload })
+
+  // Request/response — retourne une Promise qui résout avec le body de réponse
+  const result = await node.request({
+    to      : 'nodeId-Bob',
+    type    : 'FETCH_ANOMALIE',
+    body    : { id: 42 },
+    timeout : 5_000    // ms — optionnel, défaut requestTimeout
+  })
+
+  // Côté répondant — reply() envoie la réponse et ne peut être appelé qu'une fois
+  node.onRequest.subscribe(({ stamps, body, reply }) => {
+    if (stamps.type === 'FETCH_ANOMALIE') {
+      const anomalie = store.getAnomalieById(body.id)
+      reply({ anomalie })
+    }
+  })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TOPOLOGIE DYNAMIQUE — LIMITE DE CONNEXIONS ET GESTION DE CAPACITÉ
+
+  PARAMÈTRES DE CONFIGURATION PLEXUS (tous passés au constructeur, avec défauts)
+
+  new Plexus({
+    // Mode d'exécution
+    worker: false,               // false = inline | Worker instance | 'shared'
+                                 // En pratique, préférer PlexusWorker.create()
+                                 // ou PlexusSharedWorker.create() comme factory
+
+    // Connexions
+    maxDirect         : 8,      // connexions WebRTC simultanées max par nœud
+    publishMinFree    : 2,      // slots libres min pour publier dans le Lobby
+    lobbySlotThresh       : 5,      // seuil de slots totaux annoncés dans le Lobby
+    lobbyJoinPollInterval : 10_000, // intervalle de poll quand réseau plein (ms)
+    reserve               : 1,      // absorption des connexions entrantes concurrentes
+
+    // Santé des pairs
+    failThreshold     : 3,      // échecs consécutifs avant état "suspected"
+    maxRetries        : 5,      // tentatives de reconnexion avant état "lost"
+    retryDelayInit    : 30_000, // délai initial de reconnexion (ms)
+    retryDelayMax     : 600_000,// plafond du backoff exponentiel (ms)
+
+    // Heartbeat Gateway Tab
+    gatewayHeartbeat  : 5_000,  // intervalle d'émission heartbeat (ms)
+    gatewayTimeout    : 10_000, // délai avant réélection si heartbeat absent (ms)
+
+    // Routage
+    defaultMaxHops    : 15,     // maxHops injecté dans chaque message émis
+    staleThreshold    : 90_000, // ms sans lastSeen → statut "stale" (3× STATE_UPDATE)
+    expireThreshold   : 150_000,// ms sans lastSeen → suppression (5× STATE_UPDATE)
+    stateUpdateInterval: 30_000,// intervalle du STATE_UPDATE périodique (ms)
+
+    // Maillage intelligent
+    meshFreqThreshold : 20,     // messages/fenêtre pour proposer un lien direct
+    meshWindow        : 1_800_000, // fenêtre glissante du compteur (ms, 30 min)
+
+    // Déduplication
+    seenMessagesMax   : 500,    // taille max du Set de déduplication (FIFO)
+
+    // File d'attente pendante (store-and-forward)
+    pendingTtl           : 300_000, // durée max en file (ms) — 5 minutes
+    pendingMaxSize       : 50,      // messages max par destination (FIFO eviction)
+    pendingRetryInterval : 15_000,  // période du timer de retry (ms)
+    pendingMaxAttempts   : 10,      // tentatives max avant abandon (DropReason: expired)
+
+    // Request/response
+    requestTimeout       : 10_000,  // timeout par défaut d'une requête (ms)
+
+    // Serveurs ICE (STUN / TURN)
+    // Valeur par défaut : STUN Google public — remplacer en production
+    // Format : RTCIceServer[] (spec WebRTC standard)
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+    // Exemple avec TURN :
+    // iceServers: [
+    //   { urls: 'stun:stun.l.google.com:19302' },
+    //   {
+    //     urls:       'turn:turn.example.com:3478',
+    //     username:   'user',
+    //     credential: 'pass',
+    //   },
+    // ],
+  })
+
+  POURQUOI maxDirect > publishMinFree + reserve
+    L'async des connexions crée une fenêtre de vulnérabilité : entre le moment
+    où un nœud vérifie qu'il a de la place et le moment où la connexion WebRTC
+    est réellement établie (échange SDP + ICE = 1-5s), plusieurs nœuds peuvent
+    tenter de le rejoindre simultanément. Sans marge :
+      → le nœud accepte trop de connexions et dépasse maxDirect
+      → ou il refuse des connexions légitimes par excès de prudence
+    La réserve de 1 slot absorbe ces connexions en cours.
+    Exemple : maxDirect=8, on publie jusqu'à 7 connexions actives,
+    la réserve de 1 reste disponible pour les connexions entrantes spontanées.
+
+  STRUCTURE D'UNE ENTRÉE LOBBY GIST
+    {
+      "nodeId"      : "a3f8c2e1",
+      "userId"      : "Architecte-Kaito",
+      "sdpOffer"    : "v=0...",
+      "freeSlots"   : 3,              // maxDirect - connections.size actuelles
+      "publishedAt" : 1712345678
+    }
+
+  CONDITION DE PUBLICATION DANS LE LOBBY
+    Un nœud publie son entrée dans le Lobby Gist si ET SEULEMENT SI :
+      1. freeSlots propres >= publishMinFree
+         (le nœud a assez de place pour accueillir + garder une réserve)
+      2. sum(freeSlots de toutes les entrées du Lobby) < LOBBY_SLOT_THRESH
+         (le réseau n'a pas déjà trop de capacité annoncée)
+    → Si le Lobby annonce déjà 5 slots disponibles, inutile d'en ajouter.
+      De nouveaux Architectes trouveront des nœuds où se connecter.
+
+  PROPAGATION DE LA CAPACITÉ VIA LE GOSSIP
+    La capacité ne vit pas seulement dans le Lobby Gist — elle circule aussi
+    dans le réseau via le protocole de routage. Chaque entrée de la table
+    de routage inclut désormais la capacité du nœud destination :
+
+    routingTable = Map<destinationNodeId, {
+      nextHop   : nodeId,
+      distance  : number,
+      latency   : number,
+      freeSlots : number,   // slots libres connus du nœud dest
+      lastSeen  : timestamp
+    }>
+
+    PROPAGATION EN DEUX TEMPS — immédiate ET périodique
+    Les deux mécanismes coexistent et se complètent :
+
+    (a) IMMÉDIATE — sur changement de capacité
+        Quand connections.size change (connexion entrante, sortante, ou perte),
+        le nœud émet sans délai un CAPACITY_UPDATE à tous ses pairs directs :
+        { type: "CAPACITY_UPDATE", nodeId, freeSlots }
+        Chaque pair met à jour sa table et re-propage si la valeur a changé
+        (split horizon appliqué). Garantit une convergence en quelques secondes.
+
+    (b) PÉRIODIQUE — dans le STATE_UPDATE (toutes les 30s)
+        Le STATE_UPDATE inclut le champ freeSlots de l'émetteur et de chaque
+        route connue. Sert de filet de correction si un CAPACITY_UPDATE
+        immédiat a été perdu (réseau instable, pair en "suspected").
+
+    Résultat : n'importe quel nœud du réseau sait en temps quasi-réel
+    quels nœuds ont de la place, sans consulter le Lobby Gist.
+
+  INTÉGRATION D'UN NOUVEAU NŒUD (C)
+    1. C lit le Lobby Gist → liste des nœuds disponibles avec leurs freeSlots
+    2. C choisit le nœud avec le plus de freeSlots (et en local si MISSION-032)
+    3. C établit la connexion WebRTC avec ce nœud (A)
+    4. A partage sa table de routage complète (avec capacités) avec C
+    5. C construit sa propre table et propage son existence + sa capacité à A
+    6. A propage la mise à jour (nouvelle route + capacité de C) à ses voisins
+    7. Le réseau entier apprend l'existence et la capacité de C
+
+  CE QUI SE PASSE SI LE RÉSEAU EST PLEIN
+    Le Lobby Gist est vide (sum slots < publishMinFree partout).
+    C ne peut pas rejoindre directement — mais grâce au gossip de capacité,
+    dès qu'un nœud se libère, un CAPACITY_UPDATE se propage et le nœud
+    libéré republiera dans le Lobby. C poll le Lobby toutes les lobbyJoinPollInterval ms (défaut 10s).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÉTATS D'UN NŒUD — CYCLE DE VIE COMPLET
+
+  Chaque entrée dans `nodes` possède un état qui reflète la qualité
+  de la relation avec ce nœud. Les états diffèrent selon que le nœud
+  est un pair direct ou un nœud connu via gossip.
+
+  PAIRS DIRECTS (connection.type === "direct")
+  ─────────────────────────────────────────────
+  "connecting"
+      RTCPeerConnection en cours d'établissement — échange SDP + ICE.
+      Le DataChannel n'est pas encore ouvert. Les messages ne peuvent
+      pas encore être envoyés via ce pair.
+      → Transition vers "connected" dès que le DataChannel est open.
+      → Transition vers "failed" si ICE échoue ou timeout (15s).
+
+  "connected"
+      Lien actif. DataChannel ouvert, ping/pong fonctionnel.
+      Le nœud participe au routage, reçoit les STATE_UPDATE, envoie des messages.
+      failCount = 0.
+
+  "suspected"
+      failCount >= FAIL_THRESHOLD (3 échecs consécutifs d'envoi).
+      Le lien est probablement rompu mais pas encore confirmé.
+      → Early STATE_UPDATE émis vers les autres pairs (routes via ce nœud retirées).
+      → Reconnexion déclenchée immédiatement.
+      → Si un envoi réussit entre-temps : retour à "connected".
+      → Si la reconnexion échoue : transition vers "failed".
+
+  "failed"
+      Connexion confirmée rompue (connectionState WebRTC === "failed"
+      ou ICE en échec ou reconnexion immédiate échouée).
+      Le nœud est retiré du routage actif.
+      Reconnexion périodique avec backoff exponentiel (30s → 10min).
+      → Si reconnexion réussit : retour à "connecting" puis "connected".
+      → Si maxRetries atteint : transition vers "lost".
+
+  "lost"
+      Pair définitivement inaccessible après maxRetries tentatives.
+      Retiré de `nodes`. freeSlots recalculé.
+      Un early STATE_UPDATE annonce la suppression au réseau.
+      → Pas de retour possible sauf si le nœud se reconnecte lui-même
+        via le Lobby Gist (il repartira de zéro comme un nouveau nœud).
+
+  NŒUDS INDIRECTS (connection.type === "indirect")
+  ──────────────────────────────────────────────────
+  "active"
+      Nœud connu via gossip, lastSeen récent (< 3× intervalle = 90s).
+      Routes valides, utilisables pour le routage.
+
+  "stale"
+      lastSeen entre 90s et 150s — le nœud ne donne plus signe de vie
+      via les STATE_UPDATE de ses voisins. Routes conservées mais
+      marquées comme peu fiables. Utilisées en dernier recours seulement.
+
+  "expired"
+      lastSeen > 150s (5× intervalle). Nœud supprimé de `nodes`.
+      Ses routes ne sont plus propagées dans les STATE_UPDATE suivants.
+      Le réseau converge naturellement vers sa disparition.
+
+  DIAGRAMME DE TRANSITIONS
+  ─────────────────────────
+  Pairs directs :
+    [connecting] ──succès──→ [connected] ──failCount≥3──→ [suspected]
+         ↑                       ↑                              │
+         │                  envoi réussi               reconnexion
+         │                       │                        échoue ↓
+    reconnexion              [connected] ←──────────── [failed]
+      réussit                                               │
+                                                    maxRetries ↓
+                                                          [lost]
+
+  Nœuds indirects :
+    [active] ──lastSeen>90s──→ [stale] ──lastSeen>150s──→ [expired]
+       ↑                          │
+  STATE_UPDATE reçu          STATE_UPDATE reçu
+                             (lastSeen remis à jour)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLE DE ROUTAGE — DISTANCE VECTOR
+
+  Chaque nœud maintient une table de routage en mémoire :
+
+  routingTable = Map<destinationNodeId, {
+    nextHop    : nodeId,      // par quel voisin direct envoyer
+    distance   : number,      // nombre de sauts jusqu'à destination
+    latency    : number,      // RTT mesuré en ms (ping DataChannel)
+    freeSlots  : number,      // slots libres connus du nœud destination
+    lastSeen   : timestamp    // horodatage de la dernière mise à jour
+  }>
+
+  MISE À JOUR DE LA TABLE — ALGORITHME DE BELLMAN-FORD
+    Quand le nœud B partage sa table avec A :
+    Pour chaque entrée { dest, distance, latency } dans la table de B :
+      coût_via_B = distance + 1   // nombre de sauts
+      Si dest absent de ma table OU coût_via_B < ma distance actuelle :
+        → mettre à jour : nextHop = B, distance = dist+1, latency = mesuré
+    → Propager les changements à tous les autres voisins directs
+
+  MESURE DE LATENCE
+    Chaque nœud envoie périodiquement (toutes les 30s) un message PING
+    horodaté via DataChannel. Le nœud destinataire répond PONG immédiatement.
+    RTT mesuré = (reception_pong - envoi_ping) / 2.
+    La latence entre nœuds non-directs = somme des latences du chemin.
+
+  SYNCHRONISATION PÉRIODIQUE — STATE_UPDATE
+    Sans échange régulier, la table de routage se fossilise : un nœud
+    disparu reste dans les tables, un slot libéré n'est jamais signalé,
+    une latence améliorée reste invisible. Chaque nœud envoie périodiquement
+    un STATE_UPDATE à chacun de ses pairs directs.
+
+    FRÉQUENCE
+      Toutes les 30 secondes — aligné sur le cycle PING/PONG de latence.
+      En pratique : STATE_UPDATE et PING peuvent être fusionnés en un seul
+      message pour éviter la redondance (le PONG devient un ACK implicite).
+
+    CONTENU DU STATE_UPDATE
+      Le nœud envoie une version compacte de son état — sans les références
+      live (channel, BroadcastChannel), uniquement les données sérialisables :
+
+      {
+        type      : "STATE_UPDATE",
+        from      : "a3f8c2e1b7d09456",
+        userId    : "Architecte-Kaito",
+        freeSlots : 6,
+        timestamp : 1712345900,
+        routes    : [
+          // table de routage compacte — split horizon appliqué
+          // (on n'envoie PAS à B les routes qu'on a apprises de B)
+          { nodeId: "d4e5f6a7", distance: 2, latency: 98,  freeSlots: 5 },
+          { nodeId: "e5f6a7b8", distance: 3, latency: 412, freeSlots: 0 },
+        ]
+      }
+
+    SPLIT HORIZON — RÈGLE CRITIQUE
+      Lors de l'envoi du STATE_UPDATE à un pair B, on EXCLUT de `routes`
+      toutes les entrées dont `connection.via === B.nodeId`.
+      Raison : si A a appris que Sora existe via B, renvoyer cette info
+      à B lui ferait croire qu'il peut atteindre Sora via A — créant
+      une boucle. Le split horizon brise ce cycle avant qu'il commence.
+
+      // construction du STATE_UPDATE pour le pair B
+      const routesForB = Object.entries(nodes)
+        .filter(([id, node]) => {
+          if (id === B.nodeId) return false                  // pas B lui-même
+          if (node.connection.type === "indirect" &&
+              node.connection.via === B.nodeId) return false // split horizon
+          return true
+        })
+        .map(([id, node]) => ({
+          nodeId    : id,
+          distance  : node.distance,
+          latency   : node.latency,
+          freeSlots : node.freeSlots,
+        }))
+
+    TRAITEMENT À LA RÉCEPTION
+      Quand A reçoit le STATE_UPDATE de B :
+      1. Mettre à jour nodes[B.nodeId].freeSlots + lastSeen + latency
+      2. Pour chaque route reçue, appliquer Bellman-Ford :
+           coût_via_B = route.distance + 1
+           Si absent de nodes OU coût_via_B < distance actuel :
+             → mettre à jour (nextHop = B, distance, latency)
+      3. Si des routes ont changé → envoyer STATE_UPDATE aux autres pairs
+         directs (sauf B — split horizon)
+
+    EXPIRATION DES ROUTES
+      Si un nœud n'a pas mis à jour son `lastSeen` depuis 3× l'intervalle
+      (90s), il est marqué comme stale. Après 5× (150s), il est supprimé
+      de la table. Ses pairs directs enverront un STATE_UPDATE qui ne
+      le contient plus — le réseau converge vers sa disparition.
+
+    EARLY STATE_UPDATE — PROPAGATION ANTICIPÉE SUR ÉCHEC D'ENVOI
+      Sans ce mécanisme, la perte d'un lien direct n'est signalée aux autres
+      qu'au prochain cycle périodique (jusqu'à 30s plus tard). Pendant ce
+      délai, les autres nœuds continuent d'envoyer des messages via la route
+      morte — ils sont perdus silencieusement.
+
+      Chaque pair direct maintient un compteur d'échecs consécutifs :
+
+      peers[nodeId].failCount = 0   // réinitialisé à chaque envoi réussi
+
+      À chaque tentative d'envoi vers un pair direct :
+        succès → failCount = 0
+        échec  → failCount++
+
+        si failCount >= FAIL_THRESHOLD (recommandé : 3) :
+          → marquer le pair comme "suspected" (pas encore "failed")
+          → émettre immédiatement un STATE_UPDATE early vers tous les
+             autres pairs directs, sans les routes passant par ce nœud
+             (le réseau apprend rapidement que ce chemin est douteux)
+          → déclencher la procédure de reconnexion (voir ci-dessous)
+
+      L'early STATE_UPDATE accélère la convergence de 30s à quelques
+      secondes — les autres nœuds reroutent immédiatement.
+
+    RECONNEXION PÉRIODIQUE DES PAIRS DÉFAILLANTS
+      Un pair marqué "suspected" ou "failed" n'est pas définitivement
+      abandonné. Plexus tente de le reconnecter périodiquement.
+
+      État d'un pair en échec :
+      peers[nodeId] = {
+        ...
+        state       : "failed",
+        failCount   : 5,
+        nextRetry   : 1712346200,   // timestamp de la prochaine tentative
+        retryDelay  : 30000,        // ms — avec backoff exponentiel
+      }
+
+      PROCÉDURE DE RECONNEXION
+        À chaque `nextRetry` :
+        1. Tenter un nouveau RTCPeerConnection vers ce nodeId
+           → si le pair est encore dans le réseau, il a gardé son nodeId
+             (localStorage) — on peut l'atteindre via le mesh existant
+           → envoyer un DIRECT_PROBE via les autres pairs :
+             { type: "PROBE", targetNodeId, fromNodeId, sdpOffer }
+           → si le pair répond, rétablir la connexion directe
+        2. Si succès :
+             failCount = 0, state = "connected", retryDelay = 30000
+             → émettre un early STATE_UPDATE pour annoncer la route rétablie
+        3. Si échec :
+             retryDelay = min(retryDelay × 2, retryDelayMax)  // backoff exponentiel base 2
+             nextRetry  = now + retryDelay
+             → après maxRetries (ex: 5) tentatives, state = "lost"
+                onPeerLost émis, suppression de nodes
+
+      BACKOFF EXPONENTIEL  (retryDelayInit=30s, retryDelayMax=600s, maxRetries=5)
+        retryDelay initial : 30s
+        après 1 échec      : 60s
+        après 2 échecs     : 120s
+        après 3 échecs     : 240s
+        après 4 échecs     : 480s  (≈ 8 min)
+        après 5 échecs     : 600s  (plafond retryDelayMax) → puis "lost"
+        → évite de spammer le réseau avec des probes inutiles
+
+  CONVERGENCE
+    Après l'intégration d'un nouveau nœud ou la perte d'un nœud, le réseau
+    converge en quelques cycles de STATE_UPDATE (typiquement 2-3 échanges
+    pour un réseau de 10-15 nœuds). Pendant la convergence, certains
+    messages peuvent emprunter des chemins sous-optimaux — le TTL protège.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ENVELOPPE DE MESSAGE — LE TIMBRE
+
+  Chaque message est structuré en deux entrées distinctes :
+  `stamps` — couche réseau, modifiée à chaque saut
+  `body`   — couche applicative, immuable de bout en bout
+
+  {
+    "msgId"   : "a3f8c2e1-uuid-v4",   // ID unique — immuable, sert à la déduplication
+    "maxHops" : 15,                    // distance max autorisée — immuable, jamais muté
+    "hops"    : ["nodeA", "nodeB"],    // nœuds traversés — seul champ enrichi à chaque hop
+    "emitAt"  : 1712345678000,         // ms epoch à la création — immuable
+    "stamps"  : {
+      "from" : "nodeId-expéditeur",    // nœud source — immuable
+      "to"   : "nodeId-dest",          // nœud cible (ou "broadcast") — immuable
+      "type" : "ANOMALIE_UPDATE"       // type de contenu applicatif — immuable
+      // pas de fromUser — un nœud = un user, résolu via nodes[stamps.from].userId
+    },
+    "body"    : { ... }                // payload brut — immuable de bout en bout
+  }
+
+  SÉPARATION DES RESPONSABILITÉS
+    racine → msgId, maxHops, emitAt : immuables, fixés à la création
+             hops : seul champ mutable — chaque nœud y ajoute son ID
+    stamps → couche adressage + typage : from, to, type — tous immuables.
+             L'identité de l'émetteur est résolue via nodes[stamps.from].userId.
+             Le type permet au destinataire de dispatcher sans lire le body.
+    body   → payload brut — appartient à l'application. Plexus le transporte
+             sans l'interpréter. Seul le destinataire final lit `body`.
+
+  PRINCIPE FONDAMENTAL — ÉMETTEUR / DESTINATAIRE
+    `stamps.from` et `stamps.to` sont fixés à la source et immuables.
+    Chaque nœud intermédiaire a une seule responsabilité : transférer
+    au prochain nœud le plus proche du destinataire à sa connaissance.
+
+  ALGORITHME DE TRANSFERT — SÉLECTION DU PROCHAIN SAUT
+    À la réception d'un message dont `stamps.to !== myNodeId` :
+
+    function forward(msg) {
+      // 1. Boucle détectée — ce nœud est déjà dans le chemin parcouru
+      if (msg.hops.includes(myNodeId)) return   // DROP sans marquer seenMessages
+
+      // 2. Déduplication — même message arrivé par un autre chemin ?
+      if (seenMessages.has(msg.msgId)) return   // DROP sans marquer seenMessages
+
+      // 3. Message pour moi ?
+      if (msg.stamps.to === myNodeId) {
+        markSeen(msg.msgId)                     // marquer seulement à la livraison
+        deliver(msg)   // PlexusEnvelope complet — onMessageReceived expose { stamps, body }
+        return
+      }
+
+      // 4. Broadcast — traiter ET retransmettre à tous sauf l'expéditeur
+      if (msg.stamps.to === "broadcast") {
+        markSeen(msg.msgId)
+        deliver(msg)
+        const source = msg.hops.at(-1)
+        directPeers()
+          .filter(p => p.nodeId !== source)
+          .forEach(p => p.connection.channel.send(JSON.stringify(msg)))
+        return
+      }
+
+      // 5. maxHops — filet de sécurité si hops corrompu ou trafic anormal
+      if (msg.hops.length >= msg.maxHops) return   // DROP — trop de sauts
+
+      // 6. Sélectionner le meilleur prochain saut connu vers stamps.to
+      const route = nodes[msg.stamps.to]
+
+      if (!route) {
+        // Destination inconnue — mise en file pendante (ne pas marquer seenMessages)
+        // Le message sera retransmis via drain() quand la route sera connue
+        pendingQueues.get(msg.stamps.to) ?? pendingQueues.set(msg.stamps.to, [])
+        pendingQueues.get(msg.stamps.to)!.push({ envelope: msg, queuedAt: Date.now(), attempts: 0 })
+        onMessagePending.next({ envelope: msg, reason: "noRoute" })
+        return
+      }
+
+      // 7. Destination connue — marquer et préparer le transfert
+      markSeen(msg.msgId)   // marquer uniquement quand la livraison est assurée
+      const outgoing = { ...msg, hops: [...msg.hops, myNodeId] }
+
+      const nextHopId = route.connection.type === "direct"
+        ? msg.stamps.to
+        : route.connection.via
+
+      const nextHop = nodes[nextHopId]
+      if (!nextHop || nextHop.connection.type !== "direct"
+          || nextHop.connection.state === "failed") {
+        onMessagePending.next({ envelope: msg, reason: "peerFailed" })
+        return   // DROP — sera mis en file par l'appelant si nécessaire
+      }
+
+      nextHop.connection.channel.send(JSON.stringify(outgoing))
+    }
+
+  EXEMPLE DE TRAJET — A ENVOIE À D (4 NŒUDS EN CHAÎNE)
+
+    Topologie : A ←→ B ←→ C ←→ D   (A et D ne se connaissent pas directement)
+
+    Message initial émis par A :
+      { msgId: "x1", maxHops: 15, hops: ["A"], emitAt: 1712345678000,
+        stamps: { from: "A", to: "D", type: "ANOMALIE_UPDATE" },
+        body:   { id: 42, status: "closed" } }
+
+      B reçoit → stamps.to !== B → route[D].via = C → envoie à C
+        { msgId: "x1", maxHops: 15, hops: ["A","B"], emitAt: 1712345678000,
+          stamps: { from: "A", to: "D", type: "ANOMALIE_UPDATE" },  // inchangé
+          body:   { id: 42, status: "closed" } }
+          // hops.length2 < maxHops15 → ok
+
+      C reçoit → stamps.to !== C → route[D] direct → envoie à D
+        { msgId: "x1", maxHops: 15, hops: ["A","B","C"], emitAt: 1712345678000,
+          stamps: { from: "A", to: "D", type: "ANOMALIE_UPDATE" },  // inchangé
+          body:   { id: 42, status: "closed" } }
+          // hops.length3 < maxHops15 → ok
+
+      D reçoit → stamps.to === D → markSeen(msgId) → deliver(msg) ✓
+        // deliver() expose { stamps, body } via onMessageReceived
+        // affichage : nodes[stamps.from].userId → "Architecte-Kaito"
+        stamps: { from:"A", to:"D", type:"ANOMALIE_UPDATE" }, body: { id:42, status:"closed" }
+
+  DÉDUPLICATION
+    Chaque nœud maintient un Set<msgId> des derniers msgId vus (taille max :
+    seenMessagesMax, défaut 500). Politique d'éviction : FIFO — quand le Set
+    atteint la limite, le msgId le plus ancien est retiré avant d'ajouter le nouveau.
+
+    // implémentation FIFO avec Set + tableau d'ordre d'insertion
+    const seenMessages  = new Set<string>()
+    const seenOrder     = [] as string[]          // file d'insertion
+
+    function markSeen(msgId: string) {
+      if (seenMessages.size >= seenMessagesMax) {
+        const oldest = seenOrder.shift()!
+        seenMessages.delete(oldest)
+      }
+      seenMessages.add(msgId)
+      seenOrder.push(msgId)
+    }
+
+    Si un message déjà traité arrive par un autre chemin → DROP silencieux.
+    (Peut arriver pendant le flood sur route inconnue ou en convergence.)
+
+    Note : le FIFO garantit que les vieux msgIds sont oubliés après N messages,
+    ce qui permet à un msgId recyclé (improbable mais possible) d'être re-traité.
+    Le risque est négligeable avec des msgId générés via crypto.getRandomValues.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FILE D'ATTENTE PENDANTE — STORE-AND-FORWARD
+
+  Quand un message ne peut pas être livré immédiatement (destination inconnue
+  de la routing table, ou tous les chemins connus sont en état failed), il
+  n'est pas abandonné. Il est placé dans une file pendante par destination
+  et retransmis automatiquement dès que le nœud devient joignable.
+
+  Ce mécanisme s'applique uniquement aux messages directs (stamps.to ≠ "broadcast").
+  Les broadcasts sont éphémères par nature et ne sont jamais mis en attente.
+
+  STRUCTURE D'UNE ENTRÉE PENDANTE
+
+    type PendingMessage<T extends string = string> = {
+      envelope  : PlexusEnvelope<T>  // enveloppe originale complète
+      queuedAt  : number             // timestamp de mise en attente (ms)
+      attempts  : number             // nombre de tentatives d'envoi
+    }
+
+    // File organisée par destination — une queue par nodeId cible
+    pendingQueues = Map<nodeId, PendingMessage[]>
+
+  DÉCLENCHEURS D'AJOUT À LA FILE
+
+    Un message est mis en attente lorsque forward() aboutit à :
+      - "noRoute"     : stamps.to absent de nodes (nœud jamais vu ou expiré)
+      - "peerFailed"  : prochain saut en état failed, aucune alternative connue
+
+  DÉCLENCHEURS DE RETRY
+
+    La file est vidangée (drain) automatiquement dans trois situations :
+      1. onPeerConnected   : un pair vient de se connecter — il est peut-être
+                             la destination ou un nouveau chemin vers elle
+      2. STATE_UPDATE reçu : la routing table vient d'être enrichie, de nouvelles
+                             routes sont disponibles
+      3. Timer périodique  : toutes les pendingRetryInterval ms, tentative sur
+                             toutes les files non vides
+
+    À chaque drain, forward() est rappelé sur chaque message en attente.
+    Si la livraison réussit, le message est retiré de la file.
+    Si elle échoue à nouveau, attempts est incrémenté.
+
+  EXPIRATION
+
+    Un message expiré est retiré de la file et l'événement onMessageExpired
+    est émis. Deux conditions d'expiration :
+      - Age : (Date.now() - queuedAt) > pendingTtl
+      - Tentatives : attempts ≥ pendingMaxAttempts
+
+    DropReason "expired" est enregistré dans les métriques.
+
+  PARAMÈTRES DE CONFIGURATION PLEXUS
+
+    pendingTtl          : 300_000  // durée max en file (ms) — 5 minutes
+    pendingMaxSize      : 50       // messages max par destination (FIFO eviction)
+    pendingRetryInterval: 15_000   // période du timer de retry (ms)
+    pendingMaxAttempts  : 10       // tentatives max avant abandon
+
+  NOUVEAUX ÉVÉNEMENTS OBSERVABLES
+
+    onMessagePending  : { envelope: PlexusEnvelope, reason: "noRoute" | "peerFailed" }
+                        → émis à chaque mise en file
+    onMessageExpired  : { envelope: PlexusEnvelope, attempts: number, age: number }
+                        → émis à l'abandon définitif
+
+  INTERACTION AVEC SEENMESSAGES
+
+    Un message en file pendante n'est PAS dans seenMessages — il y est ajouté
+    uniquement au moment de la livraison effective (dans forward(), au step 3
+    "Message pour moi" ou au step 7 juste avant l'envoi au prochain saut).
+    Sans cela, le premier retry serait considéré comme duplicata et ignoré.
+
+    CAS EDGE — ÉVICTION FIFO AVANT LIVRAISON
+    seenMessages a une taille max (seenMessagesMax=500). Si le réseau est très
+    verbeux pendant que le message attend (5 min max), le msgId peut être évincé
+    par FIFO avant que le drain() soit déclenché. Dans ce cas, une copie du
+    message arrivée par un autre chemin serait re-traitée (duplication possible).
+    Recommandation : `seenMessagesMax` devrait être dimensionné en fonction du
+    taux de messages attendu × pendingTtl. Sur un réseau peu verbeux (usage
+    type du Terminal), 500 entrées sur 5 min est largement suffisant.
+
+  EXEMPLE — DESTINATION HORS LIGNE PUIS RETOUR
+
+    A envoie à D — D absent de la routing table de A
+    → forward() : DropReason "noRoute"
+    → enveloppe placée dans pendingQueues["D"]
+    → onMessagePending émis
+
+    30s plus tard — B envoie un STATE_UPDATE à A incluant D (dist=2)
+    → routing table de A mise à jour
+    → drain déclenché sur pendingQueues["D"]
+    → forward() réussit, message transmis via B
+    → message retiré de la file
+    → livraison normale chez D ✓
+
+  VOIR AUSSI : ANNEXE-08-PENDING-QUEUE.txt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REQUEST / RESPONSE — RPC OVER MESH
+
+  Au-delà des messages fire-and-forget, Plexus supporte un pattern
+  request/response : un nœud envoie une requête et attend une réponse
+  du destinataire. L'appelant reçoit une Promise — il n'a pas à gérer
+  manuellement les identifiants de corrélation ni les timeouts.
+
+  PRINCIPE
+
+    La requête est une enveloppe Plexus ordinaire, enrichie d'un champ
+    stamps.requestId (UUID généré par request()). Plexus enregistre ce
+    requestId dans une Map interne pendingRequests avec sa Promise et
+    son timer de timeout.
+
+    Le destinataire reçoit la requête via onRequest — un événement dédié
+    qui expose une fonction reply(). Appeler reply() envoie une nouvelle
+    enveloppe avec stamps.replyTo = requestId et stamps.to = expéditeur
+    original. À réception de cette réponse, Plexus résout la Promise
+    correspondante et annule le timer.
+
+    Plexus intercepte les enveloppes portant stamps.replyTo avant de les
+    livrer à onMessageReceived — elles ne transitent pas par le handler
+    général. À la réception, Plexus émet onResponse (observabilité), puis
+    résout la Promise en attente. L'ordre est garanti : onResponse avant
+    la résolution de la Promise.
+
+  GESTION DU TIMEOUT
+
+    Si aucune réponse n'arrive dans le délai imparti (requestTimeout ou
+    timeout de l'appel), la Promise est rejetée avec une PlexusTimeoutError.
+    Le requestId est nettoyé de pendingRequests.
+
+  GESTION DES ERREURS CÔTÉ RÉPONDANT
+
+    reply() accepte également une erreur :
+      reply({ error: 'NOT_FOUND', message: 'Anomalie inconnue' })
+    La Promise de l'appelant est alors rejetée avec une PlexusRemoteError
+    portant le payload d'erreur. Cela permet de distinguer timeout réseau
+    (PlexusTimeoutError) et erreur applicative (PlexusRemoteError).
+
+    reply() est IDEMPOTENT — seul le premier appel est pris en compte.
+    Les appels suivants sont silencieusement ignorés (guard interne).
+
+  USAGE ASYNCHRONE DE reply()
+
+    reply() peut être appelée de façon différée (après une opération async).
+    Le timer de timeout court pendant ce délai — si reply() arrive après
+    l'expiration, l'appel est ignoré (la Promise a déjà rejeté côté requérant).
+
+    // Exemple asynchrone valide
+    node.onRequest.subscribe(async ({ stamps, body, reply }) => {
+      if (stamps.type === 'FETCH_ANOMALIE') {
+        const anomalie = await store.getAnomalieById(body.id)
+        reply({ anomalie })   // ignoré si timeout déjà expiré côté requérant
+      }
+    })
+
+  ÉTAT INTERNE — pendingRequests
+
+    type PendingRequest<T extends string = string> = {
+      resolve  : (body: ResBodyOf<T>) => void
+      reject   : (err: Error) => void
+      timer    : ReturnType<typeof setTimeout>
+      sentAt   : number
+    }
+    // pendingRequests: Map<requestId, PendingRequest>
+
+  INTERACTION AVEC LA FILE PENDANTE
+
+    Si le destinataire est temporairement injoignable, la requête entre
+    en file pendante exactement comme un message ordinaire. Le timeout
+    court pendant ce temps — si le nœud revient trop tard, la Promise
+    rejette avant même que la requête soit transmise.
+
+    Cas limite : si la requête est livrée mais que la réponse est perdue
+    en transit (nœud intermédiaire tombé), la Promise rejette sur timeout.
+    Le répondant ne sait pas que sa réponse n'est pas arrivée — il n'y a
+    pas d'acquittement de la réponse (pas de spirale infinie de RPC).
+
+  VOIR AUSSI : ANNEXE-10-REQUEST-RESPONSE.txt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MAILLAGE INTELLIGENT — AUTO-OPTIMISATION DES CHEMINS CHAUDS
+
+  Le réseau observe les patterns de communication et crée automatiquement
+  des liens directs entre les nœuds qui s'échangent fréquemment des messages.
+  Un chemin A→B→C→D fréquemment emprunté devient A→D direct.
+
+  OBSERVATION DU TRAFIC
+    Chaque nœud maintient un compteur de fréquence d'échange :
+    exchangeMap = Map<nodeId, {
+      count     : number,      // messages routés vers/depuis ce nœud
+      lastReset : timestamp    // horodatage du dernier reset (fenêtre glissante)
+    }>
+    La fenêtre glissante se réinitialise toutes les 30 minutes.
+    Chaque message routé (même en transit) incrémente le compteur
+    du nœud destinataire final.
+
+  DÉCLENCHEMENT D'UN LIEN DIRECT
+    Conditions pour proposer une connexion directe entre A et D :
+      1. exchangeMap[D].count > MESH_FREQ_THRESHOLD (ex: 20 messages / 30min)
+      2. A a freeSlots >= 1 (au moins un slot libre côté A)
+      3. La table de routage indique freeSlots[D] >= 1 (D a aussi de la place)
+      4. A et D ne sont pas déjà directement connectés
+
+    Si toutes les conditions sont réunies :
+    → A envoie un message de type "DIRECT_PROPOSAL" vers D via le réseau :
+      { type: "DIRECT_PROPOSAL", from: A, to: D, sdpOffer: "..." }
+    → Ce message voyage via les DataChannels existants (pas besoin du Lobby Gist)
+    → D répond "DIRECT_ACCEPT" avec son SDP answer si il accepte
+    → La nouvelle connexion directe s'établit
+    → Les tables de routage des deux nœuds se mettent à jour (distance = 1)
+    → Le réseau entier apprend la nouvelle route directe via le gossip
+
+  REFUS ET POLITESSE
+    D peut refuser la proposition (freeSlots tombé à 0 entre-temps, ou D
+    préfère garder ses slots pour d'autres besoins). Dans ce cas A attend
+    la prochaine fenêtre (30 min) avant de re-proposer.
+    Anti-spam : max 1 proposition par paire par fenêtre de 30 min.
+
+  RÉSULTAT À TERME
+    Le réseau développe une topologie qui reflète les patterns réels
+    d'utilisation : les Architectes qui collaborent intensément finissent
+    directement connectés. Les nœuds périphériques peu actifs restent
+    en périphérie. Le réseau se densifie là où c'est utile.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONTRÔLEUR DE TOPOLOGIE — BOUCLE DE RÉCONCILIATION
+
+  Le maillage intelligent ne se limite pas à créer des liens ponctuellement
+  quand un seuil de trafic est franchi. Un contrôleur autonome observe en
+  permanence l'écart entre la topologie actuelle et une topologie désirée,
+  puis agit pour réduire cet écart — exactement comme un contrôleur Kubernetes
+  réconcilie l'état réel d'un cluster avec son état déclaré.
+
+  BOUCLE DE RÉCONCILIATION (pattern Kubernetes)
+
+    ┌──────────────┐
+    │  Observer    │  ← état courant : currentDirect, exchangeMap, routingTable
+    └──────┬───────┘
+           ↓
+    ┌──────────────┐
+    │  Calculer    │  ← état désiré : hotCandidates ∪ diversityCandidates
+    └──────┬───────┘
+           ↓
+    ┌──────────────┐
+    │  Différer    │  ← à_connecter = désiré \ actuel
+    │              │     à_libérer  = actuel  \ désiré
+    └──────┬───────┘
+           ↓
+    ┌──────────────┐
+    │  Agir        │  ← DIRECT_PROPOSAL / DIRECT_RELEASE
+    └──────┬───────┘
+           ↓
+           ⟳  (toutes les reconcileInterval ms)
+
+  CADENCE
+    La fenêtre glissante meshWindow (30min) est subdivisée en ticks réguliers :
+    reconcileInterval = meshWindow / reconcileTicksPerWindow
+    Ex. : 6 ticks sur 30min → réconciliation toutes les 5 minutes.
+
+  BUDGET DE SLOTS — DOUBLE OBJECTIF
+
+    maxDirect = hotSlots + diversitySlots + reserve
+
+    hotSlots       : 5   // liens chauds — pilotés par le trafic (exchangeMap)
+    diversitySlots : 2   // liens froids — pilotés par la résilience topologique
+    reserve        : 1   // absorption des connexions entrantes concurrentes
+
+    Exemple par défaut : maxDirect=8 = 5+2+1
+
+    Les deux objectifs sont indépendants. Un lien chaud reste chaud même si
+    sa région est déjà couverte par un lien de diversité, et inversement.
+
+  SÉLECTION DES LIENS CHAUDS (hotCandidates)
+
+    Top hotSlots nœuds par exchangeMap.count sur la fenêtre glissante.
+    Ces liens existent pour la performance : réduire la distance de routage
+    vers les pairs les plus fréquemment sollicités.
+
+  SÉLECTION DES LIENS DE DIVERSITÉ (diversityCandidates)
+
+    Objectif : garantir au moins un chemin indépendant par région du réseau.
+    Une région = ensemble de nœuds indirects partageant le même nextHop (via).
+    Si ce nextHop tombe, toute sa région devient inaccessible. Un lien direct
+    vers un représentant de chaque région coupe cette dépendance.
+
+    Algorithme :
+      1. Grouper les nœuds indirects par connection.via (nextHop)
+      2. Exclure les régions déjà couvertes par un hotSlot direct
+      3. Pour chaque région restante, élire le représentant au meilleur score :
+           score = tailleRégion × 0.6 + (1 / latency) × 0.4
+      4. Trier les représentants par score décroissant, prendre top diversitySlots
+
+  CAS MINIMAL — TROIS NŒUDS SANS AUCUN ÉCHANGE
+
+    Avec A, B et C où B est le seul pair direct de A et C :
+
+      A ←→ B ←→ C          (liens directs existants)
+      A →→→→→→→ C          (via B, indirect)
+
+    Lors de la première réconciliation chez A :
+      hotCandidates       = []    (exchangeMap vide, aucun trafic)
+      régions détectées   = { via-B: [C] }
+      diversityCandidates = [C]   (C = seul représentant de la région via-B)
+      à_connecter         = {C}
+
+    → A envoie DIRECT_PROPOSAL à C via B (aucun échange applicatif requis).
+    → C accepte si freeSlots > 0.
+    → Le triangle A–B–C se forme automatiquement.
+
+    La même logique symétrique se déclenche chez B et C au même cycle,
+    mais les propositions redondantes sont absorbées par l'anti-spam
+    (max 1 proposition par paire par fenêtre).
+
+    Propriété garantie : tout réseau de N nœuds tend vers une connectivité
+    maximale tant que les slots le permettent — indépendamment du trafic.
+
+  RÉCONCILIATION UNIFIÉE
+
+    desiredDirect = hotCandidates ∪ diversityCandidates
+
+    à_connecter   = desiredDirect \ currentDirect
+    à_libérer     = currentDirect \ desiredDirect
+                    (filtré par hysterèse — voir ci-dessous)
+
+    Actions émises :
+      DIRECT_PROPOSAL(nodeId) → pour chaque nœud dans à_connecter
+      DIRECT_RELEASE(nodeId)  → pour chaque nœud dans à_libérer
+
+  DIRECT_RELEASE — LIBÉRATION PROPRE D'UN LIEN DIRECT
+
+    Quand un lien direct doit être libéré pour être réaffecté :
+
+    A → B : { type: "DIRECT_RELEASE", from: A, to: B, reason: "slot_realloc" }
+
+    B reçoit le message, ferme proprement le DataChannel de son côté.
+    Les deux nœuds requalifient leur routingTable : le lien A–B redevient
+    indirect (distance recalculée via le gossip suivant).
+    Aucun STATE_UPDATE immédiat n'est nécessaire — la convergence naturelle
+    (30s) propagera le changement au réseau.
+
+    Raisons possibles (champ reason) :
+      "slot_realloc"   : slot réaffecté à un pair plus actif ou plus diversifiant
+      "region_covered" : la région est désormais couverte par un hot link direct
+
+    Anti-spam : une paire (A, B) ne peut recevoir qu'un DIRECT_RELEASE par
+    fenêtre meshWindow, quel que soit le sens.
+
+  PRIORITÉ DE LIBÉRATION
+
+    Quand il faut libérer un slot pour en ouvrir un autre, ordre de préférence :
+
+      1. Liens de diversité dont la région est maintenant couverte par un hot link
+      2. Liens de diversité dont le score a le plus baissé (région réduite ou disparue)
+      3. Liens chauds dont exchangeMap.count est le plus bas du top hotSlots
+
+    Contrainte absolue : ne jamais libérer un lien si sa suppression ferait
+    passer le nombre de régions couvertes sous minDiversity.
+    La résilience prime toujours sur la performance.
+
+  HYSTERÈSE — ANTI-FLAPPING
+
+    Un lien récemment stabilisé est protégé contre une libération immédiate.
+    Chaque DirectConnection porte un champ stabilizedAt (timestamp d'ouverture).
+
+    Condition de libération :
+      (now - connection.stabilizedAt) >= meshHysteresis
+
+    Valeur recommandée : meshHysteresis = meshWindow / 2 = 900_000ms (15min).
+    Garantit qu'un lien ouvert reste actif au moins une demi-fenêtre avant
+    d'être reconsidéré — évite les oscillations si le trafic fluctue.
+
+  PARAMÈTRES DE CONFIGURATION
+
+    new Plexus({
+      // ... existants (meshFreqThreshold, meshWindow) ...
+      hotSlots                : 5,         // budget liens chauds
+      diversitySlots          : 2,         // budget liens de résilience
+      minDiversity            : 1,         // régions distinctes minimum garanties
+      reconcileTicksPerWindow : 6,         // ticks par fenêtre (≈ toutes les 5min)
+      meshHysteresis          : 900_000,   // délai min avant libération (ms — 15min)
+    })
+
+  INVARIANT GARANTI
+
+    À tout moment, le contrôleur maintient au moins minDiversity liens directs
+    vers des régions topologiquement indépendantes — même en l'absence totale
+    de trafic applicatif. Sur un réseau de 3 nœuds avec diversitySlots >= 1,
+    les trois nœuds s'interconnectent automatiquement en triangle complet dès
+    le premier tick de réconciliation.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INTÉGRATION MISSION-016 — UN SEUL GATEWAY TAB PAR MACHINE
+
+  Deux onglets du même Terminal sur la même machine ne doivent pas ouvrir
+  deux connexions WebRTC vers le même réseau — ce serait le même nœud
+  avec deux voix, créant des doublons et des incohérences.
+
+  ÉLECTION DU GATEWAY TAB (via BroadcastChannel)
+    À l'ouverture, chaque onglet diffuse sur BroadcastChannel('nexus-mesh') :
+    { type: "ANNOUNCE", tabId: uuid, timestamp: Date.now() }
+    L'onglet avec le timestamp le plus ancien devient Gateway Tab.
+    Les autres onglets envoient un ACK et passent en mode "Satellite".
+
+  RÔLES
+    Gateway Tab  : maintient toutes les RTCPeerConnections, gère la table
+                   de routage, signe les messages avec le nodeId du poste.
+    Satellite Tab : n'ouvre aucune connexion WebRTC. Envoie ses messages via
+                   BroadcastChannel → Gateway Tab les injecte dans le réseau.
+                   Reçoit les messages du réseau via BroadcastChannel ← Gateway.
+
+  HEARTBEAT GATEWAY → SATELLITES
+    Le Gateway Tab diffuse toutes les 5s sur BroadcastChannel :
+    { type: "GATEWAY_HEARTBEAT", tabId, timestamp }
+    Les Satellites surveillent ce heartbeat. Si aucun heartbeat reçu
+    depuis 10s (2 cycles manqués), ils considèrent le Gateway disparu
+    et déclenchent une réélection — sans attendre GATEWAY_CLOSING.
+
+  PASSATION EN CAS DE FERMETURE PROPRE
+    Quand le Gateway Tab se ferme normalement (beforeunload) :
+    1. Diffuse { type: "GATEWAY_CLOSING", tabId, routingTableSnapshot }
+       → le snapshot encode la table de routage complète sérialisée
+    2. Le Satellite avec le timestamp d'annonce le plus ancien reçoit
+       le snapshot, le charge en mémoire, ouvre de nouvelles RTCPeerConnections
+       en réutilisant le nodeId stocké en localStorage.
+    3. En cas de tie (deux Satellites annoncés au même timestamp) :
+       le plus petit tabId lexicographiquement gagne.
+
+  PASSATION EN CAS DE CRASH (sans beforeunload)
+    Les Satellites détectent l'absence de heartbeat après 10s.
+    Réélection immédiate par le même mécanisme (timestamp + tabId).
+    Le nouveau Gateway reconstruit sa table de routage from scratch :
+    il envoie un STATE_UPDATE à tous les pairs connus (nodeIds stockés
+    en localStorage via un cache de la dernière table connue) et attend
+    leurs réponses pour reconstituer l'état du réseau.
+    → Stocker la dernière routingTable connue en localStorage (snapshot)
+      pour accélérer la reconstruction au redémarrage.
+
+  RACE CONDITION freeSlots < 0
+    Deux nœuds peuvent initier simultanément une connexion vers le même
+    pair cible (tous deux voient freeSlots > 0 avant que la connexion
+    de l'autre ne soit enregistrée). Pour éviter le dépassement :
+    → À chaque accept() de connexion entrante, vérifier en premier
+      connections.size < maxDirect avant d'envoyer le SDP answer.
+    → Si connections.size >= maxDirect au moment du accept() :
+      répondre avec { type: "CAPACITY_FULL" } et rejeter proprement.
+    → Le nœud rejeté re-consulte le Lobby Gist pour trouver une alternative.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INTÉGRATION MISSION-032 — CONNEXIONS LOCALES ET DISTANTES
+
+  La détection de proximité permet d'identifier les nœuds présents sur le
+  même réseau local (même WiFi, même LAN) et de qualifier le champ
+  `local: boolean` d'un NodeEntry. Ces connexions locales sont traitées
+  différemment des connexions distantes.
+
+  NŒUD LOCAL DÉTECTÉ (même réseau)
+    → Préférence en routage : si le destinataire est local, sa route via
+      un voisin direct local est favorisée (latence ~1ms vs 50-200ms internet)
+    → Possibilité d'utiliser des ICE candidates locaux uniquement (pas de STUN)
+      → connexion garantie sans dépendance réseau externe
+    → Dans la table de routage : latency local ≈ 1ms → toujours nextHop direct
+
+  NŒUD DISTANT (internet)
+    → Connexion via STUN standard + TURN si NAT symétrique
+    → Latence typique : 20-200ms selon géographie
+
+  INDICATEUR VISUEL
+    Chaque nœud dans l'UI "Constellation" est marqué 🏠 (local) ou 🌐 (distant).
+    Les messages locaux apparaissent quasi-instantanément.
+
+  MÉCANISMES DE DÉTECTION DE PROXIMITÉ — DEUX APPROCHES COMPLÉMENTAIRES
+
+  La détection de proximité (local=true) peut être réalisée par deux moyens
+  distincts selon le contexte. Les deux renseignent le même champ et peuvent
+  coexister — le premier à confirmer la proximité l'emporte.
+
+  APPROCHE A — AudioContext (MISSION-032) — navigateur pur
+    Un son ultrasonique inaudible est émis et détecté entre onglets ou
+    navigateurs proches via les Web Audio API. Si le signal est capté,
+    les nœuds sont sur le même réseau physique.
+    Avantage  : fonctionne entre deux navigateurs sans matériel tiers
+    Limite    : nécessite un micro actif, sensible aux environnements bruités
+
+  APPROCHE B — Web Bluetooth (MISSION-035) — avec matériel tiers
+    Web Bluetooth (Central uniquement dans les navigateurs) peut scanner
+    les appareils BLE à proximité. Si deux nœuds détectent les mêmes
+    appareils BLE dans leur environnement (même empreinte BLE), ils sont
+    probablement colocalisés sur le même réseau.
+
+    Note importante : un navigateur ne peut pas s'annoncer lui-même en BLE
+    (rôle Peripheral réservé aux apps natives). Deux navigateurs ne peuvent
+    donc pas se détecter mutuellement en BLE de façon directe. La détection
+    repose sur les appareils BLE tiers déjà présents dans l'environnement
+    (téléphones, objets connectés, bornes) comme signature de proximité.
+
+    Avantage  : plus fiable et plus large portée (~50m) que l'audio
+                fonctionne sans micro, résiste aux environnements bruités
+    Limite    : nécessite des appareils BLE dans l'environnement
+                et la permission navigator.bluetooth
+
+    Bluetooth n'est pas ici un BeaconProvider (canal de signaling) —
+    il est uniquement un capteur de proximité. L'échange SDP reste
+    géré par GistBeacon ou tout autre BeaconProvider configuré.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BOUCLES DE RÉCONCILIATION — RÉSILIENCE PWA
+
+  Sur un réseau instable (WiFi intermittent, coupure 4G, suspension mobile),
+  les mécanismes événementiels classiques sont fragiles : un événement manqué
+  (beforeunload non déclenché, callback réseau raté) laisse le système dans
+  un état incohérent indéfini. La boucle de réconciliation est la réponse
+  architecturale : peu importe l'état intermédiaire, le prochain cycle observe,
+  calcule et corrige. Le module n'a pas à savoir ce qui a échoué — il sait
+  seulement ce qui devrait être vrai et agit en conséquence.
+
+  Les cinq modules ci-dessous appliquent ce pattern à des préoccupations
+  distinctes. Chacun tourne sur sa propre cadence, indépendamment des autres.
+
+  ┌─────────────────────────────┬──────────────┬──────────────────────────┐
+  │ Module                      │ Réseau inst. │ Suspension mobile        │
+  ├─────────────────────────────┼──────────────┼──────────────────────────┤
+  │ BeaconController            │ ★★★★★        │ ★★★                      │
+  │ ConnectionRecovery          │ ★★★★         │ ★★★★★                    │
+  │ LobbyObserver               │ ★★★          │ ★★                       │
+  │ GatewayHealthMonitor        │ ★★           │ ★★★★                     │
+  │ StorageFlusher (Core Nexus) │ ★★           │ ★★★★★                    │
+  │ RouteAuditor                │ ★★★★★        │ ★★★★★                    │
+  │ PendingReconciler           │ ★★★★         │ ★★★★★                    │
+  └─────────────────────────────┴──────────────┴──────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCHEDULER — ORCHESTRATEUR DES BOUCLES DE RÉCONCILIATION
+
+  Un seul scheduler central orchestre tous les modules de réconciliation.
+  Il maintient un compteur de ticks et module la cadence de chaque service
+  via un diviseur de fréquence. Un seul timer actif, un seul point d'entrée
+  au réveil, zéro coordination ad hoc entre services.
+
+  IMPLÉMENTATION — SETTIMEOUT RÉCURSIF
+
+    const TICK_MS = 15_000   // granule commune — intervalle le plus court
+
+    class Scheduler {
+      private count   = 0
+      private running = false
+
+      start() {
+        this.running = true
+        this.schedule()
+      }
+
+      private schedule() {
+        if (!this.running) return
+        setTimeout(async () => {
+          await this.tick(this.count++)
+          this.schedule()           // prochain tick après la fin du courant
+        }, TICK_MS)
+      }
+
+      stop()         { this.running = false }
+      reconcileAll() { this.tick(this.count) }   // réveil immédiat hors cadence
+
+      private async tick(count: number) {
+        // ordre garanti — producteurs avant consommateurs
+        await routeAuditor.reconcile()                             // ×1 → 15s
+        await pendingReconciler.reconcile()                        // ×1 → 15s
+        if (count % 2  === 0) await connectionRecovery.reconcile() //    → 30s
+        if (count % 4  === 0) await beaconController.reconcile()   //    → 60s
+        if (count % 20 === 0) await lobbyObserver.reconcile()      //    → 5min
+        if (count % 20 === 0) await topologyController.reconcile() //    → 5min
+        // GatewayHealthMonitor : event-driven, aucun tick nécessaire
+      }
+    }
+
+  POURQUOI setTimeout RÉCURSIF ET NON setInterval
+
+    setInterval accumule les ticks manqués après une suspension : au réveil,
+    N ticks partent simultanément et saturent le réseau d'appels Gist et de
+    tentatives WebRTC. setTimeout récursif garantit qu'un tick attend la fin
+    du précédent — pas de chevauchement sur des opérations async. Le tick
+    suivant ne démarre que quand le courant est terminé.
+
+  ORDRE D'EXÉCUTION — COUPLAGE GARANTI
+
+    RouteAuditor tourne en premier : il émet onRouteExpired / onRouteRestored
+    que PendingReconciler consomme dans le même tick. L'ordre garanti que
+    PendingReconciler travaille toujours avec une table de routage à jour.
+
+    tick N :  routeAuditor.reconcile()
+                → onRouteExpired("d4e5")   ─┐
+                → onRouteRestored("b1c2")  ─┤
+              pendingReconciler.reconcile()  ┘ consomme les événements du dessus
+
+  RÉVEIL — POINT D'ENTRÉE UNIQUE
+
+    reconcileAll() déclenche un tick immédiat hors cadence pour tous les services.
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') scheduler.reconcileAll()
+    })
+    navigator.addEventListener('online', () => scheduler.reconcileAll())
+
+  CADENCES PAR SERVICE
+
+    ┌──────────────────────┬─────────────┬───────────────────┐
+    │ Service              │ Diviseur    │ Cadence effective  │
+    ├──────────────────────┼─────────────┼───────────────────┤
+    │ RouteAuditor         │ ×1          │ 15s                │
+    │ PendingReconciler    │ ×1          │ 15s                │
+    │ ConnectionRecovery   │ ×2          │ 30s                │
+    │ BeaconController     │ ×4          │ 60s                │
+    │ LobbyObserver        │ ×20         │ 5min               │
+    │ TopologyController   │ ×20         │ 5min               │
+    │ GatewayHealthMonitor │ event-driven│ —                  │
+    └──────────────────────┴─────────────┴───────────────────┘
+
+  EN MODE WORKER
+
+    Le Scheduler instancié dans le Worker — un seul timer dans le thread
+    dédié, zéro timer sur le thread principal. Le proxy Plexus transmet
+    reconcileAll() via postMessage quand visibilitychange ou online est
+    détecté côté thread principal.
+
+  PARAMÈTRE DE CONFIGURATION
+
+    new Plexus({
+      tickMs : 15_000,  // granule commune de la boucle (ms)
+                        // tous les diviseurs sont relatifs à cette valeur
+    })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BEACON CONTROLLER — PRÉSENCE CONTINUE DANS LE LOBBY
+
+  Problème : un appel HTTP vers l'API GitHub peut échouer silencieusement
+  (timeout, 503, quota dépassé). Un nœud dont la publication a raté est
+  invisible dans le lobby — aucun pair ne peut le rejoindre. Sans boucle,
+  il faudrait détecter l'erreur et schedular un retry manuellement. Avec
+  la boucle, le cycle suivant constate l'absence et republier sans logique
+  d'erreur dédiée.
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : mon entrée existe dans le Gist, (now - publishedAt) < beaconTtl,
+              freeSlots reflète la capacité courante
+    Actuel  : lecture du Gist (ou erreur réseau → état "inconnu")
+    Actions :
+      • entrée absente ou stale       → republier (publish)
+      • freeSlots divergent           → mettre à jour (publish)
+      • freeSlots=0 ET entrée publiée → retirer (withdraw)
+      • erreur réseau sur lecture     → conserver état précédent, retry au prochain cycle
+    Cadence : beaconReconcileInterval (défaut 60s)
+
+  GESTION HORS-LIGNE
+
+    Si le réseau est coupé, la lecture du Gist échoue. Le BeaconController
+    passe en mode dégradé : il conserve le dernier état connu et ne tente
+    pas de republier jusqu'au retour du réseau. La détection du retour
+    se fait via navigator.onLine ou le premier appel Gist réussi.
+    Au retour en ligne, un cycle est déclenché immédiatement.
+
+    navigator.addEventListener('online', () => beaconController.reconcileNow())
+
+  PARTAGE DE LECTURE AVEC LOBBYOBSERVER (voir section suivante)
+
+    BeaconController et LobbyObserver lisent tous deux le Gist au même cycle.
+    Un seul appel list() est émis par tick — le résultat est partagé.
+
+  PARAMÈTRES DE CONFIGURATION
+
+    new Plexus({
+      beaconReconcileInterval : 60_000,   // cadence de vérification (ms)
+      beaconTtl               : 120_000,  // âge max d'une entrée avant refresh (ms)
+    })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LOBBY OBSERVER — DÉCOUVERTE CONTINUE DE PAIRS
+
+  Problème : le polling du lobby s'arrête naturellement quand freeSlots=0.
+  Mais le TopologyController peut rouvrir des slots via DIRECT_RELEASE sans
+  qu'aucun événement ne relance le poll. Sans boucle, le nœud resterait
+  isolé malgré sa capacité disponible.
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : si freeSlots > 0, être connecté aux meilleurs candidats du lobby
+    Actuel  : contenu caché du lobby (valide si âge < lobbyCacheTtl)
+    Actions :
+      • freeSlots > 0 ET cache expiré        → lire le lobby, tenter connexions
+      • freeSlots = 0                         → skip (inutile de lire)
+      • lobby vide                            → skip (réseau plein ou aucun pair)
+      • candidat trouvé                       → déléguer à ConnectionRecovery
+    Cadence : alignée sur le TopologyController (même reconcileInterval, 5min)
+              + déclenchement immédiat sur réception d'un DIRECT_RELEASE
+
+  MUTUALISATION AVEC BEACONCONTROLLER
+
+    Les deux modules partagent un unique appel beacon.list() par cycle :
+
+    tick() {
+      const entries = await beacon.list()   // un seul appel API
+      beaconController.onEntries(entries)   // vérifier sa propre présence
+      lobbyObserver.onEntries(entries)      // chercher de nouveaux pairs
+    }
+
+  PARAMÈTRES DE CONFIGURATION
+
+    new Plexus({
+      lobbyCacheTtl         : 120_000,  // durée de validité du cache lobby (ms)
+      lobbyJoinPollInterval : 10_000,   // intervalle de poll si réseau plein (ms)
+    })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONNECTION RECOVERY — RECONNEXION COHÉRENTE APRÈS SUSPENSION
+
+  Problème : quand une PWA mobile revient d'une suspension OS, toutes les
+  connexions WebRTC sont mortes simultanément. Avec des timers de backoff
+  indépendants par pair, les reconnexions partent dans le désordre, sans
+  priorité ni limite de concurrence. Le ConnectionRecovery unifie ce process
+  sous un seul contrôleur : quoi reconnecter, dans quel ordre, avec quelle
+  urgence, avec quelle concurrence maximale.
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : tous les nœuds de desiredDirect (fournis par TopologyController)
+              sont en état "connected"
+    Actuel  : états réels de chaque connexion (failed, suspected, lost)
+    Actions :
+      • "failed" dans desiredDirect    → tenter reconnexion (probe via mesh)
+      • "suspected"                    → envoyer ping forcé, attendre PONG
+      • "lost" dans desiredDirect      → re-initier depuis le lobby
+      • "connected" hors desiredDirect → déclencher DIRECT_RELEASE
+    Cadence : recoveryInterval (défaut 30s), backoff individuel par pair conservé
+
+  PRIORITÉ DE RECONNEXION PAR CYCLE
+
+    Ordre de traitement dans un cycle :
+      1. Diversity links (minDiversity non atteint) — résilience critique
+      2. Hot links (exchangeMap.count élevé) — impact trafic immédiat
+      3. Autres liens desired — confort
+
+    Limite : max recoveryParallelism tentatives WebRTC simultanées (défaut 3)
+    pour ne pas saturer la bande passante au retour en ligne.
+
+  DÉTECTION DE RETOUR DE SUSPENSION
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        // Vérifier readyState de chaque DataChannel
+        // Marquer "suspected" les channels non-open
+        recovery.reconcileNow()
+      }
+    })
+
+  PARAMÈTRES DE CONFIGURATION
+
+    new Plexus({
+      recoveryInterval    : 30_000,  // cadence de vérification (ms)
+      recoveryParallelism : 3,       // tentatives WebRTC simultanées max par cycle
+    })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GATEWAY HEALTH MONITOR — ÉLECTION ROBUSTE SOUS SUSPENSION
+
+  Problème : sur mobile, l'OS peut suspendre un onglet sans le fermer —
+  il cesse d'émettre des heartbeats tout en restant "vivant". Les Satellites
+  attendent indéfiniment leur timeout de 10s alors qu'une passation préventive
+  aurait pu être déclenchée immédiatement via la Page Visibility API.
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : exactement un Gateway actif ET non suspendu parmi les onglets
+    Actuel  : timestamp du dernier heartbeat reçu + visibilityState du Gateway
+    Actions :
+      • heartbeat absent > gatewayTimeout      → réélection immédiate
+      • Gateway émet visibilityState=hidden    → passation préventive proactive
+      • aucun Satellite disponible             → cet onglet s'auto-élit Gateway
+    Cadence : passive (event-driven sur heartbeat)
+
+  PASSATION PRÉVENTIVE SUR SUSPENSION DÉTECTÉE
+
+    Côté Gateway, au moment de la suspension (visibilitychange=hidden) :
+      1. Diffuser GATEWAY_CLOSING + routingTableSnapshot sans attendre
+         (même comportement que beforeunload — traité identiquement côté Satellites)
+      2. Si l'onglet revient (visibilitychange=visible) et qu'un autre Gateway
+         est actif → rester Satellite, pas de conflit
+
+  SNAPSHOT ROUTING TABLE EN LOCALSTORAGE
+
+    La routingTable est sérialisée en localStorage à chaque STATE_UPDATE reçu.
+    Au retour d'un crash ou d'une suspension sans GATEWAY_CLOSING :
+      → Le nouveau Gateway charge le snapshot localStorage au démarrage
+      → Il pré-alimente sa table sans attendre les STATE_UPDATE entrants
+      → Convergence en 1 cycle au lieu de 3-4
+
+    Ce comportement est déjà mentionné en INTÉGRATION MISSION-016 — le
+    GatewayHealthMonitor formalise son déclenchement dans la boucle.
+
+  LIVRABLE : intégré dans src/gateway.ts
+    La passation préventive s'ajoute au GatewayTab existant.
+    Aucun fichier supplémentaire requis.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STORAGE FLUSHER — PERSISTANCE GARANTIE (CORE NEXUS — HORS PLEXUS)
+
+  Note : ce module appartient à la couche Core Nexus (CryptoVault —
+  MISSION-003), pas à la lib Plexus. Il est documenté ici car il répond
+  au même problème de résilience PWA et suit le même pattern.
+
+  Problème : les modifications d'entités (Architect, Sigil, Spark...) sont
+  appliquées en mémoire via le store Observable. Si l'OS suspend le tab
+  avant le flush vers IndexedDB, les changements sont perdus silencieusement.
+  Sur mobile PWA, ce scénario est fréquent et non détectable après coup.
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : toutes les entités marquées dirty sont chiffrées et persistées
+              dans IndexedDB
+    Actuel  : Set<entityId> des entités dirty en mémoire
+    Actions :
+      • entités dirty détectées → chiffrer (AES-256-GCM) → écrire IndexedDB
+                                → clear dirty flag si écriture confirmée
+    Cadence : flushInterval (défaut 10s)
+              + flush immédiat forcé sur visibilitychange=hidden
+
+  DIRTY FLAG PAR ENTITÉ
+
+    Toute mutation via le store Observable met dirty=true sur l'entité.
+    Le StorageFlusher observe le store et collecte les entityId dirty.
+    Le dirty flag est effacé uniquement après confirmation de l'écriture
+    IndexedDB — jamais de façon optimiste.
+
+  FLUSH D'URGENCE SUR SUSPENSION
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') storageFlusher.flushNow()
+    })
+
+    flushNow() chaîne les Promises IndexedDB sans bloquer le thread —
+    compatible avec le budget de temps contraint du visibilitychange.
+
+  PARAMÈTRES DE CONFIGURATION (Core Nexus)
+
+    new StorageFlusher({
+      flushInterval : 10_000,  // cadence normale (ms)
+      store         : cryptoVault,
+    })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ROUTE AUDITOR — COHÉRENCE ACTIVE DE LA TABLE DE ROUTAGE
+
+  Problème : la table de routage expire les routes par lastSeen de façon
+  passive. Après une suspension mobile, les compteurs lastSeen sont gelés —
+  des nœuds partis restent "active" dans la table jusqu'aux prochains
+  STATE_UPDATEs (30s+ après le réveil). Pendant ce délai, des messages sont
+  envoyés vers des routes fantômes. Des incohérences peuvent aussi s'accumuler
+  entre ce qu'un nœud croit et ce que ses pairs rapportent (distances
+  divergentes, latences obsolètes).
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : chaque route reflète l'état réseau actuel — aucune route
+              fantôme, latences mesurées récemment, distances cohérentes
+              avec ce que les pairs rapportent
+    Actuel  : table avec timestamps lastSeen + latences potentiellement
+              gelées pendant la suspension
+    Actions :
+      • lastSeen > expireThreshold (recalculé au réveil)   → supprimer la route
+                                                             + émettre onRouteExpired
+      • lastSeen > staleThreshold                          → marquer stale
+      • pair direct, latence non mesurée depuis > 2×
+        pingInterval                                       → forcer un PING
+      • distance locale < distance rapportée par le pair
+        source pour la même destination                    → adopter la valeur
+                                                             du pair (vue plus fraîche)
+    Déclencheurs :
+      • visibilitychange=visible  → sweep complet + STATE_REQUEST proactif
+      • Timer stateUpdateInterval → sweep partiel (formalisé depuis l'existant)
+      • onPeerConnected(nodeId)   → intégrer la table fraîche du nouveau pair
+
+  RÉVEIL — STATE_REQUEST PROACTIF
+
+    Au retour de suspension, sans attendre les STATE_UPDATEs périodiques
+    des pairs (qui peuvent prendre jusqu'à 30s) :
+
+    onWake() {
+      routeAuditor.sweep()                         // purge routes fantômes
+      directPeers().forEach(peer =>
+        peer.send({ type: 'STATE_REQUEST' })        // demande de table fraîche
+      )
+    }
+
+    STATE_REQUEST est un nouveau type de message interne. Le pair répond
+    immédiatement avec un STATE_UPDATE complet de sa table courante.
+    Convergence en 1 cycle au lieu de 3-4 cycles périodiques.
+
+  DÉTECTION D'INCOHÉRENCES
+
+    Quand A reçoit un STATE_UPDATE de B contenant une route vers D avec
+    une distance supérieure à celle que A a en table :
+
+      maDistance[D] = 2   // via B — appris précédemment
+      B.rapporte[D] = 4   // B vient de mettre à jour sa vue
+
+    B a la vue la plus fraîche : A adopte la valeur de B et propage.
+    Règle : en cas de divergence, toujours faire confiance au pair source —
+    il a observé un changement que A n'a pas encore vu.
+
+  CONTRAT AVEC PENDINGRECONCILER
+
+    onRouteExpired(nodeId)   → PendingReconciler expire toute la queue
+                               de cette destination sans attendre TTL
+    onRouteRestored(nodeId)  → PendingReconciler tente un drain immédiat
+                               de la queue de cette destination
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PENDING RECONCILER — COHÉRENCE DE LA FILE D'ATTENTE
+
+  Problème : le PendingQueue dispose d'un timer de retry (15s) et d'un
+  drain sur onPeerConnected / STATE_UPDATE. Après une suspension mobile,
+  le timer ne s'est pas déclenché : les messages ont vieilli silencieusement.
+  Certains dépassent pendingTtl sans jamais avoir été tentés. D'autres visent
+  des destinations expirées de la table. Sans sweep au réveil, ces messages
+  restent en queue zombie jusqu'à pendingMaxAttempts.
+
+  BOUCLE DE RÉCONCILIATION
+
+    Désiré  : chaque message est livré, expiré proprement, ou en attente
+              active d'une route — jamais en queue zombie
+    Actuel  : messages avec leur âge réel (recalculé au réveil) et le
+              statut de leur destination dans la table de routage courante
+    Actions :
+      • route valide ET pair "connected"        → drain immédiat
+      • âge > pendingTtl                        → expire + onMessageExpired
+      • attempts >= pendingMaxAttempts          → expire + onMessageExpired
+      • destination expirée de la table         → expire + onMessageExpired
+                                                   (déclenché par RouteAuditor)
+      • route valide, pair "suspected"          → reporter, déléguer à
+                                                   ConnectionRecovery
+    Déclencheurs :
+      • visibilitychange=visible                → sweep complet (recalcul âges)
+      • RouteAuditor.onRouteExpired(nodeId)     → expire ciblé par destination
+      • RouteAuditor.onRouteRestored(nodeId)    → drain ciblé par destination
+      • STATE_UPDATE reçu                       → drain ciblé (existant)
+      • onPeerConnected                         → drain ciblé (existant)
+      • Timer pendingRetryInterval              → sweep partiel (existant)
+
+  RECALCUL D'ÂGE AU RÉVEIL
+
+    Au retour de suspension, l'horloge système a continué mais les timers
+    JavaScript non. Le sweep commence par recalculer l'âge réel de chaque
+    message indépendamment de ses tentatives précédentes :
+
+    sweep() {
+      const now = Date.now()
+      for (const [dest, queue] of pendingQueues) {
+        for (const msg of [...queue]) {
+          const age = now - msg.queuedAt   // âge réel — indépendant des timers
+          if (age > pendingTtl || msg.attempts >= pendingMaxAttempts) {
+            expire(msg)                    // onMessageExpired + retrait de la queue
+          }
+        }
+        drain(dest)                        // tenter les messages restants
+      }
+    }
+
+  COUPLAGE AVEC ROUTEAUDITOR
+
+    Sans ce couplage, un message peut retrier indéfiniment une destination
+    que RouteAuditor a déjà marquée comme perdue (node expired) — il attend
+    ses pendingMaxAttempts alors que la réponse est déjà connue.
+
+    routeAuditor.onRouteExpired(nodeId)
+      → pendingQueues.get(nodeId)?.forEach(expire)   // expiration immédiate
+      → pendingQueues.delete(nodeId)
+
+    routeAuditor.onRouteRestored(nodeId)
+      → drain(nodeId)                                // tentative immédiate
+
+  LIVRABLE : intégré dans src/pending.ts (PendingQueue existant)
+    sweep() + handlers onRouteExpired/onRouteRestored s'ajoutent à la
+    classe PendingQueue. Pas de fichier supplémentaire requis.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REPRÉSENTATION DE L'ÉTAT D'UN NŒUD
+
+  Chaque nœud Plexus maintient un objet d'état unique en mémoire.
+  Les pairs directs et les nœuds connus via gossip sont fusionnés dans
+  une seule Map `nodes`, discriminés par le champ `connection.type`.
+
+  STRUCTURE COMPLÈTE
+  ──────────────────
+  const nodeState = {
+
+    identity: {
+      nodeId    : "a3f8c2e1b7d09456",
+      userId    : "Architecte-Kaito",
+      createdAt : 1712300000,
+      version   : "1.0",
+      // pas de role ici — l'identité est permanente, le role est runtime
+    },
+
+    nodes: {
+
+      // pair direct — connection.type "direct"
+      "b1c2d3e4f5a60718": {
+        userId    : "Architecte-Yuki",
+        distance  : 1,
+        latency   : 42,
+        freeSlots : 3,
+        local     : true,
+        lastSeen  : 1712345900,
+        connection: {
+          type        : "direct",
+          channel     : RTCDataChannel,   // référence live
+          state       : "connected",
+          connectedAt : 1712345678,
+        },
+      },
+
+      // nœud connu via gossip — connection.type "indirect"
+      "d4e5f6a7b8c90930": {
+        userId    : "Architecte-Sora",
+        distance  : 2,
+        latency   : 98,
+        freeSlots : 5,
+        local     : false,
+        lastSeen  : 1712345850,
+        connection: {
+          type   : "indirect",
+          via    : "b1c2d3e4f5a60718",   // nodeId de Yuki — prochain saut
+          status : "active",
+        },
+      },
+
+    },
+
+    capacity: {
+      maxDirect        : 8,
+      freeSlots        : 6,
+      publishing       : true,
+      lobbySlotsCached : 4,
+    },
+
+    exchangeMap: {
+      "b1c2d3e4f5a60718": { count: 8,  windowStart: 1712344000 },
+      "d4e5f6a7b8c90930": { count: 34, windowStart: 1712344000 }, // candidat maillage
+    },
+
+    seenMessages: Set(["msg-a1b2c3d4", "msg-e5f6a7b8"]),  // déduplication, max 500
+
+    beacon: {
+      provider      : "GistBeacon",
+      lobbyGistId   : "4a8f2c...",
+      myEntryPosted : true,
+      lastPublish   : 1712345600,
+    },
+
+    gateway: {
+      isGateway  : true,     // cet onglet est-il le gateway ?
+      tabId      : "tab-uuid-7f3a",
+      electedAt  : 1712344500,
+      satellites : ["tab-uuid-2b1c"],
+      channel    : BroadcastChannel,
+    },
+
+  }
+
+  TYPES TYPESCRIPT
+  ────────────────
+
+  REGISTRE DES MESSAGES — DECLARATION MERGING
+  ─────────────────────────────────────────────
+  Plexus est une lib générique : elle ne connaît pas les types métier de
+  l'application qui l'utilise. Le registre PlexusMessages est l'interface
+  qui fait le pont. Elle est vide dans la lib et étendue par l'application
+  via un `declare module 'plexus'` — TypeScript fusionne les déclarations
+  automatiquement (declaration merging).
+
+  Chaque clef du registre est une string correspondant au `stamps.type` d'un
+  message, chaque valeur est le type du `body` attendu pour ce message.
+  Toutes les valeurs sont contraintes à `StructuredCloneable` — le type
+  récursif qui reflète exactement ce que l'algorithme structured clone accepte
+  (primitives, Date, ArrayBuffer, TypedArrays, tableaux et objets plats, Map,
+  Set). Pas de fonctions, pas d'instances de classe, pas de nœuds DOM —
+  contrainte identique à ce que BroadcastChannel et RTCDataChannel peuvent
+  transporter.
+
+  `BodyOf<T>` résout `PlexusMessages[T]` si `T` est une clef connue du
+  registre, et replie silencieusement sur `StructuredCloneable` sinon. Les
+  types de messages non déclarés ne lèvent pas d'erreur — ils perdent
+  simplement la précision de typage.
+
+  `PlexusEnvelope<T>`, `SendParams<T>` et `BroadcastParams<T>` sont inférés
+  automatiquement : dès qu'un `type` est passé à `send()` ou `broadcast()`,
+  le compilateur résout le `body` attendu sans annotation explicite.
+
+  // Contrainte structurée clone — ce que BroadcastChannel (et RTCDataChannel JSON)
+  // peut sérialiser. Pas de fonctions, pas de class instances, pas de DOM nodes.
+  type StructuredCloneable =
+    | string | number | boolean | null | undefined | bigint
+    | Date | RegExp | ArrayBuffer | DataView
+    | Int8Array | Uint8Array | Uint8ClampedArray
+    | Int16Array | Uint16Array | Int32Array | Uint32Array
+    | Float32Array | Float64Array | BigInt64Array | BigUint64Array
+    | StructuredCloneable[]
+    | { [key: string]: StructuredCloneable }
+    | Map<StructuredCloneable, StructuredCloneable>
+    | Set<StructuredCloneable>
+
+  // Registre vide par défaut — étendu par l'application via declaration merging.
+  // Chaque clef = un type de message, chaque valeur = le type du body associé.
+  // Toutes les valeurs sont contraintes à StructuredCloneable.
+  interface PlexusMessages {}
+
+  // Type helper — résout le body d'un type de message connu, sinon StructuredCloneable
+  type BodyOf<T extends string> =
+    T extends keyof PlexusMessages
+      ? PlexusMessages[T]
+      : StructuredCloneable
+
+  // Stamps — champs requestId/replyTo présents uniquement pour le pattern request/response
+  type Stamps<T extends string = string> = {
+    from       : string
+    to         : string
+    type       : T
+    requestId? : string   // présent si ce message est une requête (généré par request())
+    replyTo?   : string   // présent si ce message est une réponse (= requestId d'origine)
+  }
+
+  // Enveloppe Plexus typée
+  type PlexusEnvelope<T extends string = string> = {
+    msgId   : string
+    maxHops : number
+    hops    : string[]
+    emitAt  : number
+    stamps  : Stamps<T>
+    body    : BodyOf<T>
+  }
+
+  // Paramètre de send() / broadcast() — l'appelant ne fournit que to + type + body
+  type SendParams<T extends string = string> = {
+    to   : string
+    type : T
+    body : BodyOf<T>
+  }
+
+  type BroadcastParams<T extends string = string> = {
+    type : T
+    body : BodyOf<T>
+  }
+
+  // Paramètre de request() — timeout optionnel, Promise résolue avec le body de réponse
+  type RequestParams<T extends string = string> = {
+    to      : string
+    type    : T
+    body    : ReqBodyOf<T>
+    timeout?: number   // ms — écrase requestTimeout du constructeur pour cet appel
+  }
+
+  // REGISTRE DES REQUÊTES — chaque entrée définit le body de requête ET de réponse
+  // Registre vide par défaut, étendu via declare module exactement comme PlexusMessages.
+  interface PlexusRequests {}
+
+  // Helpers — résolution des types depuis le registre (fallback StructuredCloneable)
+  type ReqBodyOf<T extends string> =
+    T extends keyof PlexusRequests ? PlexusRequests[T]['request'] : StructuredCloneable
+
+  type ResBodyOf<T extends string> =
+    T extends keyof PlexusRequests ? PlexusRequests[T]['response'] : StructuredCloneable
+
+  // USAGE DANS L'APPLICATION — declare module pour enrichir les deux registres
+  //
+  // declare module 'plexus' {
+  //   interface PlexusMessages {
+  //     'ANOMALIE_UPDATE' : { id: number; status: 'open' | 'closed' | 'critical' }
+  //     'HEARTBEAT'       : { uptime: number }
+  //   }
+  //   interface PlexusRequests {
+  //     'FETCH_ANOMALIE'  : { request: { id: number }
+  //                           response: { anomalie: Anomalie | null } }
+  //     'PING'            : { request: { sentAt: number }
+  //                           response: { sentAt: number; receivedAt: number } }
+  //   }
+  // }
+  //
+  // Après cette déclaration :
+  //   node.send({ to: 'X', type: 'ANOMALIE_UPDATE', body: { id: 42, status: 'closed' } })  ✓
+  //   const res = await node.request({ to: 'X', type: 'FETCH_ANOMALIE', body: { id: 42 } })
+  //   res.anomalie   // typé Anomalie | null                                                 ✓
+  //   node.onRequest.subscribe(({ stamps, body, reply }) => {
+  //     if (stamps.type === 'FETCH_ANOMALIE') reply({ anomalie: store.get(body.id) })        ✓
+  //   })
+
+  type ConnectionState = "connecting" | "connected" | "suspected" | "failed" | "lost"
+  //   connecting → connected → suspected → failed → lost
+  //   "lost" : état terminal — le pair est supprimé de nodes, onPeerLost émis
+  //   "stale" et "expired" s'appliquent uniquement aux connexions indirectes (IndirectConnection.status)
+
+  type DirectConnection = {
+    type        : "direct"
+    channel     : RTCDataChannel
+    state       : ConnectionState
+    connectedAt : number
+    failCount   : number   // toujours défini — reset à 0 en "connected", incrémenté en "suspected"/"failed"
+    nextRetry?  : number   // timestamp prochaine tentative — présent si state === "failed" | "suspected"
+    retryDelay? : number   // délai backoff courant (ms) — présent si state === "failed" | "suspected"
+  }
+
+  type IndirectConnection = {
+    type   : "indirect"
+    via    : string                              // nodeId du prochain saut direct
+    status : "active" | "stale" | "expired"     // fraîcheur de la route via gossip
+  }
+
+  type NodeEntry = {
+    userId     : string
+    distance   : number
+    latency    : number
+    freeSlots  : number   // pour les indirects : valeur reçue via gossip/STATE_UPDATE
+    local      : boolean
+    lastSeen   : number
+    connection : DirectConnection | IndirectConnection
+  }
+
+  type DropReason =
+    | "loop"        // msgId présent dans hops
+    | "duplicate"   // msgId dans seenMessages
+    | "maxHops"     // hops.length >= maxHops
+    | "noRoute"     // destination inconnue et flood impossible
+    | "peerFailed"  // nextHop en état failed et aucune alternative
+    | "expired"     // message trop longtemps en file pendante (TTL ou maxAttempts)
+
+  type PendingMessage<T extends string = string> = {
+    envelope  : PlexusEnvelope<T>   // enveloppe originale complète
+    queuedAt  : number              // timestamp de mise en attente (ms)
+    attempts  : number              // nombre de tentatives échouées
+  }
+
+  // File par destination — une queue par nodeId cible
+  // pendingQueues: Map<string, PendingMessage[]>
+
+  ROUTAGE — RÉSOLUTION DU PROCHAIN SAUT
+  ──────────────────────────────────────
+  // Le type guide le compilateur — pas de champ optionnel éparpillé
+  function send<T extends string>(destId: string, msg: PlexusEnvelope<T>) {
+    const { connection } = nodes[destId]
+
+    if (connection.type === "direct") {
+      connection.channel.send(JSON.stringify(msg))
+    } else {
+      // indirect : envoyer au nœud intermédiaire
+      const hop = nodes[connection.via]
+      ;(hop.connection as DirectConnection).channel.send(JSON.stringify(msg))
+    }
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MODES D'EXÉCUTION — INLINE OU WORKER
+
+  Plexus peut fonctionner dans deux modes, avec une API publique identique
+  dans les deux cas. Le mode est choisi à l'instanciation.
+
+  MODE INLINE (défaut)
+    Tout s'exécute sur le thread principal. Simple, sans dépendance
+    supplémentaire. Adapté au développement et aux contextes où la charge
+    CPU du routage est négligeable.
+
+    const node = new Plexus({ identity, beacon, ... })
+
+  MODE WORKER
+    Le cœur logique (routage, gossip, déduplication, file pendante, maillage)
+    tourne dans un Worker dédié. Le thread principal conserve uniquement
+    la couche WebRTC — RTCPeerConnection et RTCDataChannel ne peuvent pas
+    migrer dans un Worker (API liée à window).
+
+    La communication entre le thread principal et le Worker passe par
+    postMessage. L'objet retourné par PlexusWorker.create() est un proxy
+    transparent — son API est identique à Plexus inline.
+
+    const node = await PlexusWorker.create('/plexus.worker.js', {
+      identity, beacon, ...
+    })
+    // Même API — send(), broadcast(), subscribe(), hook()
+
+  SÉPARATION DES RESPONSABILITÉS EN MODE WORKER
+
+    Thread principal (window)              Worker
+    ───────────────────────────────────    ───────────────────────────────────
+    RTCPeerConnection / DataChannel        Routage (forward, deliver)
+    Signaling SDP (Beacon reads/writes)    Gossip (STATE_UPDATE)
+    Proxy API → postMessage                Déduplication (seenMessages)
+    Événements DOM / BroadcastChannel      File pendante (store-and-forward)
+                                           Maillage intelligent (exchangeMap)
+                                           Routing table (nodes Map)
+
+    Le Worker reçoit les données brutes des DataChannels via postMessage
+    (envoyées par le thread principal dès réception), les traite, puis
+    renvoie les décisions de forwarding au thread principal pour exécution.
+
+  SHAREDWORKER — ALTERNATIVE AU GATEWAY TAB
+
+    Un SharedWorker est partagé entre tous les onglets du même origin.
+    Il est donc le candidat naturel pour le rôle de Gateway Tab : une seule
+    instance gère l'ensemble des connexions WebRTC, sans élection par
+    BroadcastChannel ni mécanisme de heartbeat.
+
+    Avantages sur l'élection BroadcastChannel :
+      - Pas de race condition au démarrage
+      - Crash d'un onglet n'affecte pas le Worker (il reste vivant)
+      - Pas de snapshot localStorage pour la reconstruction
+      - Routage centralisé dans une seule instance propre
+
+    Contrainte : les APIs WebRTC ne sont toujours pas disponibles dans un
+    SharedWorker. La couche RTC reste dans le thread principal de l'onglet
+    connecté au SharedWorker via son port.
+
+    const node = await PlexusSharedWorker.create('/plexus.shared.worker.js', {
+      identity, beacon, ...
+    })
+
+  OPTION DE CONFIGURATION
+
+    new Plexus({
+      ...
+      worker: false                    // défaut — mode inline
+      // worker: new Worker(...)       // mode Worker dédié
+      // worker: 'shared'              // mode SharedWorker (Gateway centralisé)
+    })
+
+    En pratique, PlexusWorker.create() et PlexusSharedWorker.create() sont
+    des factories qui instancient le bon Worker et retournent le proxy.
+    Passer à un autre mode ne nécessite pas de changer le code applicatif.
+
+  VOIR AUSSI : ANNEXE-09-WORKER.txt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - WebRTC : RTCPeerConnection + RTCDataChannel (un par connexion directe)
+  - GitHub Gist API : Lobby Gist (advertising, présence, SDPs temporaires)
+    Personal Access Token scope: gist
+  - ICE / STUN / TURN : configurables via iceServers: RTCIceServer[]
+    Défaut : stun:stun.l.google.com:19302 + stun1.l.google.com:19302
+    TURN recommandé en production (fallback NAT symétrique) :
+    Metered.ca free tier, Coturn auto-hébergé, ou Twilio Network Traversal
+  - BroadcastChannel('nexus-mesh') : Gateway Tab election + Satellite relay
+    (MISSION-016)
+  - AudioContext proximity detection : priorité aux nœuds locaux
+    (MISSION-032)
+  - localStorage : nodeId + userId persistants + routingTable snapshot
+  - crypto.getRandomValues : génération du nodeId + msgId des enveloppes
+  - beforeunload : GATEWAY_CLOSING + DISCONNECT sur tous les DataChannels
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★★  (Grand Architecte)│
+  │ Durée estimée : 1-2 semaines            │
+  │ Effort        : Très élevé              │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  LIB PLEXUS — packages/plexus/ (package npm autonome)
+  Peer deps : @efficimo/observable ≥ 0.1.0
+
+  Couche identité & signaling
+  [ ] src/identity.ts           : génération/lecture nodeId+userId (localStorage)
+  [ ] src/beacon.ts             : interface BeaconProvider (contrat abstrait)
+  [ ] src/beacons/gist.ts       : GistBeacon — GitHub Gist + chiffrement AES-GCM (PBKDF2)
+  [ ] src/beacons/memory.ts     : MemoryBeacon — Map en mémoire, tests unitaires uniquement
+
+  Couche transport
+  [ ] src/peer.ts               : WebRTCPeer — connexion unitaire (SDP, ICE, DataChannel)
+                                  reçoit iceServers[] depuis PlexusConfig → new RTCPeerConnection({ iceServers })
+
+  Couche réseau
+  [ ] src/routing.ts            : RoutingTable — Bellman-Ford + freeSlots par entrée
+  [ ] src/gossip.ts             : StateGossip — émission STATE_UPDATE périodique (stateUpdateInterval)
+                                  + CAPACITY_UPDATE immédiat sur changement de freeSlots
+  [ ] src/router.ts             : MessageRouter — enveloppe, déduplication, flood
+  [ ] src/pending.ts            : PendingQueue — store-and-forward par destination
+  [ ] src/mesh.ts               : MeshManager — orchestration N connexions + routage
+  [ ] src/intelligent.ts        : IntelligentMesh — exchangeMap + tracking du trafic
+  [ ] src/topology.ts           : TopologyController — boucle de réconciliation dual-objectif
+                                  (hotSlots + diversitySlots + DIRECT_RELEASE + hysterèse)
+
+  Couche résilience PWA (boucles de réconciliation)
+  [ ] src/beacon-controller.ts  : BeaconController — publication continue dans le lobby
+                                  (réconciliation GistBeacon + gestion hors-ligne + online event)
+  [ ] src/lobby-observer.ts     : LobbyObserver — découverte continue de pairs
+                                  (mutualise list() avec BeaconController, déclenché sur DIRECT_RELEASE)
+  [ ] src/recovery.ts           : ConnectionRecovery — reconnexion cohérente post-suspension
+                                  (priorité diversity > hot, recoveryParallelism, visibilitychange)
+  NOTE src/gateway.ts           : GatewayHealthMonitor intégré — passation préventive sur
+                                  visibilitychange=hidden + snapshot routingTable localStorage
+  [ ] src/route-auditor.ts      : RouteAuditor — cohérence active de la routing table
+                                  (sweep au réveil, STATE_REQUEST proactif, détection incohérences,
+                                  onRouteExpired/onRouteRestored → PendingReconciler)
+  NOTE src/pending.ts           : PendingReconciler intégré — sweep complet au réveil,
+                                  recalcul d'âge réel, couplage RouteAuditor
+
+  Couche RPC
+  [ ] src/rpc.ts                : RequestManager — pendingRequests, timeout, reply()
+                                  PlexusTimeoutError, PlexusRemoteError
+
+  Couche exécution
+  [ ] src/gateway.ts            : GatewayTab — élection BroadcastChannel + passation
+  [ ] src/satellite.ts          : SatelliteTab — relay BroadcastChannel ↔ Gateway
+  [ ] src/worker/plexus.worker.ts        : entrée Worker — proxy postMessage ↔ core
+  [ ] src/worker/plexus.shared.worker.ts : entrée SharedWorker — multi-ports
+
+  Point d'entrée public
+  [ ] src/plexus.ts             : Plexus — API haut niveau, mode inline
+  [ ] src/plexus-worker.ts      : PlexusWorker.create() — factory mode Worker
+  [ ] src/plexus-shared.ts      : PlexusSharedWorker.create() — factory mode SharedWorker
+  [ ] src/types.ts              : PlexusMessages, PlexusRequests, StructuredCloneable,
+                                  tous les types exportés publics
+
+  INTÉGRATION CORE NEXUS
+  [ ] src/storage/flusher.ts    : StorageFlusher — flush dirty entities vers IndexedDB
+                                  (dirty flag par entité, flush immédiat sur visibilitychange=hidden)
+  [ ] ProximityRouter.ts        : adapter MISSION-032 → BeaconProvider local
+  [ ] PlexusMessages.d.ts       : declare module 'plexus' — registres métier du Terminal
+  [ ] Page "Constellation"      : visualisation mesh (→ MISSION-009)
+  [ ] Indicateur par nœud       : 🏠/🌐, distance, latence, freeSlots, état
+  [ ] Visualisation liens intelligents (traits épais = trafic fort)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — ARCHITECTURE RÉSEAU COMPLÈTE, MISSION FLAGSHIP
+
+  ★ APPRÉCIATION
+  Ce n'est plus une feature — c'est un protocole réseau complet implémenté
+  dans un navigateur. Distance-vector routing, enveloppes typées, déduplication,
+  store-and-forward, RPC request/response, élection de leader, maillage
+  intelligent, modes Worker/SharedWorker : le Terminal implémente des concepts
+  fondamentaux d'internet et de systèmes distribués, en TypeScript, sans serveur.
+  La page "Constellation" (MISSION-009) qui visualise les nœuds, les chemins
+  et les latences en temps réel est la démonstration technique la plus
+  impressionnante du projet.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  CONVERGENCE ET BOUCLES
+    Distance-vector est sujet au problème "count to infinity" : si un nœud
+    disparaît, ses voisins peuvent se propager des routes invalides en boucle
+    avec des distances croissantes. Solution : Split Horizon (un nœud ne
+    renvoie pas une route à celui qui la lui a apprise) + TTL strict (15 sauts max).
+
+  COHÉRENCE DES DONNÉES
+    Avec N nœuds et des messages qui voyagent par des chemins différents,
+    deux modifications peuvent arriver dans le désordre. Stratégie :
+    timestamp + nodeId comme tiebreaker (last-write-wins vector clock simplifié).
+    Chaque entité (Anomalie, Sigil...) stocke son { lastModifiedAt, lastModifiedBy }.
+
+  COÛT DU LOBBY GIST
+    GitHub API rate limit : 5000 requêtes/heure par token authentifié.
+    Le polling Lobby (10s) + les SDPs + les commentaires ne devraient pas
+    dépasser quelques dizaines de requêtes par connexion. Pas de problème
+    pour une escouade normale, mais surveiller en cas d'entrées/sorties fréquentes.
+
+  SÉCURITÉ DES SDPs
+    Les SDP exposent l'IP publique pendant la signalisation. Durée d'exposition
+    = quelques secondes (le temps de l'échange). Supprimer le SDP du Gist dès
+    que la connexion est établie. Pour un usage sensible : chiffrer les SDPs
+    avec une clé AES partagée out-of-band avant de les poster.
+
+  TEST MULTI-MACHINE OBLIGATOIRE
+    Ce protocole ne peut pas être validé sur une seule machine (même réseau =
+    STUN toujours suffisant, routage trivial). Tester impérativement avec
+    3 machines sur 3 réseaux différents (2x WiFi personnel + 1x 4G) pour
+    valider STUN, le routage multi-sauts et la convergence réelle.
+
+  COEXISTENCE AVEC LE SERVICE WORKER (→ MISSION-015 PWA)
+    WebRTC est INTERDIT dans les Service Workers — RTCPeerConnection y est
+    undefined. Plexus ne doit jamais être instancié depuis un SW. Les modes
+    inline, Worker et SharedWorker sont tous valides ; le SW est une couche
+    orthogonale (fetch interception + cache), pas un contexte d'exécution
+    pour Plexus.
+
+    Le SW intercepte les fetch() de GistBeacon vers api.github.com. Sans
+    configuration explicite, la stratégie CacheFirst peut servir un Gist
+    obsolète — Plexus raterait de nouveaux pairs. MISSION-015 doit déclarer
+    une route NetworkOnly pour api.github.com/gists/*.
+
+  COMPORTEMENT HORS-LIGNE (PWA offline)
+    Lorsque le réseau est coupé, GistBeacon ne peut ni lire ni publier le
+    lobby. Aucune nouvelle connexion n'est possible.
+    - Connexions déjà établies : survivent (WebRTC P2P ne passe pas par un serveur)
+    - Routage, pending queue, RPC entre pairs existants : opérationnels
+    - Découverte de nouveaux pairs : impossible jusqu'au retour du réseau
+    - Reconnexion après coupure : Plexus doit retraverser le flow complet
+      (read beacon → SDP → ICE) dès que le réseau revient. Ce flow doit être
+      idempotent et appelable depuis ConnectionState === 'lost'.
+
+  SUSPENSION PAR L'OS (mobile PWA)
+    Sur mobile, l'OS suspend la PWA en arrière-plan. Les DataChannels se
+    ferment (timeout WebRTC). Au retour au premier plan :
+    1. Plexus détecte 'suspected' → 'failed' → 'lost' sur tous les pairs
+    2. Les observables (onPeerStateChanged, onPeerDisconnected) signalent
+       l'état à l'UI
+    3. Si le réseau est disponible, re-init automatique depuis le beacon
+    Le SharedWorker survit plus longtemps que la page — il peut maintenir
+    le mesh pendant une navigation interne. Mais il ne survit pas à la
+    fermeture complète de l'app.
+
+  ✦ RECOMMANDATION — SPRINTS
+    Sprint 1 : NodeIdentity + WebRTCPeer + Lobby Gist basique (connexion 1-to-1)
+               + BeaconController + LobbyObserver (réconciliation lobby dès le départ)
+    Sprint 2 : RoutingTable + MeshManager (mesh 3 nœuds, routage fonctionnel)
+               + ConnectionRecovery (reconnexion cohérente, priorité diversity > hot)
+               + RouteAuditor (STATE_REQUEST proactif, purge fantômes, détection incohérences)
+    Sprint 3 : MessageRouter — enveloppes typées + déduplication + forward()
+    Sprint 4 : LobbyGist v2 — freeSlots + conditions de publication
+               + CapacityGossip (CAPACITY_UPDATE propagé dans le réseau)
+    Sprint 5 : GatewayTab + SatelliteTab (BroadcastChannel, un seul RTC/machine)
+               + GatewayHealthMonitor (passation préventive sur visibilitychange=hidden)
+    Sprint 6 : PendingQueue — store-and-forward (drain sur STATE_UPDATE + timer)
+               + PendingReconciler (sweep au réveil, recalcul d'âge, couplage RouteAuditor)
+    Sprint 7 : RequestManager — request/response RPC (Promise + timeout + onResponse)
+    Sprint 8 : ProximityRouter (MISSION-032) + MISSION-009 Constellation
+    Sprint 9 : IntelligentMesh + TopologyController — boucle de réconciliation dual-objectif
+               (exchangeMap + hotSlots + diversitySlots + DIRECT_RELEASE + hysterèse)
+               Valider le cas 3 nœuds sans trafic → triangle complet automatique
+    Sprint 10: Mode Worker / SharedWorker (optionnel — si perf thread principal insuffisante)
+    Sprint 11: StorageFlusher (Core Nexus) — dirty flag + flush IndexedDB + visibilitychange
+
+    Ne pas aborder le Sprint 5 avant que le routage multi-sauts soit solide.
+    Le Sprint 9 (maillage intelligent) est un bonus — il nécessite un réseau
+    suffisamment actif pour que les seuils de fréquence soient déclenchés.
+    Le Sprint 10 est une optimisation — commencer inline, migrer si nécessaire.
+    Le Sprint 11 est indépendant du mesh — il peut être traité en parallèle dès Sprint 3.

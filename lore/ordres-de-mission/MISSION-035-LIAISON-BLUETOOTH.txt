@@ -1,0 +1,102 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-035                                         ║
+║  LA LIAISON BLUETOOTH                                                    ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔵💡
+
+DÉSIGNATION     : Pont Numérique-Physique via BLE — Opération Phare du Chapitre
+CODENAME        : LIAISON-BLUETOOTH
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Arsenal Physique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole installe un Phare physique dans l'espace de travail de l'équipe :
+une ampoule connectée en Bluetooth Low Energy qui reflète l'état du Nexus.
+
+  PHARE VERT  — Toutes les Anomalies sont en ordre.
+  PHARE JAUNE — Une Anomalie haute priorité non assignée.
+  PHARE ROUGE — Corruption Critique détectée.
+  PHARE BLEU  — Déploiement en cours sur le Dépôt Immuable.
+  PHARE PULSE — Lien Direct WebRTC actif.
+
+⚠ Web Bluetooth est Chrome/Edge uniquement. Firefox et Safari n'implémentent
+  pas cette API (décision de politique de sécurité maintenue en 2025).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Se connecter à une ampoule BLE via :
+     navigator.bluetooth.requestDevice({ filters: [...], optionalServices: [...] })
+     puis .connectGATT() → serveur GATT → caractéristique couleur
+  2. Écrire les caractéristiques GATT pour contrôler la couleur (RGB)
+     et la luminosité (format spécifique selon l'ampoule choisie)
+  3. Mapper les états Nexus sur des commandes couleur
+  4. Implémenter la reconnexion automatique (device.gatt.connect() sur disconnect)
+  5. Page de configuration (scan, connexion, test des couleurs, mapping états)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web Bluetooth API (navigator.bluetooth — Chrome/Edge seulement)
+  - BluetoothRemoteGATTServer.connect()
+  - BluetoothRemoteGATTService.getCharacteristic()
+  - BluetoothRemoteGATTCharacteristic.writeValue() (ou writeValueWithoutResponse())
+  - event 'gattserverdisconnected' pour la reconnexion automatique
+
+  MATÉRIEL SUGGÉRÉ (choix par praticité)
+  - Govee H6001 / H6003 / H6143 : protocole BLE partiellement documenté
+    (UUID service : 000102030405060708090a0b0c0d1910, reverse-engineered)
+  - ESP32 DIY + NeoPixel : solution la plus fiable — vous contrôlez le firmware
+    GATT entièrement. Recommandé pour ne pas dépendre d'un protocole propriétaire.
+  - ⚠ IKEA TRÅDFRI : utilise Zigbee (NOT BLE) — incompatible Web Bluetooth.
+    IKEA Dirigera (2022+) utilise Matter/Thread, également non compatible.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2 jours                 │
+  │ Effort        : Moyen (+ matériel BLE)  │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module BluetoothPhare.ts (connexion GATT + writeValue couleur)
+  [ ] Mapping état Nexus → couleur documenté (avec valeurs GATT hex)
+  [ ] Page de configuration (scan, connexion, test 5 couleurs)
+  [ ] Reconnexion automatique sur gattserverdisconnected
+  [ ] Firmware ESP32 GATT server (si solution DIY retenue)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION CONCRÈTE, CHOIX MATÉRIEL CRITIQUE
+
+  ★ APPRÉCIATION
+  L'effet visuel dans la salle de travail est fort : la lampe passe au rouge
+  quand une anomalie critique tombe. C'est la mission qui transforme le bureau
+  en "salle de guerre". Très efficace pour les sprints reviews en présentiel.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION IMPORTANTE : IKEA TRÅDFRI utilise Zigbee, pas BLE. Incompatible
+    avec Web Bluetooth. Retirer de la liste de suggestions.
+  - Les protocoles BLE des ampoules grand public (Govee, etc.) sont reverse-engineered
+    par la communauté. Ils peuvent changer avec les mises à jour firmware.
+    L'ESP32 DIY avec firmware GATT custom est la solution la plus pérenne.
+  - Web Bluetooth est Chrome/Edge uniquement — pas de support Firefox. Important
+    à mentionner si l'équipe utilise Firefox au quotidien.
+  - writeValue() peut être throttlé si trop d'appels rapides. Utiliser
+    writeValueWithoutResponse() pour les mises à jour fréquentes (animation pulse).
+
+  ✦ RECOMMANDATION
+  Recommander l'ESP32 + NeoPixel pour éviter la dépendance au protocole propriétaire.
+  Le firmware GATT en MicroPython tient en 30 lignes. Plus fiable, plus fun à coder,
+  et permet d'ajouter des effets (rainbow, pulse, fade) facilement.

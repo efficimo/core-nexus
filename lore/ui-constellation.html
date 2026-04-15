@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>plexus-ui — Interface Constellation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+
+:root {
+  --bg:        #05070b;
+  --surface:   #0a0f18;
+  --surface-2: #0e1420;
+  --border:    #161f35;
+  --border-hi: #1f2e4d;
+  --text:      #b8c4d8;
+  --text-dim:  #354560;
+  --text-faint:#1a2540;
+  --accent:    #2e6aff;
+  --connected: #00e5ff;
+  --warn:      #ffab00;
+  --error:     #ff2055;
+  --sync:      #00e676;
+  --font-ui:   'Share Tech Mono', monospace;
+  --font-h:    'Orbitron', sans-serif;
+}
+
+body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font-size:12px; }
+
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.035) 3px,rgba(0,0,0,.035) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+/* ── LAYOUT ── */
+.app {
+  display:grid;
+  grid-template-rows:48px 1fr 34px;
+  height:100vh;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 1rem; gap:.75rem;
+}
+
+.top-brand {
+  display:flex; align-items:center; gap:.5rem;
+  font-family:var(--font-h); font-size:.58rem; font-weight:900;
+  letter-spacing:.15em; text-transform:uppercase; color:var(--text);
+}
+
+.brand-orb { position:relative; width:22px; height:22px; }
+.brand-orb .r { position:absolute; border-radius:50%; border:1.5px dashed; }
+.brand-orb .r1 { inset:0; border-color:var(--accent); opacity:.6; animation:spin-cw 5s linear infinite; }
+.brand-orb .r2 { inset:5px; border-color:var(--connected); opacity:.5; animation:spin-ccw 8s linear infinite; }
+.brand-orb .core { position:absolute; inset:9px; border-radius:50%; background:var(--connected); opacity:.7; }
+
+.top-sep { width:1px; height:20px; background:var(--border); margin:0 .25rem; }
+
+.top-label { font-size:.52rem; color:var(--text-dim); letter-spacing:.15em; }
+.top-tag {
+  padding:.15rem .5rem; font-size:.48rem; letter-spacing:.15em; text-transform:uppercase;
+  border:1px solid rgba(46,106,255,.3); background:rgba(46,106,255,.08); color:var(--accent);
+  clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px));
+}
+
+.top-right { margin-left:auto; display:flex; align-items:center; gap:.75rem; }
+.top-stat { font-size:.52rem; color:var(--text-dim); letter-spacing:.08em; display:flex; align-items:center; gap:.35rem; }
+.top-dot { width:5px; height:5px; border-radius:50%; }
+.top-dot.green { background:var(--sync); box-shadow:0 0 5px var(--sync); animation:pulse-dot 2s ease-in-out infinite; }
+.top-dot.blue  { background:var(--accent); box-shadow:0 0 5px var(--accent); }
+.top-dot.amber { background:var(--warn); }
+
+/* ── WORKSPACE ── */
+.workspace {
+  display:grid;
+  grid-template-columns:220px 1fr 240px;
+  overflow:hidden;
+}
+
+/* ── PANELS ── */
+.side-panel {
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.side-panel.right { border-right:none; border-left:1px solid var(--border); }
+
+.pnl {
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+
+.pnl-head {
+  display:flex; align-items:center; gap:.5rem;
+  padding:.55rem .75rem;
+  border-bottom:1px solid var(--text-faint);
+}
+
+.pnl-title {
+  font-family:var(--font-h); font-size:.52rem; font-weight:600;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--text);
+}
+
+.pnl-sub { font-size:.5rem; color:var(--text-dim); letter-spacing:.08em; margin-left:auto; }
+
+.pnl-body { padding:.65rem .75rem; }
+
+/* ── INFO ROWS ── */
+.info-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:.3rem 0;
+  border-bottom:1px solid var(--text-faint);
+  font-size:.58rem;
+}
+.info-row:last-child { border-bottom:none; }
+.info-key { color:var(--text-dim); letter-spacing:.06em; }
+.info-val { color:var(--text); letter-spacing:.04em; font-size:.57rem; }
+.info-val.cyan  { color:var(--connected); }
+.info-val.green { color:var(--sync); }
+.info-val.amber { color:var(--warn); }
+.info-val.blue  { color:var(--accent); }
+.info-val.red   { color:var(--error); }
+
+/* ── STAT GRID ── */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:.4rem; padding:.65rem .75rem; }
+
+.stat-box {
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));
+  padding:.5rem .6rem;
+  display:flex; flex-direction:column; gap:.2rem;
+}
+
+.stat-val {
+  font-family:var(--font-h); font-size:.9rem; font-weight:900; line-height:1;
+}
+
+.stat-val.cyan  { color:var(--connected); }
+.stat-val.green { color:var(--sync); }
+.stat-val.amber { color:var(--warn); }
+.stat-val.red   { color:var(--error); }
+.stat-val.dim   { color:var(--text-dim); }
+
+.stat-label { font-size:.48rem; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; }
+
+/* ── SPARKLINE ── */
+.sparkline-wrap { padding:.3rem .75rem .65rem; }
+.sparkline-label { font-size:.5rem; color:var(--text-dim); letter-spacing:.1em; margin-bottom:.3rem; }
+.sparkline { display:flex; align-items:flex-end; gap:2px; height:28px; }
+.spark-bar {
+  flex:1; border-radius:1px;
+  background:var(--border-hi,#253050);
+  min-height:2px;
+  transition:height .3s ease;
+}
+.spark-bar.type-msg  { background:var(--accent); opacity:.7; }
+.spark-bar.type-lat  { background:var(--connected); opacity:.6; }
+
+/* ── LOG ── */
+.log-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+.log-filters {
+  display:flex; gap:.25rem; padding:.4rem .75rem;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+
+.filter-btn {
+  padding:.15rem .4rem; font-size:.48rem; font-family:var(--font-ui);
+  letter-spacing:.1em; text-transform:uppercase;
+  border:1px solid var(--border-hi); background:transparent; color:var(--text-dim);
+  cursor:pointer; border-radius:2px; transition:all .15s;
+}
+.filter-btn:hover { color:var(--text); }
+.filter-btn.active { background:var(--accent-dim,rgba(46,106,255,.1)); color:var(--accent); border-color:rgba(46,106,255,.4); }
+.filter-btn.fa { --c:var(--accent); }
+.filter-btn.fu { --c:var(--sync); }
+.filter-btn.fs { --c:var(--warn); }
+
+.log-scroll { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+
+.log-entry {
+  display:flex; align-items:flex-start; gap:.5rem;
+  padding:.45rem .75rem;
+  border-bottom:1px solid var(--text-faint);
+  font-size:.55rem;
+  transition:background .1s;
+  cursor:pointer;
+}
+.log-entry:hover { background:rgba(255,255,255,.02); }
+
+.log-type-dot {
+  width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:3px;
+  position:relative;
+}
+.log-type-dot::before {
+  content:'';
+  position:absolute; inset:-3px;
+  border-radius:50%;
+  border:1px dashed currentColor;
+  opacity:.4;
+  animation:spin-cw 4s linear infinite;
+}
+.log-type-dot.UPDATE { background:var(--accent);    color:var(--accent); box-shadow:0 0 4px var(--accent); }
+.log-type-dot.ALERT  { background:var(--error);     color:var(--error);  box-shadow:0 0 4px var(--error); }
+.log-type-dot.SYNC   { background:var(--sync);      color:var(--sync);   box-shadow:0 0 4px var(--sync); }
+.log-type-dot.BEACON { background:var(--warn);      color:var(--warn);   box-shadow:0 0 4px var(--warn); }
+
+.log-body { flex:1; display:flex; flex-direction:column; gap:.15rem; }
+.log-route { color:var(--text); letter-spacing:.04em; }
+.log-meta  { color:var(--text-dim); font-size:.5rem; letter-spacing:.04em; }
+.log-status { font-size:.48rem; padding:0 4px; border-radius:2px; flex-shrink:0; }
+.log-status.delivered { color:var(--sync);  border:1px solid rgba(0,230,118,.25); background:rgba(0,230,118,.08); }
+.log-status.forwarded { color:var(--accent);border:1px solid rgba(46,106,255,.25); background:rgba(46,106,255,.08); }
+.log-status.dropped   { color:var(--error); border:1px solid rgba(255,32,85,.25);  background:rgba(255,32,85,.08); }
+
+/* ── GRAPH VIEWPORT ── */
+.graph-viewport {
+  position:relative;
+  background:var(--bg);
+  overflow:hidden;
+}
+
+#svg-graph { display:block; width:100%; height:100%; }
+
+/* SVG elements */
+.edge-direct   { stroke:#1a3d6e; stroke-linecap:round; transition:stroke .3s; }
+.edge-direct:hover { stroke:#2e6aff; cursor:pointer; }
+.edge-indirect { stroke:#131d2e; stroke-linecap:round; stroke-dasharray:5 5; }
+.edge-gateway  { stroke:var(--accent); stroke-linecap:round; stroke-dasharray:8 5; animation:flow-dash 1.2s linear infinite; }
+.edge-failed   { stroke:#2d0e1a; stroke-linecap:round; }
+
+.node-circle { cursor:pointer; transition:r .2s; }
+.node-circle:hover { filter:brightness(1.3); }
+
+.node-label { pointer-events:none; user-select:none; }
+
+/* Beacon ring animation on local node */
+.beacon-ring { pointer-events:none; }
+
+/* ── GRAPH CONTROLS ── */
+.graph-controls {
+  position:absolute; bottom:.75rem; left:50%; transform:translateX(-50%);
+  display:flex; gap:.4rem; align-items:center;
+}
+
+.gctl-btn {
+  padding:.25rem .6rem; font-size:.52rem; font-family:var(--font-ui);
+  letter-spacing:.1em; text-transform:uppercase;
+  border:1px solid var(--border-hi); background:rgba(10,15,24,.85); color:var(--text-dim);
+  cursor:pointer; backdrop-filter:blur(4px);
+  clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));
+  transition:all .15s;
+}
+.gctl-btn:hover       { color:var(--text); border-color:var(--border-hi); }
+.gctl-btn.active      { color:var(--accent); border-color:rgba(46,106,255,.5); background:rgba(46,106,255,.1); }
+.gctl-btn.act-send    { color:var(--sync); border-color:rgba(0,230,118,.4); }
+.gctl-btn.act-send:hover { background:rgba(0,230,118,.08); }
+
+/* ── TOOLTIP ── */
+.tooltip {
+  position:absolute; pointer-events:none;
+  background:rgba(10,15,24,.95); border:1px solid var(--border-hi);
+  padding:.4rem .65rem; font-size:.55rem; letter-spacing:.06em;
+  clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+  display:none; z-index:100;
+  backdrop-filter:blur(4px);
+}
+.tooltip.visible { display:block; }
+.tooltip-val { color:var(--connected); }
+
+/* ── NODE DRAWER ── */
+.node-drawer {
+  position:fixed; top:0; right:-320px; bottom:0; width:320px;
+  background:var(--surface);
+  border-left:1px solid var(--border-hi);
+  z-index:500;
+  transition:right .3s cubic-bezier(.4,0,.2,1);
+  display:flex; flex-direction:column;
+  box-shadow:-8px 0 32px rgba(0,0,0,.6);
+}
+.node-drawer.open { right:0; }
+
+.drawer-header {
+  padding:.75rem 1rem;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:.6rem;
+}
+
+.drawer-node-orb {
+  position:relative; width:32px; height:32px;
+  display:flex; align-items:center; justify-content:center;
+}
+.drawer-node-orb .dring {
+  position:absolute; inset:0; border-radius:50%; border:1.5px dashed; animation:spin-cw 5s linear infinite;
+}
+.drawer-node-orb .dcore { width:16px; height:16px; border-radius:50%; position:relative; z-index:1; }
+
+.drawer-title { font-family:var(--font-h); font-size:.6rem; font-weight:900; letter-spacing:.12em; }
+.drawer-sub   { font-size:.52rem; color:var(--text-dim); letter-spacing:.08em; }
+
+.drawer-close {
+  margin-left:auto; width:24px; height:24px; border:1px solid var(--border-hi);
+  background:transparent; color:var(--text-dim); cursor:pointer; border-radius:3px;
+  display:flex; align-items:center; justify-content:center; font-size:12px;
+  transition:all .15s;
+}
+.drawer-close:hover { color:var(--text); border-color:var(--error); }
+
+.drawer-body { flex:1; overflow-y:auto; padding:.75rem 1rem; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+
+.drawer-section { margin-bottom:1rem; }
+.drawer-section-title {
+  font-size:.5rem; letter-spacing:.2em; color:var(--text-faint); text-transform:uppercase;
+  margin-bottom:.4rem; padding-bottom:.25rem; border-bottom:1px solid var(--text-faint);
+}
+
+.drawer-footer { padding:.75rem 1rem; border-top:1px solid var(--border); }
+
+.action-btn {
+  width:100%; padding:.45rem; font-family:var(--font-ui); font-size:.6rem;
+  letter-spacing:.1em; text-transform:uppercase;
+  border:1px solid rgba(0,229,255,.35); background:rgba(0,229,255,.06); color:var(--connected);
+  cursor:pointer;
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px));
+  transition:all .15s;
+}
+.action-btn:hover { background:rgba(0,229,255,.12); border-color:rgba(0,229,255,.6); }
+.action-btn:disabled { opacity:.3; cursor:not-allowed; }
+
+.conn-history-item {
+  display:flex; justify-content:space-between; padding:.25rem 0;
+  border-bottom:1px solid var(--text-faint); font-size:.54rem;
+}
+
+/* ── FOOTER ── */
+.footer {
+  background:var(--surface); border-top:1px solid var(--border);
+  display:flex; align-items:center; padding:0 1rem; gap:1.5rem;
+  font-size:.5rem; color:var(--text-faint); letter-spacing:.1em;
+}
+.footer-item { display:flex; align-items:center; gap:.3rem; }
+.footer-item .dot { width:4px; height:4px; border-radius:50%; background:var(--sync); opacity:.6; }
+#footer-clock { margin-left:auto; color:var(--text-dim); }
+
+/* ── KEYFRAMES ── */
+@keyframes spin-cw  { to { transform:rotate(360deg); } }
+@keyframes spin-ccw { to { transform:rotate(-360deg); } }
+@keyframes flow-dash { to { stroke-dashoffset:-13; } }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)} }
+@keyframes beacon-expand {
+  0%   { r:18; opacity:.6; }
+  100% { r:60; opacity:0; }
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-hi); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="top-brand">
+    <div class="brand-orb">
+      <div class="r r1"></div>
+      <div class="r r2"></div>
+      <div class="core"></div>
+    </div>
+    plexus-ui
+  </div>
+  <div class="top-sep"></div>
+  <div class="top-label">Mission-009 — Interface Constellation</div>
+  <div class="top-tag">NEXUS+ // plexus-ui v0.1</div>
+
+  <div class="top-right">
+    <div class="top-stat"><div class="top-dot green"></div><span id="stat-online">0 nœuds</span></div>
+    <div class="top-stat"><div class="top-dot blue"></div><span id="stat-msgs">0 msg/s</span></div>
+    <div class="top-stat"><div class="top-dot amber"></div><span id="stat-drop">0% drop</span></div>
+  </div>
+</header>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- LEFT PANEL -->
+  <aside class="side-panel">
+
+    <!-- Local Node -->
+    <div class="pnl">
+      <div class="pnl-head">
+        <div class="pnl-title">Nœud Local</div>
+        <div class="pnl-sub" id="local-role-badge">GATEWAY</div>
+      </div>
+      <div class="pnl-body">
+        <div class="info-row"><span class="info-key">nodeId</span><span class="info-val cyan" id="local-id" style="cursor:pointer" title="Clic pour copier">a3f8c2e1b7d09456</span></div>
+        <div class="info-row"><span class="info-key">userId</span><span class="info-val">Kaito-7F2A</span></div>
+        <div class="info-row"><span class="info-key">rôle</span><span class="info-val blue">Gateway Tab</span></div>
+        <div class="info-row"><span class="info-key">freeSlots</span><span class="info-val green" id="local-slots">3 / 6</span></div>
+        <div class="info-row"><span class="info-key">beacon</span><span class="info-val green">✓ publié</span></div>
+        <div class="info-row"><span class="info-key">uptime</span><span class="info-val" id="local-uptime">00:00:00</span></div>
+      </div>
+    </div>
+
+    <!-- Mesh Stats -->
+    <div class="pnl">
+      <div class="pnl-head"><div class="pnl-title">Mesh Stats</div></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val cyan" id="s-total">0</div><div class="stat-label">Total nœuds</div></div>
+        <div class="stat-box"><div class="stat-val green" id="s-direct">0</div><div class="stat-label">Directs</div></div>
+        <div class="stat-box"><div class="stat-val dim" id="s-indirect">0</div><div class="stat-label">Indirects</div></div>
+        <div class="stat-box"><div class="stat-val amber" id="s-diam">0</div><div class="stat-label">Diamètre</div></div>
+      </div>
+    </div>
+
+    <!-- Sparklines -->
+    <div class="pnl">
+      <div class="pnl-head"><div class="pnl-title">Activité</div></div>
+      <div class="sparkline-wrap">
+        <div class="sparkline-label">Messages / 10s</div>
+        <div class="sparkline" id="spark-msgs">
+          <div class="spark-bar type-msg" style="height:40%"></div>
+          <div class="spark-bar type-msg" style="height:60%"></div>
+          <div class="spark-bar type-msg" style="height:30%"></div>
+          <div class="spark-bar type-msg" style="height:80%"></div>
+          <div class="spark-bar type-msg" style="height:50%"></div>
+          <div class="spark-bar type-msg" style="height:70%"></div>
+          <div class="spark-bar type-msg" style="height:45%"></div>
+          <div class="spark-bar type-msg" style="height:90%"></div>
+          <div class="spark-bar type-msg" style="height:55%"></div>
+          <div class="spark-bar type-msg" style="height:65%"></div>
+        </div>
+      </div>
+      <div class="sparkline-wrap" style="padding-top:0">
+        <div class="sparkline-label">Latence moy (ms)</div>
+        <div class="sparkline" id="spark-lat">
+          <div class="spark-bar type-lat" style="height:50%"></div>
+          <div class="spark-bar type-lat" style="height:45%"></div>
+          <div class="spark-bar type-lat" style="height:60%"></div>
+          <div class="spark-bar type-lat" style="height:40%"></div>
+          <div class="spark-bar type-lat" style="height:55%"></div>
+          <div class="spark-bar type-lat" style="height:70%"></div>
+          <div class="spark-bar type-lat" style="height:48%"></div>
+          <div class="spark-bar type-lat" style="height:52%"></div>
+          <div class="spark-bar type-lat" style="height:65%"></div>
+          <div class="spark-bar type-lat" style="height:58%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="pnl" style="flex:1; min-height:0;">
+      <div class="pnl-head"><div class="pnl-title">Légende</div></div>
+      <div class="pnl-body" style="display:flex;flex-direction:column;gap:.45rem;">
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key">⬤ Blanc</span><span class="info-val" style="font-size:.5rem">Nœud local</span></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="color:var(--connected)">⬤ Cyan</span><span class="info-val" style="font-size:.5rem">Direct connecté</span></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="color:var(--warn)">⬤ Ambre</span><span class="info-val" style="font-size:.5rem">Direct suspect</span></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="color:var(--error)">⬤ Rouge</span><span class="info-val" style="font-size:.5rem">Direct échoué</span></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="color:var(--text-dim)">⬤ Gris</span><span class="info-val" style="font-size:.5rem">Indirect</span></div>
+        <div style="width:100%;height:1px;background:var(--text-faint);margin:.2rem 0;"></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="font-size:.5rem">━━ Plein</span><span class="info-val" style="font-size:.5rem">Connexion directe</span></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="font-size:.5rem;color:var(--accent)">╌╌ Bleu</span><span class="info-val" style="font-size:.5rem">Gateway Tab</span></div>
+        <div class="info-row" style="border:none;padding:.15rem 0;"><span class="info-key" style="font-size:.5rem">╌╌ Trait</span><span class="info-val" style="font-size:.5rem">Route indirecte</span></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- SVG GRAPH -->
+  <div class="graph-viewport" id="graph-viewport">
+    <svg id="svg-graph">
+      <defs>
+        <filter id="glow-white" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-cyan" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-sm" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-red" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <radialGradient id="bg-grad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#0a1228" stop-opacity=".6"/>
+          <stop offset="100%" stop-color="#05070b" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- Background gradient -->
+      <ellipse id="bg-glow" cx="50%" cy="50%" rx="40%" ry="35%" fill="url(#bg-grad)"/>
+
+      <!-- Star field -->
+      <g id="starfield"></g>
+
+      <!-- Layers -->
+      <g id="layer-edges-indirect"></g>
+      <g id="layer-edges-direct"></g>
+      <g id="layer-edges-gateway"></g>
+      <g id="layer-pulses"></g>
+      <g id="layer-nodes"></g>
+      <g id="layer-labels"></g>
+      <g id="layer-beacon"></g>
+    </svg>
+
+    <!-- Edge tooltip -->
+    <div class="tooltip" id="edge-tooltip"></div>
+
+    <!-- Controls -->
+    <div class="graph-controls">
+      <button class="gctl-btn" id="btn-indirect" onclick="toggleIndirect()">Indirects ✓</button>
+      <button class="gctl-btn" id="btn-debug" onclick="toggleDebug()">Debug</button>
+      <button class="gctl-btn act-send" onclick="sendManualPulse()">⚡ Envoyer</button>
+      <button class="gctl-btn" onclick="addRandomNode()">+ Nœud</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL — Message Log -->
+  <aside class="side-panel right">
+    <div class="pnl" style="flex-shrink:0;">
+      <div class="pnl-head">
+        <div class="pnl-title">Journal Mesh</div>
+        <div class="pnl-sub" id="log-count">0 messages</div>
+      </div>
+      <div class="log-filters">
+        <button class="filter-btn active" onclick="setFilter('ALL',this)">Tous</button>
+        <button class="filter-btn" onclick="setFilter('UPDATE',this)" style="color:var(--accent)">UPDATE</button>
+        <button class="filter-btn" onclick="setFilter('ALERT',this)" style="color:var(--error)">ALERT</button>
+        <button class="filter-btn" onclick="setFilter('SYNC',this)" style="color:var(--sync)">SYNC</button>
+      </div>
+    </div>
+    <div class="log-panel">
+      <div class="log-scroll" id="log-scroll"></div>
+    </div>
+  </aside>
+
+</div><!-- /workspace -->
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-item"><div class="dot"></div><span>Plexus opérationnel</span></div>
+  <div class="footer-item"><span>Force-directed layout @ rAF</span></div>
+  <div class="footer-item"><span>@efficimo/observable v0.3.1</span></div>
+  <div id="footer-clock">--:--:--</div>
+</footer>
+
+</div><!-- /app -->
+
+<!-- NODE DRAWER -->
+<div class="node-drawer" id="node-drawer">
+  <div class="drawer-header">
+    <div class="drawer-node-orb" id="drawer-orb">
+      <div class="dring"></div>
+      <div class="dcore" id="drawer-core"></div>
+    </div>
+    <div>
+      <div class="drawer-title" id="drawer-title">—</div>
+      <div class="drawer-sub" id="drawer-sub">—</div>
+    </div>
+    <button class="drawer-close" onclick="hideDrawer()">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-footer">
+    <button class="action-btn" id="drawer-connect-btn">⊕ Proposer Connexion Directe</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   DATA
+════════════════════════════════════════════════════════ */
+const NODE_DEFS = [
+  { id:'local',  label:'Kaito-7F2A',  type:'local',      freeSlots:3, role:'gateway' },
+  { id:'n1',     label:'Nova-9B12',   type:'direct',     state:'connected', latency:42,  freeSlots:2 },
+  { id:'n2',     label:'Aria-3E8C',   type:'direct',     state:'connected', latency:78,  freeSlots:1 },
+  { id:'n3',     label:'Kuro-5D44',   type:'direct',     state:'suspected', latency:210, freeSlots:0 },
+  { id:'n4',     label:'Echo-2A61',   type:'direct',     state:'connected', latency:55,  freeSlots:3 },
+  { id:'n10',    label:'Titan-9E77',  type:'direct',     state:'failed',    latency:null,freeSlots:0 },
+  { id:'n5',     label:'Ryu-8F90',    type:'indirect',   distance:2, via:'n1' },
+  { id:'n6',     label:'Zeta-4C13',   type:'indirect',   distance:2, via:'n2' },
+  { id:'n7',     label:'Sora-7A88',   type:'indirect',   distance:3, via:'n1' },
+  { id:'n8',     label:'Vex-1B55',    type:'indirect',   distance:2, via:'n4' },
+  { id:'n9',     label:'Ares-6D20',   type:'indirect',   distance:3, via:'n2' },
+  { id:'n11',    label:'Lyra-2C44',   type:'indirect',   distance:2, via:'n1' },
+];
+
+const EDGE_DEFS = [
+  { id:'e-ln1',  from:'local', to:'n1',  type:'direct',   activity:0.85 },
+  { id:'e-ln2',  from:'local', to:'n2',  type:'gateway',  activity:1.0 },
+  { id:'e-ln3',  from:'local', to:'n3',  type:'direct',   activity:0.3 },
+  { id:'e-ln4',  from:'local', to:'n4',  type:'direct',   activity:0.65 },
+  { id:'e-ln10', from:'local', to:'n10', type:'failed',   activity:0 },
+  { id:'e-n1n5', from:'n1',   to:'n5',  type:'indirect', activity:0 },
+  { id:'e-n1n7', from:'n1',   to:'n7',  type:'indirect', activity:0 },
+  { id:'e-n1n11',from:'n1',   to:'n11', type:'indirect', activity:0 },
+  { id:'e-n2n6', from:'n2',   to:'n6',  type:'indirect', activity:0 },
+  { id:'e-n2n9', from:'n2',   to:'n9',  type:'indirect', activity:0 },
+  { id:'e-n4n8', from:'n4',   to:'n8',  type:'indirect', activity:0 },
+];
+
+const COLORS = {
+  local:'#ffffff', connected:'#00e5ff', suspected:'#ffab00',
+  failed:'#ff2055', indirect:'#2a3d55',
+  UPDATE:'#2e6aff', ALERT:'#ff2055', SYNC:'#00e676', BEACON:'#ffab00'
+};
+
+const MSG_TYPES = ['UPDATE','UPDATE','UPDATE','UPDATE','SYNC','SYNC','ALERT'];
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════ */
+const sim = {
+  nodes: NODE_DEFS.map(n => ({ ...n, x:0, y:0, vx:0, vy:0 })),
+  edges: EDGE_DEFS.map(e => ({ ...e })),
+  pulses: [],
+  selectedNode: null,
+  showIndirect: true,
+  debugMode: false,
+  logFilter: 'ALL',
+  msgCount: 0,
+  totalDrops: 0,
+  W: 900, H: 600,
+  startTime: Date.now(),
+  msgHistory: []
+};
+
+const nodeMap = () => new Map(sim.nodes.map(n => [n.id, n]));
+
+/* ═══════════════════════════════════════════════════════
+   SVG SETUP
+════════════════════════════════════════════════════════ */
+const svg = document.getElementById('svg-graph');
+const vp  = document.getElementById('graph-viewport');
+
+function svgEl(tag, attrs = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+function initStarfield() {
+  const g = document.getElementById('starfield');
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const r = Math.random() < 0.1 ? 1.5 : 1;
+    const op = (0.1 + Math.random() * 0.35).toFixed(2);
+    const c = svgEl('circle', { cx:`${x}%`, cy:`${y}%`, r, fill:'#fff', opacity:op });
+    if (Math.random() < 0.15) {
+      c.style.animation = `pulse-dot ${2 + Math.random()*4}s ease-in-out ${Math.random()*4}s infinite`;
+    }
+    g.appendChild(c);
+  }
+}
+
+// Create SVG elements for each node/edge
+const edgeEls = {}, nodeEls = {}, labelEls = {};
+
+function initSVGElements() {
+  const lI = document.getElementById('layer-edges-indirect');
+  const lD = document.getElementById('layer-edges-direct');
+  const lG = document.getElementById('layer-edges-gateway');
+  const lN = document.getElementById('layer-nodes');
+  const lL = document.getElementById('layer-labels');
+
+  // EDGES
+  for (const e of sim.edges) {
+    let el;
+    if (e.type === 'gateway') {
+      el = svgEl('line', { class:'edge-gateway', 'stroke-width':2 });
+      lG.appendChild(el);
+    } else if (e.type === 'indirect') {
+      el = svgEl('line', { class:'edge-indirect', 'stroke-width':1 });
+      lI.appendChild(el);
+    } else if (e.type === 'failed') {
+      el = svgEl('line', { class:'edge-failed', 'stroke-width':1 });
+      lD.appendChild(el);
+    } else {
+      const w = 1.5 + (e.activity || 0) * 2.5;
+      el = svgEl('line', { class:'edge-direct', 'stroke-width':w.toFixed(1) });
+      lD.appendChild(el);
+    }
+    el.addEventListener('mouseenter', ev => showEdgeTooltip(e, ev));
+    el.addEventListener('mouseleave', () => hideEdgeTooltip());
+    edgeEls[e.id] = el;
+  }
+
+  // NODES + LABELS
+  for (const n of sim.nodes) {
+    const g = svgEl('g');
+    g.dataset.nodeId = n.id;
+
+    // Glow halo
+    const halo = svgEl('circle', { r: n.type==='local'?22:14, fill:'none', opacity:'.0' });
+    g.appendChild(halo);
+
+    // Main circle
+    const r = n.type==='local' ? 14 : n.type==='indirect' ? 6 : 9;
+    const color = nodeColor(n);
+    const filterId = n.type==='local' ? 'glow-white' : n.type==='indirect' ? '' : 'glow-cyan';
+    const circle = svgEl('circle', {
+      r, fill:color,
+      class:'node-circle',
+      filter: filterId ? `url(#${filterId})` : ''
+    });
+    g.appendChild(circle);
+
+    g.addEventListener('click', () => handleNodeClick(n.id));
+    g.addEventListener('mouseenter', () => showNodeTooltip(n.id));
+    g.addEventListener('mouseleave', () => hideEdgeTooltip());
+
+    lN.appendChild(g);
+    nodeEls[n.id] = { g, circle, halo };
+
+    // Label
+    const txt = svgEl('text', {
+      class:'node-label',
+      'text-anchor':'middle',
+      fill: n.type==='indirect' ? '#354560' : '#6a7f9a',
+      'font-size': n.type==='local' ? '10' : '8',
+      'font-family':"'Share Tech Mono', monospace"
+    });
+    txt.textContent = n.label;
+    lL.appendChild(txt);
+    labelEls[n.id] = txt;
+  }
+}
+
+function nodeColor(n) {
+  if (n.type === 'local')     return COLORS.local;
+  if (n.type === 'indirect')  return COLORS.indirect;
+  if (n.state === 'connected') return COLORS.connected;
+  if (n.state === 'suspected') return COLORS.suspected;
+  if (n.state === 'failed')    return COLORS.failed;
+  return COLORS.indirect;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FORCE SIMULATION
+════════════════════════════════════════════════════════ */
+function initPositions() {
+  const map = nodeMap();
+  const cx = sim.W / 2, cy = sim.H / 2;
+  const local = map.get('local');
+  local.x = cx; local.y = cy;
+
+  const directs = sim.nodes.filter(n => n.type === 'direct');
+  directs.forEach((n, i) => {
+    const angle = (i / directs.length) * Math.PI * 2 - Math.PI/2;
+    n.x = cx + Math.cos(angle) * 160 + (Math.random()-.5)*20;
+    n.y = cy + Math.sin(angle) * 140 + (Math.random()-.5)*20;
+  });
+
+  const indirects = sim.nodes.filter(n => n.type === 'indirect');
+  indirects.forEach((n, i) => {
+    const angle = (i / indirects.length) * Math.PI * 2 + Math.PI/8;
+    n.x = cx + Math.cos(angle) * 290 + (Math.random()-.5)*30;
+    n.y = cy + Math.sin(angle) * 250 + (Math.random()-.5)*30;
+  });
+}
+
+let simTick = 0;
+
+function tick() {
+  const nds = sim.nodes;
+  const edges = sim.edges;
+  const cx = sim.W/2, cy = sim.H/2;
+
+  for (const a of nds) {
+    // Center gravity — weaker for indirect
+    const g = a.type === 'indirect' ? 0.0008 : 0.001;
+    a.vx += (cx - a.x) * g;
+    a.vy += (cy - a.y) * g;
+
+    // Repulsion
+    for (const b of nds) {
+      if (a.id === b.id) continue;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < 1) continue;
+      const dist = Math.sqrt(d2);
+      const repulse = (a.type==='indirect' || b.type==='indirect') ? 3000 : 5000;
+      if (dist < 350) {
+        const f = repulse / d2;
+        a.vx += (dx/dist)*f; a.vy += (dy/dist)*f;
+      }
+    }
+
+    a.vx *= 0.86; a.vy *= 0.86;
+    a.x += a.vx; a.y += a.vy;
+
+    // Clamp to canvas
+    a.x = Math.max(30, Math.min(sim.W-30, a.x));
+    a.y = Math.max(30, Math.min(sim.H-30, a.y));
+  }
+
+  // Edge attraction
+  const ndMap = new Map(nds.map(n => [n.id, n]));
+  for (const e of edges) {
+    const a = ndMap.get(e.from), b = ndMap.get(e.to);
+    if (!a || !b) continue;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+    const rest = (e.type==='indirect') ? 260 : 155;
+    const k = 0.025;
+    const f = (dist - rest) * k;
+    a.vx += (dx/dist)*f; a.vy += (dy/dist)*f;
+    b.vx -= (dx/dist)*f; b.vy -= (dy/dist)*f;
+  }
+
+  simTick++;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDERING
+════════════════════════════════════════════════════════ */
+function renderGraph(ts) {
+  const ndMap = new Map(sim.nodes.map(n => [n.id, n]));
+
+  // Update SVG size tracking
+  const rect = vp.getBoundingClientRect();
+  if (rect.width > 0) {
+    sim.W = rect.width;
+    sim.H = rect.height;
+  }
+
+  // Edges
+  for (const e of sim.edges) {
+    const el = edgeEls[e.id];
+    if (!el) continue;
+    const a = ndMap.get(e.from), b = ndMap.get(e.to);
+    if (!a || !b) continue;
+
+    const visible = e.type !== 'indirect' || sim.showIndirect;
+    el.style.display = visible ? '' : 'none';
+    if (!visible) continue;
+
+    el.setAttribute('x1', a.x.toFixed(1));
+    el.setAttribute('y1', a.y.toFixed(1));
+    el.setAttribute('x2', b.x.toFixed(1));
+    el.setAttribute('y2', b.y.toFixed(1));
+  }
+
+  // Nodes + labels
+  for (const n of sim.nodes) {
+    if (!nodeEls[n.id]) continue;
+    const { g, circle } = nodeEls[n.id];
+    const color = nodeColor(n);
+    circle.setAttribute('fill', color);
+
+    g.setAttribute('transform', `translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`);
+
+    const labelEl = labelEls[n.id];
+    const labelY = n.type === 'local' ? 30 : n.type === 'indirect' ? 18 : 22;
+    labelEl.setAttribute('x', n.x.toFixed(1));
+    labelEl.setAttribute('y', (n.y + labelY).toFixed(1));
+
+    // Selection ring
+    if (sim.selectedNode === n.id) {
+      circle.setAttribute('stroke', '#fff');
+      circle.setAttribute('stroke-width', '1.5');
+      circle.setAttribute('stroke-dasharray', '4 3');
+      circle.style.strokeDashoffset = -(ts * 0.02);
+    } else {
+      circle.removeAttribute('stroke');
+      circle.removeAttribute('stroke-width');
+      circle.removeAttribute('stroke-dasharray');
+    }
+  }
+
+  // Pulses
+  renderPulses(ts);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PULSES
+════════════════════════════════════════════════════════ */
+function createPulse(fromId, toId, type, msgId) {
+  const color = COLORS[type] || '#fff';
+  sim.pulses.push({
+    id: Math.random().toString(36).slice(2),
+    fromId, toId,
+    type, color, msgId,
+    startTime: performance.now(),
+    duration: 600 + Math.random() * 600,
+    el: null
+  });
+  if (sim.pulses.length > 40) sim.pulses.splice(0, sim.pulses.length - 40);
+}
+
+const pulseLayers = document.getElementById('layer-pulses');
+const activePulseEls = new Map();
+
+function renderPulses(ts) {
+  const now = performance.now();
+  const ndMap = new Map(sim.nodes.map(n => [n.id, n]));
+  const dead = [];
+
+  for (const p of sim.pulses) {
+    const t = Math.min(1, (now - p.startTime) / p.duration);
+    const from = ndMap.get(p.fromId);
+    const to = ndMap.get(p.toId);
+    if (!from || !to) { dead.push(p.id); continue; }
+
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    const x = from.x + (to.x - from.x) * ease;
+    const y = from.y + (to.y - from.y) * ease;
+
+    if (!activePulseEls.has(p.id)) {
+      const el = svgEl('circle', { r:4, fill:p.color, filter:'url(#glow-sm)', opacity:.9 });
+      pulseLayers.appendChild(el);
+      activePulseEls.set(p.id, el);
+    }
+
+    const el = activePulseEls.get(p.id);
+    el.setAttribute('cx', x.toFixed(1));
+    el.setAttribute('cy', y.toFixed(1));
+    el.setAttribute('opacity', (0.9 * (1 - t * 0.3)).toFixed(2));
+
+    if (t >= 1) dead.push(p.id);
+  }
+
+  for (const id of dead) {
+    sim.pulses = sim.pulses.filter(p => p.id !== id);
+    const el = activePulseEls.get(id);
+    if (el) { el.remove(); activePulseEls.delete(id); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   BEACON RING
+════════════════════════════════════════════════════════ */
+const beaconLayer = document.getElementById('layer-beacon');
+let lastBeacon = 0;
+
+function updateBeacon(ts) {
+  if (ts - lastBeacon > 5000) {
+    lastBeacon = ts;
+    const local = sim.nodes.find(n => n.id === 'local');
+    if (!local) return;
+    const ring = svgEl('circle', { cx:local.x, cy:local.y, r:18, fill:'none', stroke:'#fff', 'stroke-width':1, opacity:.6 });
+    beaconLayer.appendChild(ring);
+    ring.animate([{ r:'18', opacity:.6 },{ r:'65', opacity:0 }], { duration:2500, easing:'ease-out', fill:'forwards' })
+      .onfinish = () => ring.remove();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MAIN LOOP
+════════════════════════════════════════════════════════ */
+function rafLoop(ts) {
+  if (simTick < 300 || sim.nodes.some(n => Math.abs(n.vx)+Math.abs(n.vy) > 0.1)) tick();
+  renderGraph(ts);
+  updateBeacon(ts);
+  requestAnimationFrame(rafLoop);
+}
+
+/* ═══════════════════════════════════════════════════════
+   AUTO SIMULATION
+════════════════════════════════════════════════════════ */
+const DIRECT_EDGES = sim.edges.filter(e => e.type === 'direct' || e.type === 'gateway');
+
+function sendRandomMessage() {
+  const e = DIRECT_EDGES[Math.floor(Math.random() * DIRECT_EDGES.length)];
+  if (!e) return;
+  const type = MSG_TYPES[Math.floor(Math.random() * MSG_TYPES.length)];
+  const msgId = Math.random().toString(16).slice(2,10).toUpperCase();
+  const hops = Math.floor(Math.random() * 4) + 1;
+
+  // Create pulse on the direct edge (and maybe one indirect hop after)
+  createPulse(e.from, e.to, type, msgId);
+
+  setTimeout(() => {
+    // Maybe forward to indirect
+    const indirectEdges = sim.edges.filter(ed => ed.from === e.to && ed.type === 'indirect');
+    if (indirectEdges.length && Math.random() < 0.5) {
+      const next = indirectEdges[Math.floor(Math.random() * indirectEdges.length)];
+      createPulse(next.from, next.to, type, msgId);
+    }
+  }, 400 + Math.random() * 300);
+
+  const dropped = Math.random() < 0.08;
+  const status = dropped ? 'dropped' : (Math.random() < 0.4 ? 'forwarded' : 'delivered');
+  if (dropped) sim.totalDrops++;
+  sim.msgCount++;
+
+  addLogEntry(e.from, e.to, type, status, hops, msgId);
+  updateTopbarStats();
+}
+
+let stateChangeTimer = 0;
+function autoStateChanges() {
+  setInterval(() => {
+    const suspects = sim.nodes.filter(n => n.type === 'direct' && n.id !== 'n10');
+    if (!suspects.length) return;
+    const n = suspects[Math.floor(Math.random() * suspects.length)];
+    if (n.state === 'connected') {
+      if (Math.random() < 0.25) { n.state = 'suspected'; addLogEntry(n.id, 'local', 'ALERT', 'delivered', 1, ''); }
+    } else if (n.state === 'suspected') {
+      n.state = Math.random() < 0.7 ? 'connected' : 'suspected';
+    }
+    updateStats();
+  }, 7000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOG
+════════════════════════════════════════════════════════ */
+const ndLabelMap = Object.fromEntries(NODE_DEFS.map(n => [n.id, n.label]));
+
+function addLogEntry(from, to, type, status, hops, msgId) {
+  const ts = new Date().toLocaleTimeString('fr-FR', { hour12:false });
+  const entry = { from, to, type, status, hops, msgId, ts };
+  sim.msgHistory.unshift(entry);
+  if (sim.msgHistory.length > 100) sim.msgHistory.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const scroll = document.getElementById('log-scroll');
+  const filtered = sim.logFilter === 'ALL' ? sim.msgHistory : sim.msgHistory.filter(e => e.type === sim.logFilter);
+  const visible = filtered.slice(0, 30);
+
+  scroll.innerHTML = visible.map(e => `
+    <div class="log-entry">
+      <div class="log-type-dot ${e.type}"></div>
+      <div class="log-body">
+        <div class="log-route">${ndLabelMap[e.from]||e.from} → ${ndLabelMap[e.to]||e.to}</div>
+        <div class="log-meta">${e.ts} · ${e.hops} hop${e.hops>1?'s':''} · ${e.msgId ? e.msgId.slice(0,6) : '—'}</div>
+      </div>
+      <div class="log-status ${e.status}">${e.status}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('log-count').textContent = `${sim.msgHistory.length} messages`;
+}
+
+function setFilter(f, btn) {
+  sim.logFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLog();
+}
+
+/* ═══════════════════════════════════════════════════════
+   STATS
+════════════════════════════════════════════════════════ */
+function updateStats() {
+  const total = sim.nodes.length - 1;
+  const directs = sim.nodes.filter(n => n.type === 'direct').length;
+  const indirects = sim.nodes.filter(n => n.type === 'indirect').length;
+
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-direct').textContent = directs;
+  document.getElementById('s-indirect').textContent = indirects;
+  document.getElementById('s-diam').textContent = 3;
+}
+
+function updateTopbarStats() {
+  const total = sim.nodes.length - 1;
+  document.getElementById('stat-online').textContent = `${total} nœuds`;
+  const dropRate = sim.msgCount > 0 ? ((sim.totalDrops / sim.msgCount) * 100).toFixed(0) : 0;
+  document.getElementById('stat-drop').textContent = `${dropRate}% drop`;
+  document.getElementById('stat-msgs').textContent = `${sim.msgCount} msg`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SPARKLINES
+════════════════════════════════════════════════════════ */
+const sparkData = { msgs: Array(10).fill(30), lat: Array(10).fill(50) };
+
+setInterval(() => {
+  sparkData.msgs.push(10 + Math.random() * 90);
+  sparkData.msgs.shift();
+  sparkData.lat.push(20 + Math.random() * 70);
+  sparkData.lat.shift();
+
+  const sBars = document.querySelectorAll('#spark-msgs .spark-bar');
+  sBars.forEach((b, i) => b.style.height = sparkData.msgs[i] + '%');
+
+  const lBars = document.querySelectorAll('#spark-lat .spark-bar');
+  lBars.forEach((b, i) => b.style.height = sparkData.lat[i] + '%');
+}, 1500);
+
+/* ═══════════════════════════════════════════════════════
+   TOOLTIP
+════════════════════════════════════════════════════════ */
+const tooltip = document.getElementById('edge-tooltip');
+
+function showEdgeTooltip(edge, ev) {
+  if (edge.type === 'indirect') {
+    const from = NODE_DEFS.find(n=>n.id===edge.from);
+    const to = NODE_DEFS.find(n=>n.id===edge.to);
+    tooltip.innerHTML = `<span style="color:var(--text-dim)">route indirecte</span> ${from?.label||edge.from} → ${to?.label||edge.to}`;
+  } else if (edge.type === 'direct') {
+    const to = NODE_DEFS.find(n=>n.id===edge.to);
+    const lat = to?.latency ?? '?';
+    tooltip.innerHTML = `<span style="color:var(--text-dim)">latence</span> <span class="tooltip-val">${lat} ms</span> · activité ${Math.round((edge.activity||0)*100)}%`;
+  } else if (edge.type === 'gateway') {
+    tooltip.innerHTML = `<span style="color:var(--accent)">Gateway Tab</span> · liaison principale`;
+  } else {
+    return;
+  }
+  tooltip.classList.add('visible');
+  positionTooltip(ev);
+}
+
+function hideEdgeTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+function showNodeTooltip(id) {
+  const n = sim.nodes.find(n=>n.id===id);
+  if (!n) return;
+  const lat = n.latency ? `${n.latency}ms` : '—';
+  const slots = n.freeSlots !== undefined ? n.freeSlots : '—';
+  tooltip.innerHTML = `<b style="color:var(--text)">${n.label}</b> · ${n.type} · latence: <span class="tooltip-val">${lat}</span> · slots: ${slots}`;
+  tooltip.classList.add('visible');
+}
+
+function positionTooltip(ev) {
+  const rect = vp.getBoundingClientRect();
+  let x = ev.clientX - rect.left + 12;
+  let y = ev.clientY - rect.top - 10;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top  = y + 'px';
+}
+
+vp.addEventListener('mousemove', ev => {
+  if (tooltip.classList.contains('visible')) positionTooltip(ev);
+});
+
+/* ═══════════════════════════════════════════════════════
+   NODE DRAWER
+════════════════════════════════════════════════════════ */
+function handleNodeClick(id) {
+  if (sim.selectedNode === id) { hideDrawer(); return; }
+  sim.selectedNode = id;
+  showDrawer(id);
+}
+
+function showDrawer(id) {
+  const n = NODE_DEFS.find(n => n.id === id);
+  if (!n) return;
+  const sn = sim.nodes.find(n => n.id === id);
+
+  const color = nodeColor(sn||n);
+  document.getElementById('drawer-title').textContent = n.label;
+  document.getElementById('drawer-sub').textContent = n.id === 'local' ? 'Nœud Local (vous)' : n.type === 'indirect' ? `Indirect via ${ndLabelMap[n.via]||n.via}` : `Direct · ${n.state}`;
+
+  const orb = document.getElementById('drawer-orb');
+  orb.querySelector('.dring').style.borderColor = color;
+  orb.querySelector('.dcore').style.background = color;
+
+  const body = document.getElementById('drawer-body');
+  const lat = n.latency ? `${n.latency} ms` : '—';
+  const slots = n.freeSlots !== undefined ? n.freeSlots : '—';
+  const now = new Date();
+  const lastSeen = `${(now.getHours()).toString().padStart(2,'0')}:${(now.getMinutes()).toString().padStart(2,'0')}`;
+
+  body.innerHTML = `
+    <div class="drawer-section">
+      <div class="drawer-section-title">Identité</div>
+      <div class="info-row"><span class="info-key">nodeId</span><span class="info-val cyan" style="font-size:.5rem">${id.padEnd?.(16,'0').slice(0,16)}</span></div>
+      <div class="info-row"><span class="info-key">userId</span><span class="info-val">${n.label}</span></div>
+      <div class="info-row"><span class="info-key">type</span><span class="info-val">${n.type}</span></div>
+      ${n.state ? `<div class="info-row"><span class="info-key">état</span><span class="info-val ${n.state==='connected'?'cyan':n.state==='suspected'?'amber':'red'}">${n.state}</span></div>` : ''}
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Connexion</div>
+      <div class="info-row"><span class="info-key">latence</span><span class="info-val cyan">${lat}</span></div>
+      <div class="info-row"><span class="info-key">freeSlots</span><span class="info-val">${slots}</span></div>
+      <div class="info-row"><span class="info-key">lastSeen</span><span class="info-val">${lastSeen}</span></div>
+      ${n.via ? `<div class="info-row"><span class="info-key">via</span><span class="info-val blue">${ndLabelMap[n.via]||n.via}</span></div>` : ''}
+      ${n.distance ? `<div class="info-row"><span class="info-key">distance</span><span class="info-val">${n.distance} hops</span></div>` : ''}
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Historique</div>
+      ${['connected','suspected','connected','connected'].slice(0, n.id==='local'?0:3).map((s,i) => {
+        const h = now.getHours(), m = Math.max(0, now.getMinutes() - (i+1)*12);
+        return `<div class="conn-history-item">
+          <span style="color:${s==='connected'?'var(--connected)':'var(--warn)'}">${s}</span>
+          <span style="color:var(--text-dim)">${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}</span>
+        </div>`;
+      }).join('')}
+      ${n.id==='local'?'<div style="color:var(--text-dim);font-size:.55rem;padding:.25rem 0">Nœud local — aucun historique</div>':''}
+    </div>
+  `;
+
+  const connectBtn = document.getElementById('drawer-connect-btn');
+  if (n.type === 'indirect' && n.freeSlots > 0) {
+    connectBtn.disabled = false;
+    connectBtn.onclick = () => { hideDrawer(); addLogEntry('local', id, 'UPDATE', 'delivered', 1, 'PROPOSAL'); };
+  } else if (n.id === 'local') {
+    connectBtn.disabled = true;
+    connectBtn.textContent = '— Nœud local';
+  } else {
+    connectBtn.disabled = n.freeSlots === 0;
+    connectBtn.textContent = n.freeSlots === 0 ? '⊘ Aucun slot disponible' : '⊕ Proposer Connexion Directe';
+    connectBtn.onclick = null;
+  }
+
+  document.getElementById('node-drawer').classList.add('open');
+}
+
+function hideDrawer() {
+  sim.selectedNode = null;
+  document.getElementById('node-drawer').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideDrawer(); });
+
+/* ═══════════════════════════════════════════════════════
+   CONTROLS
+════════════════════════════════════════════════════════ */
+function toggleIndirect() {
+  sim.showIndirect = !sim.showIndirect;
+  const btn = document.getElementById('btn-indirect');
+  btn.textContent = `Indirects ${sim.showIndirect?'✓':'✗'}`;
+  btn.classList.toggle('active', sim.showIndirect);
+}
+
+function toggleDebug() {
+  sim.debugMode = !sim.debugMode;
+  document.getElementById('btn-debug').classList.toggle('active', sim.debugMode);
+  if (sim.debugMode) {
+    addLogEntry('local','local','BEACON','delivered',0,'DBG_MODE_ON');
+  }
+}
+
+function sendManualPulse() {
+  const types = ['UPDATE','SYNC','ALERT'];
+  const type = types[Math.floor(Math.random()*types.length)];
+  const directs = sim.nodes.filter(n=>n.type==='direct' && n.state==='connected');
+  if (!directs.length) return;
+  const target = directs[Math.floor(Math.random()*directs.length)];
+  createPulse('local', target.id, type, 'MANUAL_'+Date.now().toString(16).slice(-4).toUpperCase());
+  addLogEntry('local', target.id, type, 'delivered', 1, 'MANUAL');
+}
+
+let nodeCounter = 12;
+function addRandomNode() {
+  const ids = ['n1','n2','n4'];
+  const via = ids[Math.floor(Math.random()*ids.length)];
+  const newId = `n${++nodeCounter}`;
+  const labels = ['Lyra','Orion','Vega','Polux','Siria','Antares','Procyon'];
+  const label = labels[Math.floor(Math.random()*labels.length)] + '-' + Math.floor(Math.random()*9000+1000);
+
+  const viaNode = sim.nodes.find(n=>n.id===via);
+  sim.nodes.push({
+    id:newId, label, type:'indirect', distance:2, via,
+    x: viaNode ? viaNode.x + (Math.random()-.5)*120 : sim.W*.5,
+    y: viaNode ? viaNode.y + (Math.random()-.5)*120 : sim.H*.5,
+    vx:0, vy:0
+  });
+  sim.edges.push({ id:`e-${via}${newId}`, from:via, to:newId, type:'indirect', activity:0 });
+
+  // Create SVG elements
+  const lI = document.getElementById('layer-edges-indirect');
+  const lN = document.getElementById('layer-nodes');
+  const lL = document.getElementById('layer-labels');
+
+  const el = svgEl('line', { class:'edge-indirect', 'stroke-width':1 });
+  lI.appendChild(el);
+  edgeEls[`e-${via}${newId}`] = el;
+
+  const g = svgEl('g'); g.dataset.nodeId = newId;
+  const circle = svgEl('circle', { r:6, fill:COLORS.indirect, class:'node-circle' });
+  g.appendChild(circle);
+  g.addEventListener('click', () => handleNodeClick(newId));
+  lN.appendChild(g);
+  nodeEls[newId] = { g, circle };
+
+  const txt = svgEl('text', { class:'node-label', 'text-anchor':'middle', fill:'#354560', 'font-size':'8', 'font-family':"'Share Tech Mono', monospace" });
+  txt.textContent = label;
+  lL.appendChild(txt);
+  labelEls[newId] = txt;
+
+  ndLabelMap[newId] = label;
+  updateStats();
+  addLogEntry(via, newId, 'SYNC', 'delivered', 2, '');
+}
+
+/* ═══════════════════════════════════════════════════════
+   UPTIME CLOCK
+════════════════════════════════════════════════════════ */
+function updateClocks() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('fr-FR', { hour12:false });
+  document.getElementById('footer-clock').textContent = t;
+
+  const elapsed = Math.floor((Date.now() - sim.startTime) / 1000);
+  const h = String(Math.floor(elapsed/3600)).padStart(2,'0');
+  const m = String(Math.floor((elapsed%3600)/60)).padStart(2,'0');
+  const s = String(elapsed%60).padStart(2,'0');
+  document.getElementById('local-uptime').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateClocks, 1000);
+updateClocks();
+
+// Copy nodeId on click
+document.getElementById('local-id').addEventListener('click', function() {
+  navigator.clipboard?.writeText(this.textContent).catch(()=>{});
+  this.style.color = 'var(--sync)';
+  setTimeout(() => this.style.color = '', 800);
+});
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+initStarfield();
+initPositions();
+initSVGElements();
+updateStats();
+updateTopbarStats();
+
+// Auto messages
+setInterval(sendRandomMessage, 2800);
+autoStateChanges();
+
+// First messages after a short delay (so positions settle)
+setTimeout(() => {
+  addLogEntry('local','n1','BEACON','delivered',1,'INIT');
+  addLogEntry('n1','n5','SYNC','forwarded',2,'INIT');
+}, 800);
+
+requestAnimationFrame(rafLoop);
+</script>
+</body>
+</html>

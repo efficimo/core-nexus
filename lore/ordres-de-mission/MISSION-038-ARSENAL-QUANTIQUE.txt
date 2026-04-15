@@ -1,0 +1,130 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-038                                         ║
+║  L'ARSENAL QUANTIQUE                                                     ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⚗️🔬
+
+DÉSIGNATION     : APIs Expérimentales de Pointe — Opération Avant-Garde Technologique
+CODENAME        : ARSENAL-QUANTIQUE
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Moteur & Performance
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole rassemble les APIs en phase expérimentale ou récemment
+stabilisées — le front technologique du Terminal de Combat. Chaque
+arme est un POC indépendant, destiné à repousser les limites du possible :
+
+  WEBGPU (Puissance de calcul GPU) — Le Terminal accède au processeur
+  graphique pour des calculs parallèles massifs. POC : vérification
+  d'intégrité des Codex chiffrés par force brute sur GPU, ou visualisation
+  de 100 000 Anomalies en 3D temps réel.
+  Statut : Stable dans Chrome 113+ (mai 2023), Firefox Nightly, Safari TP.
+
+  TEMPORAL API (Remplacement de Date) — Calculs de dates sans bibliothèque :
+  durée exacte entre deux modifications d'Anomalie en mois/jours/heures/
+  nanosecondes. Zéro bug de timezone. (TC39 Stage 3, polyfill recommandé
+  en production — Firefox 139+ et Chrome flag ont une implémentation native)
+
+  COMPUTE PRESSURE API — Le Terminal surveille la santé du processeur.
+  Si l'état passe en "critical", les animations CSS sont réduites, WebRTC
+  se simplifie, les calculs non essentiels sont mis en pause. Application
+  "éco-responsable" qui respecte le matériel.
+  Statut : Chrome 125+ (stable). Instanciation : new PressureObserver().
+
+  SPECULATION RULES API — Basé sur le mouvement de la souris vers un bouton,
+  le Terminal pré-déchiffre le Codex en arrière-plan. Quand l'Architecte clique,
+  la latence perçue est zéro. Vitesse surnaturelle.
+  Statut : Stable Chrome 121+ (janvier 2024).
+
+  EYEDROPPER API — L'Architecte vole une couleur n'importe où sur son écran
+  (y compris dans d'autres applications) pour personnaliser instantanément
+  le thème du Terminal.
+  Statut : Chrome/Edge 95+ uniquement. Pas Firefox, pas Safari.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  [WEBGPU]   1. navigator.gpu.requestAdapter() → POC calcul parallèle GPU
+                (shader WGSL de hachage, ou visualisation 3D de masse)
+  [TEMPORAL] 2. Remplacer Date.now() / new Date() par Temporal.Now.instant()
+                et Temporal.ZonedDateTime pour les timestamps d'Anomalies
+                (utiliser @js-temporal/polyfill pendant la stabilisation)
+  [COMPUTE]  3. new PressureObserver(callback, { source: 'cpu' }).observe()
+                → réduire les features non-essentielles en état "critical"
+  [SPECU]    4. Configurer Speculation Rules dans index.html pour les routes
+                fréquentes (<script type="speculationrules">{ "prerender": [...] })
+  [EYEDROP] 5. new EyeDropper().open() → sélecteur de couleur dans le thème
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - WebGPU API (navigator.gpu.requestAdapter() — Chrome 113+, stable)
+  - Temporal API (@js-temporal/polyfill — TC39 Stage 3, natif Firefox 139+)
+  - Compute Pressure API (new PressureObserver(callback) — Chrome 125+)
+    ⚠ L'ancienne syntaxe navigator.computePressure n'existe pas — c'est
+      PressureObserver qui est l'interface correcte
+  - Speculation Rules API (<script type="speculationrules"> — Chrome 121+)
+  - EyeDropper API (new EyeDropper().open() — Chrome/Edge 95+, pas FF/Safari)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)      │
+  │ Durée estimée : 1 semaine (5 POC)       │
+  │ Effort        : Élevé                   │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Shader WGSL WebGPU de visualisation/calcul sur données du Codex
+  [ ] Migration de toutes les dates vers Temporal (avec polyfill)
+  [ ] Hook usePressureAdaptive() (PressureObserver → réduction gracieuse)
+  [ ] Speculation Rules dans index.html pour les routes fréquentes
+  [ ] Intégration EyeDropper dans le thème personnalisable
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION FOURRE-TOUT DE HAUTE VALEUR, DEUX CORRECTIONS IMPORTANTES
+
+  ★ APPRÉCIATION
+  Cette mission est un terrain d'exploration formidable. Chaque POC est
+  indépendant, ce qui permet de progresser sans bloquer. Temporal est la
+  correction la plus universellement utile — Date est brisé depuis 30 ans.
+  La Compute Pressure API est la moins connue mais l'une des plus impactantes
+  pour l'accessibilité sur matériel modeste.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION : L'API Compute Pressure n'est pas navigator.computePressure.
+    C'est une classe : new PressureObserver(callback, { source: 'cpu' }).
+    L'appel se fait avec .observe('cpu'). Même structure que ResizeObserver/
+    IntersectionObserver. Les états : "nominal", "fair", "serious", "critical".
+  - CORRECTION : navigator.scheduling.isInputPending() est une API différente
+    (scheduler API). Ne pas confondre avec Compute Pressure.
+  - TEMPORAL : Le polyfill @js-temporal/polyfill est requis pour Chrome et
+    la plupart des navigateurs en production. Firefox 139+ a une implémentation
+    native. Pour Vite, configurer l'import dans le point d'entrée principal.
+  - WEBGPU : Stable Chrome 113+. Nécessite HTTPS (ou localhost). Le langage
+    de shader est WGSL (pas GLSL). Point d'entrée :
+    const adapter = await navigator.gpu.requestAdapter();
+    const device = await adapter.requestDevice();
+  - SPECULATION RULES : La forme "prerender" est la plus puissante mais aussi
+    la plus consommatrice. Commencer par "prefetch" sur les routes fréquentes,
+    puis "prerender" pour la page d'accueil seulement.
+  - EYEDROPPER : Chrome/Edge uniquement. Toujours tester `'EyeDropper' in window`
+    avant d'afficher le bouton dans l'UI.
+
+  ✦ RECOMMANDATION
+  Ordre de valeur décroissant : Temporal (correction architecturale, Impact +++)
+  → Speculation Rules (gain de performance mesurable, 30 min) → Compute Pressure
+  (différenciateur UX, 2h) → EyeDropper (feature fun, 1h) → WebGPU (la plus
+  impressionnante, aussi la plus longue). Chaque POC peut vivre sur sa propre
+  page /lab/[api-name] dans le /laboratory de la Mission-022.

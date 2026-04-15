@@ -1,0 +1,334 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-020                                         ║
+║  LES AMBASSADEURS                                                        ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🤝🔌
+
+DÉSIGNATION     : Registre Unifié des Connexions aux Services Tiers — Opération Diplomatie
+CODENAME        : AMBASSADEURS
+PHASE           : [BETA]
+CLASSIFICATION  : Intégration Système & Services Tiers
+DÉPENDANCES     : MISSION-010 (Citadelle-Zéro — stockage chiffré des tokens)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Terminal de Combat opère en terrain hostile — mais il n'est pas seul.
+GitLab, GitHub, YouTrack, Google, AWS : autant d'alliés potentiels, chacun
+parlant son propre protocole. Les Ambassadeurs sont les émissaires du
+Terminal — chaque provider est une ambassade, chaque token un traité
+diplomatique.
+
+Ce protocole établit un registre unifié de connexions aux services tiers.
+Chaque provider implémente une interface commune — connexion, déconnexion,
+refresh, statut — mais conserve sa logique d'authentification propre.
+Le registre permet au Terminal d'interroger l'état de n'importe quel
+provider et de conditionner ses actions en conséquence :
+
+  if (registry.isConnected('gitlab')) { syncIssues() }
+  if (registry.isConnected('google')) { exportToDrive() }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ABSTRACTION COMMUNE — ProviderConnection
+
+  type ProviderId = 'github' | 'gitlab' | 'youtrack' | 'google' | 'aws' | 'k8s'
+
+  type ConnectionStatus =
+    | 'disconnected'   // jamais connecté ou déconnecté volontairement
+    | 'connecting'     // flow OAuth2 ou validation token en cours
+    | 'connected'      // token valide, prêt à l'emploi
+    | 'expired'        // access token expiré, refresh possible
+    | 'error'          // erreur irrécupérable (token révoqué, scope insuffisant)
+
+  interface ProviderConnection {
+    readonly id        : ProviderId
+    readonly name      : string              // nom affichable ("GitHub", "GitLab"…)
+    readonly authMode  : 'oauth2' | 'token' | 'key'  // mode d'auth du provider
+
+    // État courant
+    status             : ConnectionStatus
+    onStatusChange     : Observable<ConnectionStatus>
+
+    // Actions
+    connect()          : Promise<void>   // déclenche le flow OAuth2 ou ouvre la saisie token
+    disconnect()       : Promise<void>   // révoque et supprime les tokens locaux
+    refresh()          : Promise<void>   // renouvelle l'access token via le refresh token
+
+    // Utilisation
+    getHeaders()       : Record<string, string>  // headers prêts à l'emploi (Authorization, etc.)
+    isConnected()      : boolean         // raccourci : status === 'connected'
+  }
+
+  REGISTRE CENTRAL — ProviderRegistry
+
+  interface ProviderRegistry {
+    providers          : Map<ProviderId, ProviderConnection>
+
+    get(id: ProviderId)        : ProviderConnection
+    isConnected(id: ProviderId): boolean
+    getConnected()             : ProviderConnection[]
+
+    // Observable global — émis à chaque changement de statut d'un provider
+    onAnyChange        : Observable<{ id: ProviderId; status: ConnectionStatus }>
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  PROTOCOLE I — OAUTH2 PKCE (GitHub, GitLab, YouTrack, Google)
+
+  1. Implémenter le flow OAuth2 Authorization Code + PKCE pour les SPAs :
+     - Génération du code_verifier (crypto.getRandomValues) et code_challenge
+     - Ouverture de la fenêtre d'autorisation (popup ou redirect)
+     - Gestion du callback sur la route /oauth/callback?code=...&state=...
+     - Échange du code contre access_token + refresh_token
+     - Stockage chiffré des tokens (→ MISSION-010, AES-GCM)
+     - Pas de client_secret côté navigateur — PKCE remplace cette garantie
+
+  2. Refresh automatique :
+     - Détecter l'expiration (exp du JWT ou expiresAt stocké)
+     - Rafraîchir silencieusement avant d'appeler getHeaders()
+     - En cas d'échec du refresh : passer à 'expired', émettre onStatusChange
+
+  PROTOCOLE II — PAT / TOKEN (GitHub, GitLab, YouTrack — mode alternatif)
+
+  3. Flow simplifié sans redirect :
+     - Saisie directe du Personal Access Token dans l'UI
+     - Validation immédiate (appel API minimal — ex: GET /user)
+     - Stockage chiffré identique à OAuth2
+     - Pas de refresh (les PAT n'expirent pas ou ont une date fixe)
+
+  PROTOCOLE III — AWS ACCESS KEY (mode spécifique)
+
+  4. Auth AWS par Access Key ID + Secret Access Key :
+     - Saisie dans l'UI, aucun flow OAuth2
+     - Validation via une requête STS GetCallerIdentity
+     - Signature des requêtes côté client via AWS Signature V4
+       (pas de token Bearer — chaque requête est signée à la volée)
+     - Stockage chiffré des clés (→ MISSION-010)
+     - Optionnel : support des credentials temporaires (STS AssumeRole)
+
+  PROTOCOLE IV — REGISTRE ET UI
+
+  5. Page "Ambassadeurs" dans les Paramètres du Terminal :
+     - Liste de tous les providers avec leur statut visuel (icône + couleur)
+     - Bouton "Connecter" / "Déconnecter" par provider
+     - Affichage du nom de l'utilisateur connecté et des scopes accordés
+     - Indicateur de fraîcheur du token (expires dans Xmin)
+
+  6. Hook React usePoviderRegistry() :
+     - Abonnement à onAnyChange → re-render sur tout changement de statut
+     - isConnected(id) réactif — les composants s'adaptent au statut en temps réel
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SPÉCIFICATIONS PAR PROVIDER
+
+  GITHUB
+  ──────
+  Auth       : OAuth2 PKCE ou PAT
+  Scopes     : repo, read:user, read:org (selon usage)
+  Base URL   : https://api.github.com
+  OAuth URL  : https://github.com/login/oauth/authorize
+  Token URL  : https://github.com/login/oauth/access_token
+  Refresh    : GitHub ne fournit pas de refresh_token pour OAuth Apps —
+               les access_token ont une durée de vie longue ou illimitée.
+               GitHub Apps supportent les installation tokens (1h) + refresh.
+  PAT        : Bearer {token} dans le header Authorization
+  Validation : GET /user → { login, id, ... }
+
+  GITLAB
+  ──────
+  Auth       : OAuth2 PKCE ou PAT
+  Scopes     : read_api, read_user, api (selon usage)
+  Base URL   : https://gitlab.com/api/v4 (ou instance self-hosted)
+  OAuth URL  : https://gitlab.com/oauth/authorize
+  Token URL  : https://gitlab.com/oauth/token
+  Refresh    : refresh_token fourni, durée access_token : 2h
+  PAT        : Private-Token: {token} dans le header
+  Validation : GET /user → { username, id, ... }
+  Note       : supporter une URL d'instance configurable (self-hosted GitLab)
+
+  YOUTRACK
+  ────────
+  Auth       : OAuth2 PKCE ou token permanent
+  Base URL   : https://{instance}.youtrack.cloud/api (ou self-hosted)
+  OAuth URL  : https://{hub}/api/rest/oauth2/auth
+  Hub        : YouTrack délègue l'auth à JetBrains Hub
+  Scopes     : YouTrack, read:youtrack (selon instance)
+  Refresh    : refresh_token supporté via Hub
+  Token      : Bearer {token} ou Authorization: Bearer dans le header
+  Validation : GET /api/admin/users/me → { login, id, ... }
+  Note       : l'URL de base est configurable (instance propre à l'équipe)
+
+  GOOGLE
+  ──────
+  Auth       : OAuth2 PKCE uniquement (pas de PAT)
+  Scopes     : https://www.googleapis.com/auth/drive.readonly (ou .file)
+               https://www.googleapis.com/auth/drive.metadata.readonly
+  OAuth URL  : https://accounts.google.com/o/oauth2/v2/auth
+  Token URL  : https://oauth2.googleapis.com/token
+  Refresh    : refresh_token fourni si access_type=offline, durée access_token : 1h
+  Header     : Authorization: Bearer {access_token}
+  Validation : GET https://www.googleapis.com/oauth2/v3/userinfo
+  Note       : nécessite un Client ID Google Cloud Console (sans client_secret pour PKCE)
+
+  AWS
+  ───
+  Auth       : Access Key ID + Secret Access Key (pas OAuth2)
+  Signature  : AWS Signature Version 4 (SigV4) — chaque requête signée
+  Validation : POST https://sts.amazonaws.com — GetCallerIdentity
+  Credentials: { accessKeyId, secretAccessKey, sessionToken? }
+  Région     : configurable par l'utilisateur
+  Services   : S3, EC2, CloudWatch, Lambda… (selon usage Terminal)
+  Note       : ne pas stocker les clés en clair — chiffrement AES-GCM obligatoire
+               Envisager credentials temporaires STS pour limiter l'exposition
+
+  KUBERNETES / EKS
+  ────────────────
+  Auth       : trois modes selon le cluster
+               1. kubeconfig — l'utilisateur colle/uploade son kubeconfig YAML ;
+                  l'app extrait serverUrl + token (champ users[].user.token)
+               2. Service Account Bearer token — token SA + URL serveur saisis
+                  manuellement (le plus portable entre providers k8s)
+               3. EKS mode — dérivé des credentials AWS (AwsProvider connecté) :
+                  génère un token pre-signé STS (k8s-aws-v1.<base64url(presignedURL)>)
+                  via une requête GetCallerIdentity pré-signée avec le header
+                  x-k8s-aws-id: <clusterName> — token valide 15 minutes, auto-refresh
+  Base URL   : https://<cluster-endpoint> — extrait du kubeconfig ou saisi manuellement
+  Header     : Authorization: Bearer <token>
+  Validation : GET <serverUrl>/api → { versions: [...] }
+               ou GET <serverUrl>/api/v1/namespaces (vérifie les permissions réelles)
+  Refresh    : mode EKS : re-génère le pre-signed token avant expiration (15min)
+               mode SA token : pas d'expiration (tokens longue durée)
+  Note       : CORS — le kube-apiserver n'expose pas de headers CORS par défaut.
+               Les requêtes navigateur sont bloquées sur un cluster non configuré.
+               Pour EKS, activer CORS sur l'API server via --cors-allowed-origins
+               dans la config du control plane, ou utiliser un kubectl proxy local.
+               Stocker le token chiffré (→ MISSION-010) — ne jamais en clair.
+  Services   : namespaces, pods, deployments, services, events, logs (streaming)
+               EKS-specific : nodegroups, cluster info via AWS SDK (→ AwsProvider)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web Crypto API : crypto.getRandomValues() (PKCE verifier), SubtleCrypto
+    (chiffrement tokens → MISSION-010)
+  - OAuth2 Authorization Code + PKCE : RFC 7636
+    Pas de client_secret exposé — le code_challenge remplace la garantie
+  - fetch() : échanges de tokens, validation, appels API providers
+  - localStorage chiffré (→ MISSION-010) : stockage access_token + refresh_token
+  - Observable<T> (lib projet) : onStatusChange, onAnyChange réactifs
+  - AWS Signature V4 : lib aws4 (npm) ou implémentation custom (crypto.subtle HMAC-SHA256)
+  - Popup OAuth2 : window.open() + postMessage pour récupérer le callback
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)       │
+  │ Durée estimée : 3-5 jours               │
+  │ Effort        : Élevé                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Couche abstraction
+  [ ] src/providers/types.ts         : ProviderId, ConnectionStatus, ProviderConnection interface
+  [ ] src/providers/registry.ts      : ProviderRegistry — Map + onAnyChange observable
+
+  Couche OAuth2 commune
+  [ ] src/providers/oauth2/pkce.ts   : generateVerifier(), generateChallenge(), exchangeCode()
+  [ ] src/providers/oauth2/popup.ts  : openPopup() + écoute postMessage du callback
+  [ ] src/providers/oauth2/token.ts  : stockage/lecture/refresh des tokens (via MISSION-010)
+
+  Implémentations
+  [ ] src/providers/github.ts        : GitHubProvider — OAuth2 PKCE + PAT
+  [ ] src/providers/gitlab.ts        : GitLabProvider — OAuth2 PKCE + PAT + URL configurable
+  [ ] src/providers/youtrack.ts      : YouTrackProvider — OAuth2 Hub + token permanent + URL configurable
+  [ ] src/providers/google.ts        : GoogleProvider — OAuth2 PKCE (Drive)
+  [ ] src/providers/aws.ts           : AwsProvider — SigV4 + credentials chiffrés + STS validation
+  [ ] src/providers/k8s.ts           : K8sProvider — kubeconfig/SA token/EKS pre-signed token
+
+  Couche React
+  [ ] src/hooks/useProviderRegistry.ts : abonnement onAnyChange → state React
+  [ ] src/hooks/useProvider.ts         : statut + actions d'un provider spécifique
+
+  Interface utilisateur
+  [ ] Page Paramètres > Ambassadeurs : liste providers, statuts, connexion/déconnexion
+  [ ] Composant ProviderBadge        : indicateur compact (icône + statut) pour le header
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — INTÉGRATION MULTI-PROVIDER, COMPLEXITÉ DANS LES DÉTAILS
+
+  ★ APPRÉCIATION
+  Mission à fort impact fonctionnel. Dès qu'un provider est connecté, des
+  dizaines de fonctionnalités deviennent possibles : import d'issues GitLab,
+  sync YouTrack, export Drive, monitoring AWS. Le registre unifié est le
+  levier — chaque feature conditionnée sur isConnected() s'active
+  automatiquement sans configuration supplémentaire.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  PKCE SANS SERVEUR
+    Le flow OAuth2 PKCE est conçu pour les SPAs sans backend — mais il
+    requiert un Client ID enregistré chez le provider (GitHub App, GitLab
+    Application, Google Cloud Console...). Ces Client IDs sont publics
+    (pas de secret), mais l'URL de callback doit correspondre exactement
+    à ce qui est enregistré chez le provider (ex: https://efficimo.github.io/core-nexus/oauth/callback).
+    Sur GitHub Pages, l'URL est fixe — pas de problème.
+
+  POPUP VS REDIRECT
+    Une popup window.open() est plus ergonomique qu'un redirect complet
+    (l'utilisateur ne quitte pas le Terminal). Mais certains bloqueurs
+    de popup peuvent interférer. Prévoir un fallback redirect si la popup
+    est bloquée. La popup poste le code via postMessage à window.opener.
+
+  GITHUB SANS REFRESH TOKEN
+    Les OAuth Apps GitHub ne fournissent pas de refresh_token — l'access_token
+    n'expire pas (ou expire selon la config de l'App). Pour les GitHub Apps,
+    les installation tokens expirent en 1h mais un nouveau est obtenu via
+    le JWT signé de l'App. Implémenter les deux cas si nécessaire.
+
+  AWS DANS LE NAVIGATEUR
+    Faire des appels AWS directement depuis le navigateur expose la région
+    et les services utilisés dans les requêtes réseau (visibles en DevTools).
+    Les clés doivent être chiffrées au repos (→ MISSION-010). Ne jamais
+    mettre de clés avec des permissions larges — utiliser des clés IAM
+    à permissions minimales (principe du moindre privilège).
+
+  KUBERNETES — CORS ET ACCÈS RÉSEAU
+    Le kube-apiserver n'envoie pas de headers Access-Control-Allow-Origin
+    par défaut : toute requête fetch() depuis le navigateur sera bloquée par
+    le CORS preflight. Deux approches praticables sans backend :
+    a) Configurer le control plane EKS avec --cors-allowed-origins
+       (nécessite accès admin au cluster, acceptable en contexte DevOps)
+    b) Lancer kubectl proxy localement (kubectl proxy --port=8001) et
+       pointer le K8sProvider sur http://localhost:8001 — adapté en dev,
+       pas en production hébergée sur GitHub Pages
+    Le mode EKS pre-signed token est la partie la plus élégante — il réutilise
+    les credentials AWS déjà présents dans AwsProvider : aucune saisie
+    supplémentaire si l'utilisateur est déjà connecté à AWS.
+
+  URLS D'INSTANCE CONFIGURABLES
+    GitLab et YouTrack peuvent être auto-hébergés. L'URL de base doit être
+    configurable par l'utilisateur (champ dans les Paramètres). Valider
+    que l'URL fournie répond avant de lancer le flow OAuth2.
+
+  ✦ RECOMMANDATION
+    Commencer par GitHub PAT — c'est le cas le plus simple (un champ, un
+    appel de validation, un header). Valider le stockage chiffré (MISSION-010)
+    et le hook useProvider(). Enchaîner avec GitHub OAuth2 pour maîtriser
+    le flow PKCE. Ensuite GitLab (identique), YouTrack (Hub spécifique),
+    Google (scopes Drive), AWS (SigV4 distinct), Kubernetes en dernier.
+    Pour K8s : commencer par le mode SA token (le plus simple), puis EKS
+    mode (dérivé d'AWS, élégant si AwsProvider déjà implémenté), kubeconfig
+    en dernier (parsing YAML — dépendance js-yaml ou parsing manuel).

@@ -1,0 +1,295 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║           PRÉSENTATION — ORDRES DE MISSION : CORE NEXUS                  ║
+║           "On n'apprend pas en regardant. On apprend en compilant."      ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+DOCUMENT : Brief d'équipe — présentation des missions pédagogiques
+DESTINATAIRES : Architectes juniors et confirmés
+TON : Détendu, précis, sans bullshit
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE I — OUVERTURE
+──────────────────
+
+[À dire à l'équipe]
+
+"Vous connaissez tous Core Nexus — l'app qu'on utilise au quotidien.
+Ce que vous savez peut-être moins, c'est que derrière l'interface
+se cachent des décisions techniques qui méritent d'être comprises,
+démontées, et reconstruites par vous.
+
+C'est l'objectif des Ordres de Mission."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE II — C'EST QUOI EXACTEMENT ?
+───────────────────────────────────
+
+Les Ordres de Mission sont des micro-projets d'apprentissage autonomes.
+Pas des exercices de synthèse inventés. Pas des kata déconnectés du réel.
+
+Chaque mission correspond à une brique réelle de notre stack :
+un package npm qu'on publie, une feature qu'on intègre, un concept
+qu'on pousse jusqu'au bout — dans notre environnement, avec nos outils.
+
+  ┌──────────────────────────────────────────────────────────┐
+  │ Ce ne sont pas des tutoriels à suivre.                   │
+  │ Ce sont des specs à implémenter.                         │
+  │                                                          │
+  │ La mission dit "quoi" et "pourquoi".                     │
+  │ C'est vous qui décidez "comment".                        │
+  └──────────────────────────────────────────────────────────┘
+
+OBJECTIFS GLOBAUX
+
+  → Comprendre comment fonctionne notre stack de l'intérieur
+  → Contribuer à des packages open source réels (@efficimo/*)
+  → Développer un raisonnement d'architecte, pas juste d'exécutant
+  → Apprendre à lire une spec technique et à la traduire en code
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE III — POUR QUI ? JUNIOR vs CONFIRMÉ
+─────────────────────────────────────────
+
+Les missions sont numérotées par difficulté croissante, pas par priorité.
+Chaque profil a ses terrains de jeu.
+
+  JUNIOR (★★☆☆☆ Architecte / ★★★☆☆ Maître)
+  ──────────────────────────────────────────
+  → Objectif : comprendre les fondations du web moderne sans framework
+  → Les missions recommandées en priorité :
+
+    MISSION-001  Observable         — programmation réactive from scratch
+    MISSION-002  Storage            — persistance locale réactive
+    MISSION-005  Memento            — undo/redo, immutabilité
+    MISSION-006  Monitor            — Web Vitals, perf réelle
+    MISSION-014  Disque Fantôme     — Cache API comme base de données
+    MISSION-016  Sync Onglets       — BroadcastChannel + Web Locks
+    MISSION-017  Archive Déclarative— HTML natif avancé (dialog, template)
+    MISSION-024  Créneau Fantôme    — requestIdleCallback, scheduling
+    MISSION-037  Voix du Kernel     — Web Speech API
+
+  Ce que ça développe :
+  → Rigueur sur les types TypeScript
+  → Compréhension du modèle réactif sans React en dessous
+  → Écriture de tests utiles (Vitest)
+  → Lecture de specs d'API navigateur
+
+  ─────────────────────────────────────────────────────────────────────
+
+  CONFIRMÉ (★★★★☆ Champion / ★★★★★ Grand Architecte)
+  ────────────────────────────────────────────────────
+  → Objectif : concevoir des systèmes, pas juste des composants
+  → Les missions recommandées :
+
+    MISSION-000  Architecture Monorepo  — pnpm workspaces + Turborepo
+    MISSION-003  CryptoVault           — AES-256 + WebAuthn + Web Crypto API
+    MISSION-004  Reactive Workers      — Web Workers réactifs, concurrence
+    MISSION-007  Écrans Nomades        — panels détachables (dock)
+    MISSION-010  Citadelle Zéro        — chiffrement souverain, biométrie
+    MISSION-011  Clé Stéganographique  — cacher une clé dans une image
+    MISSION-020  Ambassadeurs          — OAuth2 / tokens unifiés
+    MISSION-022  Forge WASM            — SQLite embarqué dans le navigateur
+    MISSION-030  Oracle Local          — IA locale (TensorFlow.js)
+    MISSION-032  Signal Proximitaire   — détection de présence via AudioContext
+
+  Ce que ça développe :
+  → Conception d'API publiques solides et évolutives
+  → Compréhension des contraintes de sécurité réelles
+  → Vision système : dépendances, versioning, publication npm
+  → Curiosité sur des APIs navigateur peu connues mais puissantes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE IV — LA CARTE DES MISSIONS
+─────────────────────────────────
+
+40 missions. 4 groupes. Un fil directeur.
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  GROUPE 0   Fondation           MISSION-000  (le socle)         │
+  │  GROUPE 1   Packages npm        MISSION-001 → 007 + 008-009     │
+  │  GROUPE 2   Application ALPHA   MISSION-010 → 019               │
+  │  GROUPE 3   Application BETA    MISSION-020 → 029               │
+  │  GROUPE 4   Expérimental        MISSION-030 → 039               │
+  └─────────────────────────────────────────────────────────────────┘
+
+Chaque mission a :
+  → Un briefing narratif (contexte, pourquoi ça existe)
+  → Une spec technique précise (API, structure de fichiers, interfaces)
+  → Des objectifs primaires numérotés (ce qu'il faut livrer)
+  → Des points de vigilance (pièges connus, comportements non-évidents)
+  → Une liste de livrables checkable
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE V — LES PACKAGES (GROUPE 0 + GROUPE 1 L1→L3)
+───────────────────────────────────────────────────
+
+Ce sont les bibliothèques open source qu'on publie sur npm.
+Elles vivent dans packages/ du monorepo.
+Core Nexus les consomme, mais elles peuvent tourner n'importe où.
+
+  MISSION-000  🏗️  ARCHITECTURE-MONOREPO
+  ─────────────────────────────────────────
+  Le socle de tout. pnpm workspaces + Turborepo + Changesets.
+  Sans ça, rien d'autre n'existe.
+  Niveau : ★★☆☆☆ — mais critique.
+
+  MISSION-001  👁️  @efficimo/observable
+  ─────────────────────────────────────────
+  Système réactif maison. Zéro dépendance.
+  Observable, ObservableValue, DerivedObservableValue.
+  C'est la fondation de toute la réactivité de Core Nexus —
+  sans Redux, sans Zustand, sans rien d'externe.
+  Niveau : ★★☆☆☆
+
+  MISSION-002  💾  @efficimo/storage
+  MISSION-003  🔐  @efficimo/crypto
+  MISSION-004  ⚙️  @efficimo/workers
+  MISSION-005  ⏳  @efficimo/memento
+  MISSION-006  📊  @efficimo/monitor
+  ─────────────────────────────────────────
+  Chacun dépend d'observable. Chacun résout un problème précis.
+  Stockage réactif / chiffrement / workers / undo-redo / métriques.
+  Niveaux : ★★☆☆☆ à ★★★☆☆
+
+  MISSION-007  🪟  @efficimo/dock
+  ─────────────────────────────────────────
+  Panels détachables façon IDE, réactifs.
+  Dépend de observable + storage.
+  Niveau : ★★★☆☆
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE VI — L'APPLICATION (GROUPES 2, 3, 4)
+───────────────────────────────────────────
+
+Core Nexus elle-même, découpée en features indépendantes.
+Chaque mission = une feature qui peut être développée séparément.
+
+  ALPHA — Sécurité & fondations UI
+    010  Chiffrement souverain + WebAuthn
+    011  Clé cachée dans une image (stéganographie)
+    012  Audit temporel (undo/redo persisté)
+    013  Service Worker + sync hors-ligne
+    014  Cache API comme base de données
+    015  PWA installable multi-OS
+    016  Synchronisation entre onglets
+    017  HTML avancé natif
+    018  CSS Houdini + Container Queries
+    019  View Transitions + Scroll-Driven Animations
+
+  BETA — Interactions & intégrations
+    020  OAuth2 multi-providers (GitHub, GitLab, Google)
+    021  Web Workers + Streams — analytics temps réel
+    022  SQLite embarqué via WASM
+    023  PerformanceObserver + Long Animation Frame
+    024  Tâches différées (requestIdleCallback)
+    025  Dashboard multi-sources
+    026  Web Push + Notifications
+    027  Protocol Handler + File Handling
+    028  Presentation API (double écran)
+    029  Design Patterns interactifs
+
+  NEXUS+ — Expérimental & hardware
+    030  IA locale (TensorFlow.js / Transformers.js)
+    031  Cycle de vie React avancé
+    032  Détection de présence via AudioContext
+    033  WebHID/WebSerial — LED/OLED physique
+    034  Web MIDI — Launchpad comme contrôleur
+    035  Web Bluetooth — lampe de statut physique
+    036  Gamepad + NFC + Vibration
+    037  Web Speech — assistant vocal
+    038  WebGPU + Temporal API
+    039  WebXR — Kanban spatial 3D
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE VII — LE GRAND FINALE : PLEXUS
+────────────────────────────────────
+
+[Garder pour la fin. Laisser le silence s'installer avant de parler.]
+
+"Et maintenant, la raison pour laquelle tout ce qu'on vient de voir existe."
+
+  MISSION-008  🕸️  plexus — Réseau Mesh Fantôme
+  ────────────────────────────────────────────────
+  Un réseau P2P entre navigateurs. Sans serveur. Sans WebSocket.
+  Chaque onglet est un nœud. Chaque nœud connaît ses voisins.
+  Ensemble, ils savent tout.
+
+  Techniquement : routage distance-vector entre onglets Chrome,
+  via WebRTC + BroadcastChannel. La même logique que les routeurs
+  Internet depuis les années 70 — appliquée à des tabs de navigateur.
+
+  Un message d'Alice vers Bob emprunte le chemin le plus court
+  calculé dynamiquement par les tables de routage de chaque nœud.
+
+  C'est la mission la plus complexe. C'est aussi celle qui illustre
+  le mieux la philosophie du projet : "pas de backend" ne veut pas
+  dire "pas de réseau". Ça veut dire "le réseau, c'est vous."
+
+  Dépendances : observable + BroadcastChannel (016) + Signal (032)
+  Niveau : ★★★★☆ — Champion
+
+  MISSION-009  🌌  plexus-ui — Interface Constellation
+  ────────────────────────────────────────────────────────
+  La visualisation SVG en temps réel du réseau Plexus.
+  Chaque nœud actif apparaît. Chaque connexion est tracée.
+  On voit le mesh vivre.
+  Niveau : ★★★☆☆
+
+  ┌────────────────────────────────────────────────────────────────┐
+  │ POURQUOI PLEXUS EN DERNIER ?                                   │
+  │                                                                │
+  │ Parce que pour comprendre Plexus, il faut avoir compris        │
+  │ observable (réactivité), BroadcastChannel (communication       │
+  │ inter-onglets), et WebRTC (P2P navigateur).                    │
+  │                                                                │
+  │ Et parce que c'est le projet qui prouve que notre stack        │
+  │ peut aller aussi loin qu'on veut — sans jamais quitter         │
+  │ le navigateur.                                                 │
+  └────────────────────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACTE VIII — RÈGLES DU JEU
+───────────────────────────
+
+  1. UNE MISSION À LA FOIS
+     On ne jongle pas entre 3 missions. On finit ce qu'on commence.
+
+  2. LIRE LA SPEC AVANT DE CODER
+     Chaque mission contient tout : objectifs, structure, interfaces,
+     pièges. 10 minutes de lecture = 2 heures de débogage évitées.
+
+  3. LES LIVRABLES SONT DES CHECKLISTS
+     Cocher = c'est fait ET ça compile ET c'est testé.
+     Pas de "ça marche chez moi" sans tests.
+
+  4. ON POSE DES QUESTIONS, ON NE SE NOIE PAS
+     Si tu es bloqué 45min sur le même point, tu demandes.
+     Chercher longtemps = apprendre. Tourner en rond = perte de temps.
+
+  5. LE CODE EST OPEN SOURCE
+     Ce qu'on produit dans les packages @efficimo/* est public sur npm.
+     On écrit pour des inconnus. On documente pour soi-même dans 6 mois.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FERMETURE
+──────────
+
+"Ces missions ne sont pas obligatoires dans l'ordre.
+Choisissez selon votre niveau, votre curiosité, ou ce qui bloque
+l'équipe en ce moment.
+
+L'objectif n'est pas de finir 40 missions.
+L'objectif est de comprendre pourquoi les 40 existent."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FIN DU DOCUMENT — PRÉSENTATION ÉQUIPE CORE NEXUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

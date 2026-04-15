@@ -1,0 +1,106 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-013                                         ║
+║  LA SENTINELLE SILENCIEUSE                                               ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🛡️📡
+
+DÉSIGNATION     : Protocole de Résilience Hors-Connexion — Opération Zone de Silence
+CODENAME        : SENTINELLE-SILENCIEUSE
+PHASE           : [ALPHA]
+CLASSIFICATION  : Archives & Persistance
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Sur le Front de l'Algorithme, les communications avec le Dépôt Immuable (GitHub)
+sont parfois coupées. Un Architecte en transit dans les Zones de Silence Numérique
+(train, zone sans réseau) ne doit pas être neutralisé : son Terminal de Combat doit
+rester opérationnel.
+
+La Sentinelle Silencieuse est un Gardien de Mémoire (Service Worker) avancé qui
+intercepte toutes les requêtes, sert le Codex depuis le cache local, et enregistre
+les modifications en attente. Au retour dans le Nexus, la Synchronisation Différée
+pousse automatiquement les changements vers le Dépôt, via l'API GitHub Contents,
+en résolvant les conflits via une interface inspirée des fusions de code.
+
+⚠ CONTRAINTE : Le Dépôt Immuable accepte les modifications uniquement via
+  l'API GitHub (Contents API — PUT avec Base64 + SHA du fichier actuel).
+  La synchro hors-ligne implique un token GitHub valide côté client.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Service Worker en stratégie "Cache-First" pour les ressources statiques
+     et "Network-First avec fallback cache" pour les Codex JSON
+  2. Mettre en file d'attente les modifications hors-connexion dans IndexedDB
+     (queue de synchronisation avec timestamp et état de l'entité)
+  3. Déclencher la synchronisation au retour du réseau :
+     a) Background Sync API (Chrome/Edge uniquement)
+     b) Fallback : écouter l'événement online + fetch de test (navigator.onLine
+        est non fiable — valider avec un fetch HEAD vers un endpoint connu)
+  4. Pousser les changements vers GitHub via l'API Contents (PUT /contents/{path})
+     en incluant le SHA du fichier actuel pour détecter les conflits
+  5. Interface de résolution de conflits si deux Architectes ont modifié
+     la même Anomalie en parallèle (vue diff côte-à-côte)
+  6. Indicateur visuel d'état de connexion dans la Navbar
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Service Worker (interception fetch, stratégies Cache-First / Network-First)
+  - Background Sync API (Chrome/Edge — non disponible sur Firefox)
+  - IndexedDB via Dexie.js (file d'attente des opérations en attente)
+  - GitHub Contents API (PUT avec sha pour éviter les conflits 409)
+  - fetch HEAD + timeout (détection fiable du réseau, navigator.onLine ne l'est pas)
+  - View Transitions API (animation de résolution de conflit)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)      │
+  │ Durée estimée : 3-4 jours               │
+  │ Effort        : Élevé                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] sw.js avec stratégies Cache-First (statique) / Network-First (Codex)
+  [ ] Module SyncQueue (Dexie.js) — opérations en attente avec timestamp
+  [ ] Détection réseau fiable (fetch HEAD avec timeout de 2s)
+  [ ] Background Sync + fallback online event pour la synchronisation
+  [ ] Module GitHubSyncer (Contents API PUT avec SHA + gestion 409 Conflict)
+  [ ] Composant ConflictResolver (vue diff côte-à-côte)
+  [ ] Badge de statut réseau dans la Navbar (Connecté / Zone de Silence / Syncing)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION UTILE MAIS PLUS COMPLEXE QUE PRÉVU
+
+  ★ APPRÉCIATION
+  C'est la mission avec la valeur pratique la plus élevée du projet. Un outil
+  qu'on utilise vraiment dans le train, qui synchro au retour — c'est du
+  "software engineering sérieux". Bon apprentissage de la gestion d'état distribué.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - navigator.onLine retourne true même si le réseau est local sans internet.
+    Toujours valider avec un fetch HEAD vers un endpoint connu (ex: api.github.com).
+  - Background Sync API n'est PAS disponible sur Firefox (Chrome/Edge seulement).
+    Le fallback online event est obligatoire pour une couverture multi-navigateur.
+  - La synchro vers GitHub n'est pas un simple "push" — il faut l'API Contents
+    avec le SHA du fichier actuel. Si deux Architectes modifient le même fichier,
+    le second PUT recevra un 409 Conflict. La gestion de ce cas est la partie la
+    plus complexe de la mission.
+  - Difficulté réévaluée à ★★★★ — la gestion des conflits GitHub est non triviale.
+
+  ✦ RECOMMANDATION
+  Implémenter en deux temps : d'abord la synchro simple (last-write-wins, sans
+  résolution de conflits), puis ajouter le ConflictResolver dans un second sprint.
+  La valeur "offline = je peux quand même bosser" est déjà immense sans la partie
+  résolution de conflits.

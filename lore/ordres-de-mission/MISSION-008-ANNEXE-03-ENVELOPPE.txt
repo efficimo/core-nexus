@@ -1,0 +1,67 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 03                                                ║
+║  FORMAT DE L'ENVELOPPE ET TRAJET D'UN MESSAGE                           ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Structure d'une enveloppe Plexus et exemple de propagation à travers
+4 nœuds en chaîne. Seul le champ `hops` est muté à chaque saut —
+tout le reste est copié tel quel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DE L'ENVELOPPE
+
+```mermaid
+graph LR
+  subgraph Envelope["PlexusEnvelope"]
+    direction TB
+    MSGID["msgId\nuuid-v4 — immuable"]
+    MAXHOPS["maxHops\ndistance max — immuable"]
+    EMITAT["emitAt\nms epoch — immuable"]
+    HOPS["hops : string[]\n⚠ seul champ muté\n→ ajout myNodeId à chaque saut"]
+
+    subgraph Stamps["stamps — immuable"]
+      FROM["from : nodeId source"]
+      TO["to : nodeId dest\nou 'broadcast'"]
+      TYPE["type : string\nnature du message"]
+    end
+
+    subgraph Body["body — immuable"]
+      PAYLOAD["payload brut\n(StructuredCloneable)"]
+    end
+  end
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TRAJET — A ENVOIE À D (topologie A ↔ B ↔ C ↔ D)
+
+```mermaid
+sequenceDiagram
+  participant A
+  participant B
+  participant C
+  participant D
+
+  Note over A: hops: ["A"]<br/>stamps: {from:A, to:D, type:ANOMALIE_UPDATE}
+
+  A->>B: enveloppe hops=["A"]
+  Note over B: stamps.to ≠ B<br/>route[D].via = C<br/>hops: ["A","B"]
+  B->>C: enveloppe hops=["A","B"]
+
+  Note over C: stamps.to ≠ C<br/>route[D] direct<br/>hops: ["A","B","C"]
+  C->>D: enveloppe hops=["A","B","C"]
+
+  Note over D: stamps.to === D<br/>deliver(stamps.type, body) ✓<br/>nodes["A"].userId → "Architecte-Kaito"
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RÈGLES DE MUTATION
+
+  À chaque saut intermédiaire, le nœud crée une nouvelle enveloppe :
+    const outgoing = { ...msg, hops: [...msg.hops, myNodeId] }
+
+  Tout le reste (msgId, maxHops, emitAt, stamps, body) est copié par
+  référence — il ne doit jamais être muté. Le destinataire final reçoit
+  exactement le body émis par la source, sans transformation.

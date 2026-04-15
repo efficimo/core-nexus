@@ -1,0 +1,72 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 05                                                ║
+║  ROUTAGE DISTANCE-VECTOR ET GOSSIP                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Comment chaque nœud construit et maintient sa connaissance du réseau
+via les messages STATE_UPDATE échangés avec ses pairs directs.
+Principe Bellman-Ford : chaque nœud apprend les routes de ses voisins.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONSTRUCTION DE LA ROUTING TABLE VIA GOSSIP
+
+```mermaid
+sequenceDiagram
+  participant A
+  participant B
+  participant C
+  participant D
+
+  Note over A,D: Topologie directe : A↔B, B↔C, C↔D
+
+  B->>A: STATE_UPDATE {B: dist=0, C: dist=1, D: dist=2}
+  Note over A: A apprend :<br/>B → direct (dist=1)<br/>C → via B (dist=2)<br/>D → via B (dist=3)
+
+  C->>B: STATE_UPDATE {C: dist=0, D: dist=1}
+  Note over B: B apprend :<br/>C → direct (dist=1)<br/>D → via C (dist=2)
+
+  B->>A: STATE_UPDATE {B: dist=0, C: dist=1, D: dist=2}
+  Note over A: A met à jour D :<br/>dist=3, via=B ✓
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RÈGLE SPLIT HORIZON — ÉVITER LES BOUCLES DE ROUTAGE
+
+```mermaid
+flowchart LR
+  subgraph "Sans split horizon (dangereux)"
+    A1["A"] -->|"dit à B : D est à dist=3 via B"| B1["B"]
+    B1 -->|"croit pouvoir atteindre D via A !"| A1
+  end
+
+  subgraph "Avec split horizon (correct)"
+    A2["A"] -->|"dit à B : D est à dist=3"| B2["B"]
+    B2 -->|"n'annonce PAS à A\nles routes apprises de A"| A2
+  end
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CYCLE DE VIE D'UNE ENTRÉE INDIRECTE DANS NODES
+
+```mermaid
+stateDiagram-v2
+  [*] --> active : reçu via STATE_UPDATE
+  active --> stale : lastSeen > staleThreshold (90s)
+  stale --> active : nouveau STATE_UPDATE reçu
+  stale --> expired : lastSeen > expireThreshold (150s)
+  expired --> [*] : supprimé de nodes
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PARAMÈTRES PLEXUS ASSOCIÉS
+
+  stateUpdateInterval : 30 000  — période gossip vers pairs directs (ms)
+  staleThreshold      : 90 000  — délai avant passage à stale (ms)
+  expireThreshold     : 150 000 — délai avant suppression (ms)
+
+  Un STATE_UPDATE immédiat est également émis à chaque changement
+  de freeSlots (CAPACITY_UPDATE) pour ne pas attendre 30s.

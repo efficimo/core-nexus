@@ -1,0 +1,360 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-005                                         ║
+║  @efficimo/memento                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⏳🧠
+
+DÉSIGNATION     : Librairie Historique Réactif — Opération Machine Temporelle
+CODENAME        : MEMENTO
+PHASE           : [ALPHA]
+CLASSIFICATION  : Archives & Persistance — Package Open Source
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo)
+                  MISSION-001 (@efficimo/observable — ObservableValue)
+PRÉCÈDE         : MISSION-012 (Machine Temporelle — intégration dans core-nexus)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Undo/redo est un pattern universel, mais sa bonne implémentation est
+rarement triviale : gérer l'historique, la persistance, la réactivité
+et la navigation arbitraire dans le temps demande une infrastructure
+que chaque projet réécrit à sa façon.
+
+@efficimo/memento expose un Memento<State> — un objet qui wrape n'importe
+quel état, l'enregistre dans un historique linéaire et expose chaque
+dimension de cet historique comme un ObservableValue. Les composants
+réagissent en temps réel à current, canUndo, canRedo sans aucun
+plumbing manuel.
+
+Le backend de persistance est configurable via une interface
+MementoAdapter. Deux adapters sont fournis : MemoryAdapter (par défaut,
+en mémoire) et IndexedDBAdapter (persistance native, sans Dexie ni
+dépendance externe). N'importe quelle couche de stockage peut être
+branchée en implémentant l'interface.
+
+La compression delta est optionnelle : au lieu de stocker des snapshots
+complets, le memento peut ne stocker que les différences entre états
+(JSON diff), réduisant drastiquement la mémoire utilisée sur des états
+larges.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONCEPTS FONDAMENTAUX
+
+  HISTORY ENTRY
+  ─────────────
+  Une entrée dans l'historique. Contient soit le snapshot complet,
+  soit un delta selon l'option compress.
+
+    type HistoryEntry<State> = {
+      id       : string    // identifiant unique de l'entrée
+      state   ?: State     // snapshot complet (si compress: false)
+      delta   ?: JsonPatch // diff depuis l'état précédent (si compress: true)
+      timestamp: number    // Date.now() au moment du record()
+      label   ?: string    // description optionnelle (ex: 'Ajout membre')
+    }
+
+  JSON PATCH
+  ──────────
+  Format standard RFC 6902 pour les diffs JSON.
+  Exemple : [{ op: 'replace', path: '/name', value: 'Alice' }]
+
+    type JsonPatch = Array<{
+      op   : 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test'
+      path : string
+      value?: unknown
+    }>
+
+  MEMENTO ADAPTER
+  ───────────────
+  Interface à implémenter pour brancher n'importe quel backend.
+
+    interface MementoAdapter<State> {
+      save(entries: HistoryEntry<State>[], cursor: number): Promise<void>
+      load(): Promise<{ entries: HistoryEntry<State>[]; cursor: number } | null>
+      clear(): Promise<void>
+    }
+
+  MEMENTO OPTIONS
+  ───────────────
+    type MementoOptions<State> = {
+      initial  : State                    // état de départ
+      adapter ?: MementoAdapter<State>    // défaut : MemoryAdapter
+      maxSize ?: number                   // max entrées (défaut : 100, FIFO si dépassé)
+      compress?: boolean                  // delta compression (défaut : false)
+    }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  CORE
+  ────
+  Importé depuis '@efficimo/memento'
+
+  // Crée un memento à partir d'un état initial et d'options
+  function createMemento<State>(options: MementoOptions<State>): Memento<State>
+
+  type Memento<State> = {
+    // Observables réactifs — s'abonner directement ou via useMemento()
+    current : ObservableValue<State>
+    history : ObservableValue<HistoryEntry<State>[]>
+    cursor  : ObservableValue<number>
+    canUndo : ObservableValue<boolean>   // cursor > 0
+    canRedo : ObservableValue<boolean>   // cursor < history.length - 1
+
+    // Enregistre un nouvel état — coupe le futur si cursor < fin
+    record(state: State, label?: string): Promise<void>
+
+    // Recule d'un pas
+    undo(): Promise<void>
+
+    // Avance d'un pas
+    redo(): Promise<void>
+
+    // Saute directement à un index (time-travel)
+    goto(index: number): Promise<void>
+
+    // Réinitialise l'historique (garde l'état initial)
+    clear(): Promise<void>
+  }
+
+  // Adapters built-in
+  class MemoryAdapter<State> implements MementoAdapter<State>
+
+  INDEXEDDB ADAPTER
+  ──────────────────
+  Importé depuis '@efficimo/memento/idb'
+
+  class IndexedDBAdapter<State> implements MementoAdapter<State> {
+    constructor(options: {
+      dbName   : string   // nom de la base IDB
+      storeName: string   // nom de l'object store (défaut: 'memento')
+      version ?: number   // version IDB (défaut: 1)
+    })
+  }
+
+  REACT HOOK
+  ──────────
+  Importé depuis '@efficimo/memento/react'
+
+  function useMemento<State>(memento: Memento<State>): {
+    current : State
+    history : HistoryEntry<State>[]
+    cursor  : number
+    canUndo : boolean
+    canRedo : boolean
+    record  : (state: State, label?: string) => Promise<void>
+    undo    : () => Promise<void>
+    redo    : () => Promise<void>
+    goto    : (index: number) => Promise<void>
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPORTEMENT DE L'HISTORIQUE LINÉAIRE
+
+  ENREGISTREMENT NORMAL
+  ─────────────────────
+  record(newState) quand cursor = fin de l'historique :
+    history = [...history, newEntry]
+    cursor  = history.length - 1
+
+  ENREGISTREMENT APRÈS UNDO (coupe le futur)
+  ──────────────────────────────────────────
+  record(newState) quand cursor < fin — le futur est effacé :
+    history = history.slice(0, cursor + 1)  // supprime les états après cursor
+    history = [...history, newEntry]
+    cursor  = history.length - 1
+
+  DÉPASSEMENT maxSize (FIFO)
+  ──────────────────────────
+  Si history.length > maxSize après record() :
+    history = history.slice(1)  // supprime la plus ancienne entrée
+    cursor -= 1                  // ajuste le curseur
+
+  GOTO
+  ────
+  goto(index) reconstruit l'état à l'index :
+    - compress: false → history[index].state directement
+    - compress: true  → replay des deltas depuis index 0 jusqu'à index
+    cursor = index
+    current.next(reconstructedState)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. TYPES (src/types.ts) :
+     - HistoryEntry, JsonPatch, MementoAdapter, MementoOptions, Memento
+
+  2. JSON DIFF (src/diff.ts) :
+     - diff(prev: State, next: State): JsonPatch — calcule le delta
+     - patch(state: State, delta: JsonPatch): State — applique le delta
+     - Implémentation légère, zéro dépendance externe
+     - Couvre : scalaires, objets plats, tableaux (index stable)
+
+  3. MEMENTO CORE (src/createMemento.ts) :
+     - Instancie les 5 ObservableValue (current, history, cursor, canUndo, canRedo)
+     - record() :
+         si compress → calcule le diff via diff(current, newState)
+         tronque le futur si cursor < fin
+         applique FIFO si maxSize dépassé
+         appelle adapter.save() de façon asynchrone (non bloquant)
+     - undo() : cursor - 1 → reconstruit l'état → current.next()
+     - redo() : cursor + 1 → idem
+     - goto(index) : reconstruit via replay si compress, direct sinon
+     - clear() : réinitialise tout + adapter.clear()
+     - Chargement au démarrage : adapter.load() → restaure history + cursor
+
+  4. MEMORY ADAPTER (src/MemoryAdapter.ts) :
+     - Stockage en mémoire dans un tableau privé
+     - save() et load() synchrones wrappés en Promise.resolve()
+     - clear() : vide le tableau
+
+  5. IDB ADAPTER (src/idb.ts) :
+     - Ouvre la base IDB via indexedDB.open() natif (pas de Dexie)
+     - Object store : clé 'state' → { entries, cursor }
+     - save() : IDBTransaction readwrite → put()
+     - load() : IDBTransaction readonly → get()
+     - clear() : IDBTransaction readwrite → delete()
+
+  6. HOOK REACT (src/react.ts) :
+     - useObservableValueState sur chaque ObservableValue du Memento
+     - Retourne toutes les valeurs + fonctions wrappées
+
+  7. POINTS D'ENTRÉE :
+     src/index.ts  → createMemento, MemoryAdapter, types
+     src/idb.ts    → IndexedDBAdapter
+     src/react.ts  → useMemento
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/memento/
+  ├── src/
+  │   ├── index.ts                  ← export core
+  │   ├── idb.ts                    ← export IndexedDBAdapter
+  │   ├── react.ts                  ← export useMemento
+  │   ├── types.ts
+  │   ├── diff.ts                   ← JSON diff/patch léger
+  │   ├── createMemento.ts
+  │   ├── MemoryAdapter.ts
+  │   └── __tests__/
+  │       ├── memento.test.ts       ← record, undo, redo, goto, maxSize, FIFO
+  │       ├── diff.test.ts          ← diff/patch round-trip, cas limites
+  │       └── idb.test.ts           ← IndexedDB via fake-indexeddb
+  ├── package.json
+  ├── tsconfig.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PACKAGE.JSON
+
+  {
+    "name": "@efficimo/memento",
+    "version": "0.1.0",
+    "type": "module",
+    "exports": {
+      ".":       "./src/index.ts",
+      "./idb":   "./src/idb.ts",
+      "./react": "./src/react.ts"
+    },
+    "peerDependencies": {
+      "@efficimo/observable": ">=0.1.0",
+      "react":                ">=18.0.0"
+    },
+    "peerDependenciesMeta": {
+      "react": { "optional": true }
+    },
+    "license": "MIT"
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/observable ≥ 0.1.0 — ObservableValue pour tous les états réactifs
+  - IndexedDB API (natif) — pas de Dexie, pas de dépendance externe
+  - TypeScript strict — extends tsconfig.base.json
+  - Vitest + fake-indexeddb — mock IDB dans les tests (npm: fake-indexeddb)
+  - Turborepo — pipeline (dépend de @efficimo/observable)
+  - Changesets — versioning sémantique indépendant
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : demi-journée à 1 jour   │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package core
+  [ ] packages/memento/src/index.ts          : export createMemento, MemoryAdapter, types
+  [ ] packages/memento/src/types.ts          : HistoryEntry, MementoAdapter, MementoOptions
+  [ ] packages/memento/src/diff.ts           : JSON diff/patch
+  [ ] packages/memento/src/createMemento.ts  : logique principale
+  [ ] packages/memento/src/MemoryAdapter.ts
+
+  Adapters & React
+  [ ] packages/memento/src/idb.ts            : IndexedDBAdapter
+  [ ] packages/memento/src/react.ts          : useMemento
+
+  Config
+  [ ] packages/memento/package.json
+  [ ] packages/memento/tsconfig.json
+  [ ] packages/memento/README.md
+  [ ] packages/memento/CHANGELOG.md
+
+  Tests
+  [ ] packages/memento/src/__tests__/memento.test.ts
+  [ ] packages/memento/src/__tests__/diff.test.ts
+  [ ] packages/memento/src/__tests__/idb.test.ts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  Le pattern Memento est l'un des rares design patterns qui bénéficie
+  vraiment d'une lib dédiée — la combinaison historique + persistance
+  + réactivité est toujours réécrite à la main. La compression delta
+  est la feature différenciante : sur un state de 1000 entrées, stocker
+  des diffs au lieu de snapshots peut réduire l'empreinte mémoire de 10x.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  GOTO ET COMPRESSION DELTA
+    Avec compress: true, goto(0) nécessite de rejouer tous les deltas
+    depuis le début. Sur un historique de 100 entrées, c'est 100 apply().
+    Si les états sont larges et les deltas nombreux, envisager un
+    snapshot de checkpoint tous les N entrées pour limiter le replay.
+    Documenter ce trade-off — ne pas l'optimiser prématurément en v1.
+
+  INDEXEDDB ET SÉRIALISATION
+    IndexedDB peut stocker des objets JS natifs (pas de JSON.stringify
+    nécessaire). Mais les classes custom (Map, Set) ne se désérialisent
+    pas automatiquement. L'adapter IDB suppose que State est un plain
+    object sérialisable. Le documenter comme contrainte.
+
+  RECORD ASYNCHRONE
+    adapter.save() est async mais record() ne doit pas bloquer l'UI.
+    Appeler save() en "fire and forget" avec gestion d'erreur silencieuse
+    ou via un event 'save:error' sur le memento pour que l'app puisse
+    réagir sans bloquer l'historique en mémoire.
+
+  ✦ RECOMMANDATION
+    Ordre d'implémentation : diff.ts → MemoryAdapter → createMemento
+    (sans IDB) → tests complets → IndexedDBAdapter → hook React.
+    Tester goto() en mode compress avec un historique de 50 entrées
+    avant de valider la feature.

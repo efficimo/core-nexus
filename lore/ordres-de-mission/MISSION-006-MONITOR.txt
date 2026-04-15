@@ -1,0 +1,441 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-006                                         ║
+║  @efficimo/monitor                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+📊⚡
+
+DÉSIGNATION     : Librairie Métriques Réactives — Opération Vigile Réactif
+CODENAME        : MONITOR
+PHASE           : [ALPHA]
+CLASSIFICATION  : Performance & Observabilité — Package Open Source
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo)
+                  MISSION-001 (@efficimo/observable — ObservableValue, Observable)
+PRÉCÈDE         : MISSION-023 (Vigile Électronique — intégration dans core-nexus)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Mesurer les performances d'une application web sans dépendance externe
+est plus difficile qu'il n'y paraît : les APIs navigateur sont dispersées
+(PerformanceObserver, navigation timing, layout shifts), les seuils
+de classification (good/poor) doivent être alignés sur les Core Web
+Vitals de Google, et exposer ces métriques de manière réactive demande
+un plumbing répétitif que chaque projet réécrit à sa façon.
+
+@efficimo/monitor fournit une infrastructure d'observation configurable
+et extensible. Le cœur est la MetricDefinition — une description
+déclarative d'une métrique : comment l'observer, quels seuils définissent
+"good" vs "poor". La lib fournit les définitions pour les 6 métriques
+Web Vitals clés (LCP, INP, CLS, FCP, TTFB, LoAF) prêtes à l'emploi.
+
+Chaque métrique observée est accessible via un ObservableValue — les
+composants se mettent à jour automatiquement lorsqu'une nouvelle valeur
+arrive. Un Observable global stream relaie toutes les métriques pour
+des usages transversaux (logging, dashboard, alerting).
+
+La lib est observe-only et local-only : elle ne dégrade jamais les
+performances qu'elle mesure, et ne transmet aucune donnée à l'extérieur.
+L'intégration éventuelle avec des services d'analytics reste la
+responsabilité de l'application consommatrice.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONCEPTS FONDAMENTAUX
+
+  METRIC VALUE
+  ────────────
+  Une mesure à un instant donné, avec sa classification qualitative.
+
+    type MetricRating = 'good' | 'needs-improvement' | 'poor'
+
+    type MetricValue = {
+      value    : number         // valeur brute (ms, score, etc.)
+      rating   : MetricRating   // classification selon les seuils
+      timestamp: number         // Date.now() au moment de la mesure
+    }
+
+  METRIC THRESHOLDS
+  ─────────────────
+  Seuils de classification alignés sur les Core Web Vitals Google.
+  La règle est : ≤ good → 'good', ≤ poor → 'needs-improvement', > poor → 'poor'.
+
+    type MetricThresholds = {
+      good: number   // valeur ≤ good : rating 'good'
+      poor: number   // valeur > poor : rating 'poor' (sinon 'needs-improvement')
+    }
+
+  METRIC DEFINITION
+  ─────────────────
+  Description déclarative d'une métrique. Le coeur extensible du système.
+
+    type MetricDefinition = {
+      name      : string                                // identifiant unique
+      unit     ?: 'ms' | 'score' | 'count' | string    // unité (doc/display)
+      thresholds: MetricThresholds                      // seuils good/poor
+      observe   : (emit: (value: number) => void) => (() => void)
+      //          ↑ callback appelé par le monitor      ↑ cleanup function
+    }
+
+  NOTE : observe() reçoit une fonction emit() et retourne un cleanup.
+  C'est le contrat minimal — la logique d'observation est entièrement
+  dans la MetricDefinition. Pas d'API interne exposée.
+
+  MONITOR OPTIONS
+  ───────────────
+    type MonitorOptions = {
+      metrics: MetricDefinition[]   // liste des métriques à activer
+    }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  CORE
+  ────
+  Importé depuis '@efficimo/monitor'
+
+  // Crée un monitor et démarre l'observation de toutes les métriques
+  function createMonitor(options: MonitorOptions): Monitor
+
+  type Monitor = {
+    // Retourne l'ObservableValue pour une métrique donnée
+    // null si aucune valeur n'a encore été reçue
+    get(name: string): ObservableValue<MetricValue | null>
+
+    // Observable global — émet à chaque nouvelle valeur, toutes métriques
+    stream: Observable<{ name: string; metric: MetricValue }>
+
+    // Arrête toutes les observations et libère les ressources
+    destroy(): void
+  }
+
+  // Métriques Web Vitals built-in — MetricDefinition prêtes à l'emploi
+  const LCP  : MetricDefinition   // Largest Contentful Paint
+  const INP  : MetricDefinition   // Interaction to Next Paint
+  const CLS  : MetricDefinition   // Cumulative Layout Shift
+  const FCP  : MetricDefinition   // First Contentful Paint
+  const TTFB : MetricDefinition   // Time to First Byte
+  const LoAF : MetricDefinition   // Long Animation Frame
+
+  // Calcule le rating à partir d'une valeur et de seuils
+  function rateMetric(value: number, thresholds: MetricThresholds): MetricRating
+
+  // Types
+  export type { MetricDefinition, MetricValue, MetricThresholds, MetricRating, MonitorOptions }
+
+  REACT HOOK
+  ──────────
+  Importé depuis '@efficimo/monitor/react'
+
+  function useMetric(
+    monitor : Monitor,
+    name    : string
+  ): { value: number | null; rating: MetricRating | null }
+
+  // Retourne null pour value et rating tant qu'aucune mesure n'est disponible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MÉTRIQUES BUILT-IN — SPÉCIFICATIONS
+
+  LCP — Largest Contentful Paint
+  ──────────────────────────────
+  Mesure : temps de rendu du plus grand élément visible au chargement
+  Seuils : good ≤ 2500ms, poor > 4000ms
+  API    : PerformanceObserver('largest-contentful-paint')
+  Notes  : emit() n'est appelé qu'une fois (dernière entrée avant load)
+           → observe via buffered: true + filtre sur la dernière entrée
+
+  INP — Interaction to Next Paint
+  ────────────────────────────────
+  Mesure : latence de réponse aux interactions utilisateur (p98)
+  Seuils : good ≤ 200ms, poor > 500ms
+  API    : PerformanceObserver('event') + PerformanceObserver('first-input')
+  Notes  : accumuler toutes les durées d'interaction, émettre le p98
+           mise à jour à chaque nouvelle interaction (pas uniquement au load)
+
+  CLS — Cumulative Layout Shift
+  ──────────────────────────────
+  Mesure : somme des scores de décalage de mise en page inattendus
+  Seuils : good ≤ 0.1, poor > 0.25 (score sans unité)
+  API    : PerformanceObserver('layout-shift')
+  Notes  : accumuler les entrées hadRecentInput=false
+           émettre à chaque mise à jour du score cumulé
+
+  FCP — First Contentful Paint
+  ─────────────────────────────
+  Mesure : temps de rendu du premier élément de contenu
+  Seuils : good ≤ 1800ms, poor > 3000ms
+  API    : PerformanceObserver('paint') — entrée name='first-contentful-paint'
+  Notes  : emit() appelé une fois, dès que l'entrée est disponible
+           buffered: true pour les cas où l'observer démarre après le paint
+
+  TTFB — Time to First Byte
+  ──────────────────────────
+  Mesure : délai entre requête et premier byte de réponse
+  Seuils : good ≤ 800ms, poor > 1800ms
+  API    : PerformanceObserver('navigation') — responseStart - requestStart
+  Notes  : emit() appelé une fois, après navigation.loadEventEnd
+
+  LoAF — Long Animation Frame
+  ────────────────────────────
+  Mesure : durée des frames > 50ms (jank detector)
+  Seuils : good ≤ 50ms, poor > 200ms (par frame individuelle)
+  API    : PerformanceObserver('long-animation-frame')
+  Notes  : emit() à chaque LoAF détecté (pas de cumul)
+           émet la durée de chaque frame anormalement longue
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MÉTRIQUES CUSTOM — EXEMPLE D'USAGE
+
+  // Métrique custom : taux de cache localStorage
+  const CacheHitRate: MetricDefinition = {
+    name: 'cache-hit-rate',
+    unit: 'score',
+    thresholds: { good: 0.8, poor: 0.5 },
+    observe: (emit) => {
+      const id = setInterval(() => {
+        const hits   = Number(localStorage.getItem('cache:hits')   ?? 0)
+        const misses = Number(localStorage.getItem('cache:misses') ?? 0)
+        const total  = hits + misses
+        if (total > 0) emit(hits / total)
+      }, 5000)
+      return () => clearInterval(id)
+    }
+  }
+
+  // Métrique custom : taille du state en mémoire
+  const StateSize: MetricDefinition = {
+    name: 'state-size-bytes',
+    unit: 'count',
+    thresholds: { good: 50_000, poor: 200_000 },
+    observe: (emit) => {
+      const unsub = myStore.subscribe(state => {
+        emit(new TextEncoder().encode(JSON.stringify(state)).byteLength)
+      })
+      return unsub
+    }
+  }
+
+  // Utilisation combinée
+  const monitor = createMonitor({
+    metrics: [LCP, INP, CLS, FCP, TTFB, LoAF, CacheHitRate, StateSize]
+  })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPORTEMENT INTERNE
+
+  INITIALISATION
+  ──────────────
+  createMonitor() itère sur metrics[], pour chaque MetricDefinition :
+    - crée un ObservableValue<MetricValue | null>(null) interne
+    - appelle definition.observe(emit) → stocke le cleanup retourné
+    - la fonction emit() locale wrappe la valeur brute en MetricValue
+      (applique rateMetric(), ajoute timestamp: Date.now())
+      puis appelle observable.next(metricValue) et stream.emit({name, metric})
+
+  GESTION DES ERREURS D'OBSERVATION
+  ───────────────────────────────────
+  Si PerformanceObserver n'est pas supporté (SSR, env non-browser) :
+    - observe() doit retourner un cleanup no-op sans lever d'exception
+    - L'ObservableValue reste à null indéfiniment
+    - Le consommateur gère l'absence de valeur via la valeur null
+
+  DESTROY
+  ───────
+  monitor.destroy() appelle tous les cleanups stockés lors de l'init.
+  Les ObservableValues ne sont pas vidées — les abonnés voient la
+  dernière valeur connue. Appels ultérieurs à get() et stream restent
+  valides mais ne reçoivent plus de nouvelles valeurs.
+
+  RATING ALGORITHM
+  ────────────────
+  function rateMetric(value, { good, poor }): MetricRating {
+    if (value <= good) return 'good'
+    if (value >  poor) return 'poor'
+    return 'needs-improvement'
+  }
+  Note : pour CLS, les valeurs inversées (score plus petit = meilleur)
+  s'alignent naturellement — les seuils sont définis dans le bon sens.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. TYPES (src/types.ts) :
+     - MetricValue, MetricRating, MetricThresholds, MetricDefinition
+     - MonitorOptions, Monitor
+
+  2. RATING (src/rate.ts) :
+     - rateMetric(value, thresholds): MetricRating
+     - Fonction pure, zéro dépendance
+
+  3. MÉTRIQUES BUILT-IN (src/metrics/) :
+     - lcp.ts, inp.ts, cls.ts, fcp.ts, ttfb.ts, loaf.ts
+     - Chaque fichier exporte une MetricDefinition nommée
+     - Gestion de l'absence de support PerformanceObserver (cleanup no-op)
+     - src/metrics/index.ts : réexporte LCP, INP, CLS, FCP, TTFB, LoAF
+
+  4. MONITOR CORE (src/createMonitor.ts) :
+     - Map interne name → ObservableValue<MetricValue | null>
+     - Map interne name → cleanup function
+     - Observable<StreamEvent> partagé (Subject ou équivalent)
+     - get(name) : retourne l'ObservableValue ou lève si métrique inconnue
+     - destroy() : appelle tous les cleanups
+
+  5. HOOK REACT (src/react.ts) :
+     - useObservableValueState sur l'ObservableValue retourné par monitor.get()
+     - Déstructure { value, rating } depuis MetricValue | null
+     - Retourne { value: null, rating: null } si métrique non encore disponible
+
+  6. POINTS D'ENTRÉE :
+     src/index.ts  → createMonitor, rateMetric, LCP, INP, CLS, FCP, TTFB, LoAF, types
+     src/react.ts  → useMetric
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/monitor/
+  ├── src/
+  │   ├── index.ts                    ← export core
+  │   ├── react.ts                    ← export useMetric
+  │   ├── types.ts
+  │   ├── rate.ts                     ← rateMetric (pur, sans dépendance)
+  │   ├── createMonitor.ts
+  │   ├── metrics/
+  │   │   ├── index.ts                ← réexporte LCP, INP, CLS, FCP, TTFB, LoAF
+  │   │   ├── lcp.ts
+  │   │   ├── inp.ts
+  │   │   ├── cls.ts
+  │   │   ├── fcp.ts
+  │   │   ├── ttfb.ts
+  │   │   └── loaf.ts
+  │   └── __tests__/
+  │       ├── monitor.test.ts         ← get(), stream, destroy(), custom metric
+  │       ├── rate.test.ts            ← rateMetric — cas limites (= good, > poor, etc.)
+  │       └── metrics.test.ts         ← built-in via PerformanceObserver mock
+  ├── package.json
+  ├── tsconfig.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PACKAGE.JSON
+
+  {
+    "name": "@efficimo/monitor",
+    "version": "0.1.0",
+    "type": "module",
+    "exports": {
+      ".":       "./src/index.ts",
+      "./react": "./src/react.ts"
+    },
+    "peerDependencies": {
+      "@efficimo/observable": ">=0.1.0",
+      "react":                ">=18.0.0"
+    },
+    "peerDependenciesMeta": {
+      "react": { "optional": true }
+    },
+    "license": "MIT"
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/observable ≥ 0.1.0 — ObservableValue + Observable
+  - PerformanceObserver API (natif) — disponible dans tous les navigateurs modernes
+  - TypeScript strict — extends tsconfig.base.json
+  - Vitest + jsdom — mock PerformanceObserver dans les tests
+  - Turborepo — pipeline (dépend de @efficimo/observable)
+  - Changesets — versioning sémantique indépendant
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : demi-journée            │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package core
+  [ ] packages/monitor/src/index.ts              : export createMonitor, rateMetric, built-ins, types
+  [ ] packages/monitor/src/types.ts              : MetricValue, MetricThresholds, MetricDefinition, Monitor
+  [ ] packages/monitor/src/rate.ts               : rateMetric
+  [ ] packages/monitor/src/createMonitor.ts      : logique principale
+  [ ] packages/monitor/src/metrics/index.ts      : réexporte les 6 métriques built-in
+  [ ] packages/monitor/src/metrics/lcp.ts
+  [ ] packages/monitor/src/metrics/inp.ts
+  [ ] packages/monitor/src/metrics/cls.ts
+  [ ] packages/monitor/src/metrics/fcp.ts
+  [ ] packages/monitor/src/metrics/ttfb.ts
+  [ ] packages/monitor/src/metrics/loaf.ts
+
+  React
+  [ ] packages/monitor/src/react.ts              : useMetric
+
+  Config
+  [ ] packages/monitor/package.json
+  [ ] packages/monitor/tsconfig.json
+  [ ] packages/monitor/README.md
+  [ ] packages/monitor/CHANGELOG.md
+
+  Tests
+  [ ] packages/monitor/src/__tests__/monitor.test.ts
+  [ ] packages/monitor/src/__tests__/rate.test.ts
+  [ ] packages/monitor/src/__tests__/metrics.test.ts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  La vraie valeur de ce package est la MetricDefinition comme contrat
+  d'extension. Les Core Web Vitals changent — Google a remplacé FID par
+  INP en 2024, et LoAF est encore expérimental. En rendant les métriques
+  déclaratives, @efficimo/monitor permet à chaque consommateur de brancher
+  la prochaine API navigateur sans attendre une mise à jour de la lib.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  INP ET AGRÉGATION
+    INP n'est pas une valeur unique — c'est le p98 de toutes les
+    interactions. L'observe() de INP doit accumuler les durées en mémoire
+    et recalculer le percentile à chaque nouvelle interaction. La valeur
+    émise est donc un running p98, pas une valeur instantanée.
+    Documenter cette spécificité : INP peut diminuer au fil du temps
+    si les interactions suivantes sont rapides.
+
+  PERFORMANCEOBSERVER ET SSR
+    PerformanceObserver n'existe pas en Node.js (SSR, tests Jest sans
+    jsdom). Chaque métrique built-in doit guard via :
+      if (typeof PerformanceObserver === 'undefined') return () => {}
+    Ne pas lever d'exception — retourner un cleanup no-op silencieux.
+
+  LOAF ET SUPPORT NAVIGATEUR
+    long-animation-frame est disponible depuis Chrome 116, mais pas
+    dans Safari/Firefox (2026). L'observe() de LoAF doit vérifier
+    le support avant de créer l'observer. Documenter comme experimental.
+
+  CLS ET SESSIONS
+    CLS accumule les scores sur la durée de vie de la page. Si destroy()
+    puis un nouveau createMonitor() est appelé, le score CLS repart de 0.
+    C'est le comportement attendu — le documenter comme "per-session CLS".
+
+  ✦ RECOMMANDATION
+    Ordre d'implémentation : rate.ts → types.ts → 6 métriques built-in
+    isolément (tester chacune avec mock PerformanceObserver) →
+    createMonitor → tests d'intégration avec stream → hook React.
+    Tester INP séparément avec un mock qui simule 50 interactions.

@@ -1,0 +1,112 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-037                                         ║
+║  LA VOIX DU KERNEL                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🎤🗣️
+
+DÉSIGNATION     : Interface Vocale Mains-Libres — Opération Parole du Nexus
+CODENAME        : VOIX-DU-KERNEL
+PHASE           : [BETA]
+CLASSIFICATION  : Arsenal Physique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole installe une interface vocale dans le Terminal de Combat.
+
+RECONNAISSANCE (Web Speech Recognition) — Commandes vocales traduites en actions.
+⚠ IMPORTANT — Dans Chrome, SpeechRecognition envoie l'audio aux serveurs Google
+  pour traitement. Ce n'est pas local. Pour une reconnaissance vraiment locale,
+  utiliser la bibliothèque vosk-browser (WASM, modèle embarqué ~50Mo).
+  Edge utilise Azure Speech Services. Seul Firefox utilise une reconnaissance locale
+  mais avec des limitations de grammaire.
+
+SYNTHÈSE (Web Speech Synthesis) — Le Terminal parle. La synthèse vocale (SpeechSynthesis)
+est entièrement locale — elle utilise les voix installées dans l'OS.
+Aucune donnée n'est envoyée. C'est la partie vraiment "souveraine".
+
+Choix du projet : utiliser Web Speech API standard (Chrome) avec mention claire
+que l'audio transite par Google, ou intégrer vosk-browser pour la souveraineté
+totale (plus complexe, modèle à charger).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  OPTION A — Web Speech API standard (Chrome, simple, non local)
+  1. Implémenter SpeechRecognition pour commandes courtes et prévisibles
+     (liste fermée : "ouvrir", "fermer", "statut", "rechercher", "suivant")
+     Note : SpeechGrammarList est déprécié dans Chrome — utiliser un
+     post-traitement du résultat pour matcher les commandes reconnues
+  2. Implémenter SpeechSynthesis avec voix OS choisie par l'utilisateur
+  3. Mode écoute activable (bouton micro ou raccourci clavier)
+  4. Transcription en temps réel dans un overlay
+
+  OPTION B — vosk-browser (local, souverain, plus complexe)
+  5. Charger le modèle vosk-small-fr (~50Mo) dans un Web Worker
+  6. Traiter le flux microphone localement sans envoyer de données
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  OPTION A (recommandée pour commencer)
+  - Web Speech API — SpeechRecognition (Chrome — envoie à Google)
+  - Web Speech API — SpeechSynthesis (local, voix OS)
+  - Post-traitement du résultat pour matcher les commandes (pas SpeechGrammarList)
+  - Design Pattern Commande (dispatch d'actions vocales)
+
+  OPTION B (souveraine, plus complexe)
+  - vosk-browser (npm) — modèle WASM embarqué, offline total
+  - Web Workers (inférence locale hors thread principal)
+  - getUserMedia (accès microphone)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Option A)      │
+  │                 ★★★★☆  (Option B)      │
+  │ Durée estimée : 1 jour (A) / 3 jours (B)│
+  │ Effort        : Moyen / Élevé           │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module VoiceCommander.ts (reconnaissance + dispatch d'actions)
+  [ ] Module NexusVoice.ts (synthèse vocale avec sélection de voix OS)
+  [ ] Overlay de transcription en temps réel
+  [ ] Dictionnaire de commandes documenté
+  [ ] Panneau de configuration voix (vitesse, pitch, voix, mode local/cloud)
+  [ ] Mention claire dans l'UI du mode utilisé (Cloud Google vs Local)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION UTILE MAIS CORRECTION IMPORTANTE SUR LA CONFIDENTIALITÉ
+
+  ★ APPRÉCIATION
+  La synthèse vocale (le Terminal qui parle) est la partie la plus impressionnante
+  et la plus simple à implémenter. "Nexus : Anomalie Critique détectée en secteur
+  Lambda" — dit avec une voix de synthèse robot, c'est immédiatement dans l'ambiance.
+  La reconnaissance vocale est la feature d'accessibilité la plus utile.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION CRITIQUE : Dans Chrome, SpeechRecognition envoie l'audio à des
+    serveurs Google pour transcription. Ce n'est PAS local. Affirmer le contraire
+    serait techniquement inexact. Mentionner ce point clairement dans l'interface.
+  - SpeechGrammarList est désormais déprécié et non fonctionnel dans Chrome.
+    La bonne approche : laisser SpeechRecognition tout transcrire, puis matcher
+    le texte transcrit contre votre liste de commandes avec du fuzzy matching simple.
+  - SpeechSynthesis est entièrement local (voix OS). C'est la partie vraiment
+    souveraine. Qualité des voix variable selon l'OS.
+  - vosk-browser pour la reconnaissance locale : modèle français ~50Mo, latence
+    plus élevée qu'une API cloud. Valide pour les commandes simples et prévisibles.
+
+  ✦ RECOMMANDATION
+  Commencer par SpeechSynthesis (100% local, 30min, impressionnant). Puis ajouter
+  SpeechRecognition en mode cloud (Option A) avec une mention transparente dans l'UI.
+  Si la souveraineté totale est une exigence forte : Option B avec vosk-browser.

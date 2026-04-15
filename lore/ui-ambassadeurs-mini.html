@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Core Nexus — Ambassadeurs (widget)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+
+:root {
+  --bg:        #05070b;
+  --surface:   #0a0f18;
+  --surface-2: #0d1420;
+  --border:    #161f35;
+  --border-hi: #1f2e4d;
+  --text:      #b8c4d8;
+  --text-dim:  #354560;
+  --text-faint:#1a2540;
+  --accent:    #2e6aff;
+  --connected: #00e676;
+  --error:     #ff2055;
+  --warn:      #ffab00;
+  --font-ui:   'Share Tech Mono', monospace;
+  --font-h:    'Orbitron', sans-serif;
+  --topbar-h:  48px;
+}
+
+body { background:var(--bg); font-family:var(--font-ui); color:var(--text); font-size:12px; }
+
+body::after {
+  content:''; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+/* ── LAYOUT ── */
+.app { display:grid; grid-template-rows:var(--topbar-h) 1fr; height:100vh; }
+
+/* ── TOPBAR (identique aux autres UIs) ── */
+.topbar {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 1rem; gap:.75rem; z-index:100;
+}
+
+.brand-orb { position:relative; width:24px; height:24px; flex-shrink:0; }
+.brand-orb .r { position:absolute; border-radius:50%; border-style:dashed; }
+.brand-orb .r1 { inset:0; border-width:1.5px; border-color:var(--accent); opacity:.6; animation:spin-cw 6s linear infinite; }
+.brand-orb .r2 { inset:6px; border-width:1px; border-color:var(--connected); opacity:.4; animation:spin-ccw 9s linear infinite; }
+.brand-orb .core { position:absolute; inset:10px; border-radius:50%; background:var(--accent); opacity:.7; }
+
+.top-title { font-family:var(--font-h); font-size:.6rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+.top-sep { width:1px; height:20px; background:var(--border); margin:0 .25rem; }
+.top-tag {
+  padding:.12rem .45rem; font-size:.48rem; letter-spacing:.15em;
+  border:1px solid rgba(46,106,255,.3); background:rgba(46,106,255,.08); color:var(--accent);
+  clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px));
+}
+
+.top-right { display:flex; align-items:center; gap:.75rem; margin-left:auto; }
+.top-stat { font-size:.52rem; color:var(--text-dim); letter-spacing:.08em; display:flex; align-items:center; gap:.3rem; }
+.top-dot { width:5px; height:5px; border-radius:50%; background:var(--connected); box-shadow:0 0 5px var(--connected); animation:pulse-dot 2s ease-in-out infinite; }
+
+/* ── MAIN ── */
+.main {
+  position:relative; overflow:hidden;
+  background:var(--bg);
+  /* Hex subtle bg */
+  background-image:
+    radial-gradient(ellipse 50% 60% at 30% 50%, rgba(46,106,255,.03) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 50% at 70% 50%, rgba(0,230,118,.02) 0%, transparent 70%);
+}
+
+/* Placeholder content label */
+.main-hint {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:.5rem;
+  color:var(--text-faint); font-size:.5rem; letter-spacing:.2em; text-transform:uppercase;
+  pointer-events:none; user-select:none;
+}
+
+.main-hint-line { opacity:.5; }
+.main-hint-line.accent { color:var(--text-dim); opacity:.8; }
+
+/* ── AMBASSADOR TABS ── */
+/*
+  Chaque tab est une boîte fixée au bord droit.
+  right: -1px → le bord droit affleure la fenêtre.
+  On hover → translate vers la gauche pour révéler le label.
+  L'icône "dépasse" car le tab a un padding-left qui la pousse hors du bord.
+*/
+
+.amb-stack {
+  position:fixed;
+  right:0;
+  top:50%;
+  transform:translateY(-50%);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  z-index:500;
+}
+
+.amb-tab {
+  position:relative;
+  /* clip-path avec encoche gauche — cohérent avec le style Core Nexus */
+  clip-path:polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  width:42px;         /* largeur totale visible */
+  height:42px;
+  background:var(--surface);
+  border:1px solid var(--border-hi);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  /* Le tab déborde de 2px à droite, l'icône "dépasse" */
+  transform:translateX(2px);
+  transition:
+    transform .25s cubic-bezier(.4,0,.2,1),
+    border-color .25s ease,
+    box-shadow .25s ease,
+    width .25s cubic-bezier(.4,0,.2,1);
+  overflow:hidden;
+  white-space:nowrap;
+}
+
+/* Hover : glisse vers la gauche et s'élargit pour montrer le label */
+.amb-tab:hover {
+  transform:translateX(-4px);
+  width:124px;
+  justify-content:flex-start;
+  padding-left:10px;
+  gap:8px;
+}
+
+/* Status colors */
+.amb-tab[data-status="connected"] {
+  border-color:rgba(0,230,118,.35);
+  box-shadow: 2px 0 12px rgba(0,230,118,.12);
+}
+.amb-tab[data-status="connected"]:hover {
+  border-color:rgba(0,230,118,.6);
+  box-shadow: 2px 0 20px rgba(0,230,118,.2);
+}
+
+.amb-tab[data-status="error"] {
+  border-color:rgba(255,32,85,.35);
+  box-shadow: 2px 0 12px rgba(255,32,85,.12);
+}
+.amb-tab[data-status="error"]:hover {
+  border-color:rgba(255,32,85,.6);
+  box-shadow: 2px 0 20px rgba(255,32,85,.2);
+}
+
+.amb-tab[data-status="disconnected"] {
+  border-color:var(--border-hi);
+  box-shadow: none;
+}
+.amb-tab[data-status="disconnected"]:hover {
+  border-color:#2a3a5a;
+  box-shadow: 2px 0 8px rgba(0,0,0,.3);
+}
+
+/* Icône */
+.amb-icon {
+  width:20px; height:20px;
+  flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:opacity .2s;
+}
+
+.amb-icon svg { width:18px; height:18px; }
+
+.amb-tab[data-status="disconnected"] .amb-icon { opacity:.3; }
+
+/* Pulse sur l'icône en cas d'erreur */
+.amb-tab[data-status="error"] .amb-icon {
+  animation:icon-err 2s ease-in-out infinite;
+}
+@keyframes icon-err {
+  0%,100% { opacity:1; }
+  50%      { opacity:.4; }
+}
+
+/* Label (visible au hover) */
+.amb-label {
+  display:flex; flex-direction:column; gap:1px;
+  opacity:0;
+  transform:translateX(4px);
+  transition:opacity .2s ease .05s, transform .2s ease .05s;
+  overflow:hidden;
+  flex:1;
+}
+
+.amb-tab:hover .amb-label {
+  opacity:1;
+  transform:translateX(0);
+}
+
+.amb-label-name {
+  font-size:.52rem; letter-spacing:.1em;
+  color:var(--text);
+}
+
+.amb-label-status {
+  font-size:.44rem; letter-spacing:.08em;
+}
+
+[data-status="connected"]    .amb-label-status { color:var(--connected); }
+[data-status="error"]        .amb-label-status { color:var(--error); }
+[data-status="disconnected"] .amb-label-status { color:var(--text-faint); }
+
+/* Coin encoche accent */
+.amb-tab::after {
+  content:'';
+  position:absolute; top:0; left:0;
+  width:10px; height:10px;
+  background:var(--surface-2);
+  clip-path:polygon(0 0, 0 100%, 100% 0);
+  pointer-events:none;
+}
+
+/* Status dot (coin bas-gauche) */
+.amb-dot {
+  position:absolute; bottom:5px; right:5px;
+  width:4px; height:4px; border-radius:50%;
+  transition:opacity .2s;
+}
+
+.amb-tab:hover .amb-dot { opacity:0; }
+
+[data-status="connected"]    .amb-dot { background:var(--connected); box-shadow:0 0 4px var(--connected); animation:pulse-dot 2s ease-in-out infinite; }
+[data-status="error"]        .amb-dot { background:var(--error); box-shadow:0 0 4px var(--error); animation:pulse-dot 1s ease-in-out infinite; }
+[data-status="disconnected"] .amb-dot { background:var(--text-faint); }
+
+/* ── KEYFRAMES ── */
+@keyframes spin-cw  { to { transform:rotate(360deg); } }
+@keyframes spin-ccw { to { transform:rotate(-360deg); } }
+@keyframes pulse-dot { 0%,100%{opacity:.9;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="brand-orb">
+    <div class="r r1"></div><div class="r r2"></div><div class="core"></div>
+  </div>
+  <div class="top-title">Core Nexus</div>
+  <div class="top-sep"></div>
+  <div class="top-tag">Dashboard</div>
+
+  <div class="top-right">
+    <div class="top-stat"><div class="top-dot"></div><span>Nœud ∞ — En ligne</span></div>
+    <div class="top-stat" style="color:var(--text-faint)" id="top-clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="main-hint">
+    <div class="main-hint-line">Contenu principal de l'application</div>
+    <div class="main-hint-line accent">↗ Ambassadeurs en attente à droite</div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- AMBASSADOR TABS — fixed right edge -->
+<div class="amb-stack">
+
+  <!-- GitHub — connecté -->
+  <div class="amb-tab" data-status="connected" title="GitHub">
+    <div class="amb-icon">
+      <svg viewBox="0 0 24 24" fill="#e8eaf0">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+    </div>
+    <div class="amb-label">
+      <span class="amb-label-name">GitHub</span>
+      <span class="amb-label-status">Connecté</span>
+    </div>
+    <div class="amb-dot"></div>
+  </div>
+
+  <!-- GitLab — erreur -->
+  <div class="amb-tab" data-status="error" title="GitLab">
+    <div class="amb-icon">
+      <svg viewBox="0 0 24 24" fill="#fc6d26">
+        <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.82 2a.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0118.6 2a.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.51L23 13.45a.84.84 0 01-.35.94z"/>
+      </svg>
+    </div>
+    <div class="amb-label">
+      <span class="amb-label-name">GitLab</span>
+      <span class="amb-label-status">Erreur 401</span>
+    </div>
+    <div class="amb-dot"></div>
+  </div>
+
+  <!-- AWS — déconnecté -->
+  <div class="amb-tab" data-status="disconnected" title="AWS">
+    <div class="amb-icon">
+      <svg viewBox="0 0 24 24" fill="#ff9900">
+        <path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.336a.383.383 0 01-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 01-.287-.375 6.18 6.18 0 01-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 01-.28.104.488.488 0 01-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 01.224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 011.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 00-.735-.136 6.02 6.02 0 00-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 01-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 01.32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 01.311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 01-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 01-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 01-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 00.41-.758.777.777 0 00-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 01-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 01.24.2.43.43 0 01.071.263v.375c0 .168-.064.256-.184.256a.83.83 0 01-.303-.096 3.652 3.652 0 00-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.246-.223-.024-.527.27-.351 3.384 1.963 7.559 3.152 11.877 3.152 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.385.608z"/>
+      </svg>
+    </div>
+    <div class="amb-label">
+      <span class="amb-label-name">AWS</span>
+      <span class="amb-label-status">Déconnecté</span>
+    </div>
+    <div class="amb-dot"></div>
+  </div>
+
+</div><!-- /amb-stack -->
+
+<script>
+/* Horloge */
+function tick() {
+  const now = new Date();
+  const p = v => String(v).padStart(2,'0');
+  document.getElementById('top-clock').textContent = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+}
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

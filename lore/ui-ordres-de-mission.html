@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ordres de Mission — Core Nexus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+
+:root{
+  --bg:#05070b;
+  --surface:#0a0f18;
+  --surface-2:#0e1420;
+  --surface-3:#121a28;
+  --border:#161f35;
+  --border-hi:#1f2e4d;
+  --text:#b8c4d8;
+  --text-dim:#354560;
+  --text-faint:#1a2540;
+  --accent:#2e6aff;
+  --accent-glow:rgba(46,106,255,.12);
+  --green:#00e676;
+  --cyan:#00e5ff;
+  --amber:#ffab00;
+  --error:#ff2055;
+  --purple:#a855f7;
+  --font-ui:'Share Tech Mono',monospace;
+  --font-h:'Orbitron',sans-serif;
+  --sidebar-w:288px;
+  --topbar-h:48px;
+  --progress:0%;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:12px;
+  display:grid;
+  grid-template-rows:var(--topbar-h) 1fr;
+  height:100vh;
+}
+
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.035) 3px,rgba(0,0,0,.035) 4px);
+  pointer-events:none;z-index:9999;
+}
+
+/* ── TOPBAR ── */
+.topbar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 1rem;gap:.65rem;
+  z-index:100;position:relative;
+}
+.topbar::after{
+  content:'';position:absolute;bottom:0;left:0;
+  height:2px;background:var(--accent);
+  width:var(--progress);
+  transition:width .4s ease;
+  box-shadow:0 0 8px rgba(46,106,255,.6);
+}
+
+.brand{display:flex;align-items:center;gap:.5rem;}
+.brand-orb{position:relative;width:22px;height:22px;flex-shrink:0;}
+.brand-orb .r{position:absolute;border-radius:50%;border-style:dashed;}
+.brand-orb .r1{inset:0;border-width:1.5px;border-color:var(--accent);opacity:.6;animation:spin-cw 5s linear infinite;}
+.brand-orb .r2{inset:6px;border-width:1px;border-color:var(--green);opacity:.5;animation:spin-ccw 8s linear infinite;}
+.brand-orb .core{position:absolute;inset:9px;border-radius:50%;background:var(--accent);opacity:.8;}
+.brand-name{font-family:var(--font-h);font-size:.58rem;font-weight:900;letter-spacing:.15em;color:var(--text);}
+
+.top-sep{width:1px;height:20px;background:var(--border);margin:0 .1rem;}
+.top-tag{
+  padding:.12rem .45rem;font-size:.46rem;letter-spacing:.15em;text-transform:uppercase;
+  border:1px solid rgba(46,106,255,.3);background:rgba(46,106,255,.08);color:var(--accent);
+  clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px));
+}
+
+.top-mission{font-size:.54rem;color:var(--text-dim);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;}
+.top-mission strong{color:var(--text);}
+
+.top-right{margin-left:auto;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+.top-counter{font-size:.5rem;color:var(--text-dim);letter-spacing:.1em;font-family:var(--font-h);}
+.top-counter em{color:var(--accent);font-style:normal;}
+.top-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse-dot 2s ease-in-out infinite;}
+
+/* ── WORKSPACE ── */
+.workspace{display:grid;grid-template-columns:var(--sidebar-w) 1fr;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+
+.sidebar-header{
+  padding:.65rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0;
+  font-size:.44rem;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);
+  font-family:var(--font-h);display:flex;align-items:center;gap:.4rem;
+}
+.sidebar-header em{margin-left:auto;font-style:normal;color:var(--text-faint);}
+
+.sidebar-scroll{overflow-y:auto;flex:1;padding-bottom:.5rem;}
+.sidebar-scroll::-webkit-scrollbar{width:3px;}
+.sidebar-scroll::-webkit-scrollbar-track{background:transparent;}
+.sidebar-scroll::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+
+.group-header{
+  padding:.55rem 1rem .3rem;margin-top:.15rem;
+  font-size:.44rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--text-dim);font-family:var(--font-h);
+  display:flex;align-items:center;gap:.35rem;
+  border-top:1px solid var(--border);
+}
+.group-header:first-of-type{border-top:none;}
+.group-header .gh-n{margin-left:auto;font-style:normal;font-size:.42rem;color:var(--text-faint);font-family:var(--font-ui);}
+
+.m-item{
+  display:flex;align-items:center;gap:.45rem;
+  padding:.38rem 1rem;cursor:pointer;
+  border-left:2px solid transparent;
+  transition:background .12s,border-color .12s;
+}
+.m-item:hover{background:var(--surface-2);border-left-color:var(--border-hi);}
+.m-item.active{background:var(--accent-glow);border-left-color:var(--accent);}
+
+.m-id{font-size:.46rem;color:var(--text-faint);letter-spacing:.04em;min-width:24px;font-family:var(--font-h);}
+.m-item.active .m-id{color:var(--accent);}
+.m-emoji{font-size:.8rem;line-height:1;flex-shrink:0;}
+.m-label{flex:1;min-width:0;}
+.m-name{font-size:.53rem;color:var(--text);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.m-item.active .m-name{color:#fff;}
+
+.m-stars{font-size:.52rem;flex-shrink:0;line-height:1;}
+.m-item[data-dl="2"] .m-stars{color:var(--green);}
+.m-item[data-dl="3"] .m-stars{color:var(--accent);}
+.m-item[data-dl="4"] .m-stars{color:var(--amber);}
+.m-item[data-dl="5"] .m-stars{color:var(--error);}
+
+.m-rec{
+  font-size:.4rem;padding:.08rem .28rem;letter-spacing:.06em;
+  clip-path:polygon(0 0,calc(100% - 3px) 0,100% 3px,100% 100%,3px 100%,0 calc(100% - 3px));
+  flex-shrink:0;
+}
+.m-rec.j{border:1px solid rgba(0,230,118,.3);color:var(--green);background:rgba(0,230,118,.08);}
+.m-rec.c{border:1px solid rgba(255,171,0,.3);color:var(--amber);background:rgba(255,171,0,.08);}
+
+/* ── MAIN ── */
+.main{display:flex;flex-direction:column;overflow:hidden;position:relative;}
+
+/* ── MISSION VIEW ── */
+.view{
+  flex:1;overflow-y:auto;
+  padding:2rem 2.5rem 2.5rem;
+  display:flex;flex-direction:column;gap:1.5rem;
+}
+.view::-webkit-scrollbar{width:4px;}
+.view::-webkit-scrollbar-track{background:transparent;}
+.view::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+.view{animation:fade-up .22s ease;}
+
+/* ambient glow top-right based on phase */
+.view::before{
+  content:'';position:fixed;top:0;right:0;
+  width:600px;height:400px;
+  background:radial-gradient(ellipse 50% 50% at 80% 20%, var(--phase-glow,rgba(46,106,255,.04)) 0%,transparent 70%);
+  pointer-events:none;z-index:0;
+}
+
+/* ── MISSION HEADER ── */
+.mh{display:flex;gap:1.2rem;align-items:flex-start;position:relative;z-index:1;}
+.mh-emoji{font-size:3rem;line-height:1;flex-shrink:0;margin-top:.1rem;filter:drop-shadow(0 0 12px rgba(46,106,255,.3));}
+.mh-text{flex:1;min-width:0;}
+
+.mh-num{font-size:.5rem;font-family:var(--font-h);letter-spacing:.3em;color:var(--text-dim);margin-bottom:.3rem;}
+.mh-title{font-family:var(--font-h);font-size:1.45rem;font-weight:900;color:#fff;letter-spacing:.04em;line-height:1.1;margin-bottom:.35rem;}
+.mh-codename{font-size:.52rem;letter-spacing:.22em;color:var(--accent);font-family:var(--font-h);text-transform:uppercase;margin-bottom:.55rem;}
+
+.badges{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;}
+.badge{
+  padding:.15rem .5rem;font-size:.46rem;letter-spacing:.1em;text-transform:uppercase;
+  clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px));
+  flex-shrink:0;
+}
+.badge.ph-alpha{border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:var(--cyan);}
+.badge.ph-beta{border:1px solid rgba(46,106,255,.3);background:rgba(46,106,255,.08);color:var(--accent);}
+.badge.ph-nexus{border:1px solid rgba(168,85,247,.3);background:rgba(168,85,247,.08);color:var(--purple);}
+.badge.dl-2{border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.08);color:var(--green);}
+.badge.dl-3{border:1px solid rgba(46,106,255,.3);background:rgba(46,106,255,.08);color:var(--accent);}
+.badge.dl-4{border:1px solid rgba(255,171,0,.3);background:rgba(255,171,0,.08);color:var(--amber);}
+.badge.dl-5{border:1px solid rgba(255,32,85,.3);background:rgba(255,32,85,.08);color:var(--error);}
+.badge.npm{border:1px solid rgba(200,160,250,.25);background:rgba(200,160,250,.07);color:#c8a0fa;}
+.badge.rec-j{border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.08);color:var(--green);}
+.badge.rec-c{border:1px solid rgba(255,171,0,.3);background:rgba(255,171,0,.08);color:var(--amber);}
+
+/* ── DESIGNATION ── */
+.m-desig{
+  font-size:.68rem;color:#c0cce0;letter-spacing:.04em;line-height:1.6;
+  border-left:2px solid var(--border-hi);padding-left:1rem;
+  font-style:italic;position:relative;z-index:1;
+}
+
+/* ── META GRID ── */
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;position:relative;z-index:1;}
+.meta-cell{
+  background:var(--surface);border:1px solid var(--border);
+  padding:.7rem 1rem;
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+}
+.meta-cell.full{grid-column:1/-1;}
+.meta-lbl{font-size:.42rem;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:.3rem;font-family:var(--font-h);}
+.meta-val{font-size:.6rem;color:var(--text);line-height:1.45;letter-spacing:.02em;}
+
+/* ── BRIEFING ── */
+.briefing{
+  background:var(--surface);border:1px solid var(--border);
+  border-left:3px solid var(--accent);
+  padding:1.2rem 1.5rem;
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  position:relative;z-index:1;
+}
+.briefing-lbl{
+  font-size:.44rem;letter-spacing:.25em;text-transform:uppercase;color:var(--accent);
+  font-family:var(--font-h);margin-bottom:.7rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.briefing-lbl::before{content:'';display:block;width:20px;height:1px;background:var(--accent);opacity:.5;}
+.briefing-txt{font-size:.74rem;line-height:1.75;color:#d0d9ea;letter-spacing:.03em;}
+
+/* ── TACTICAL ── */
+.tactical{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;position:relative;z-index:1;}
+.tac-card{
+  background:var(--surface);border:1px solid var(--border);padding:.75rem 1rem;
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+}
+.tac-lbl{font-size:.42rem;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:.4rem;font-family:var(--font-h);}
+.tac-stars{font-size:1.1rem;letter-spacing:.08em;margin-bottom:.2rem;}
+.tac-dlbl{font-size:.56rem;letter-spacing:.08em;font-family:var(--font-h);text-transform:uppercase;}
+.tac-dur{font-size:.68rem;color:var(--text);letter-spacing:.04em;}
+.tac-note{font-size:.56rem;color:var(--text-dim);letter-spacing:.03em;margin-top:.2rem;}
+
+/* ── NAV ── */
+.m-nav{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:.75rem;border-top:1px solid var(--border);
+  position:relative;z-index:1;margin-top:auto;
+}
+.nav-btn{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.45rem .9rem;background:transparent;
+  border:1px solid var(--border);color:var(--text-dim);
+  font-family:var(--font-ui);font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;
+  clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));
+  transition:all .15s;
+}
+.nav-btn:hover:not(:disabled){background:var(--surface-2);border-color:var(--border-hi);color:var(--text);}
+.nav-btn:disabled{opacity:.25;cursor:not-allowed;}
+.nav-btn .arrow{font-size:.8rem;}
+.nav-pos{font-size:.5rem;color:var(--text-dim);letter-spacing:.12em;font-family:var(--font-h);text-align:center;}
+.nav-pos em{color:var(--accent);font-style:normal;}
+
+/* ── INTRO VIEW ── */
+.intro-wrap{
+  flex:1;overflow-y:auto;padding:2.5rem 3rem;
+  display:flex;flex-direction:column;gap:1.75rem;
+  animation:fade-up .22s ease;
+}
+.intro-wrap::-webkit-scrollbar{width:4px;}
+.intro-wrap::-webkit-scrollbar-track{background:transparent;}
+.intro-wrap::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+
+.intro-kicker{font-size:.46rem;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);font-family:var(--font-h);}
+.intro-h1{font-family:var(--font-h);font-size:1.7rem;font-weight:900;color:#fff;letter-spacing:.04em;line-height:1.15;}
+.intro-sub{font-size:.62rem;color:var(--text-dim);letter-spacing:.08em;font-style:italic;margin-top:.25rem;}
+
+.intro-speech{
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+  padding:1.3rem 1.6rem;
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  max-width:660px;
+}
+.intro-speech p{font-size:.72rem;line-height:1.75;color:#d0d9ea;letter-spacing:.03em;margin-bottom:.5rem;}
+.intro-speech p:last-child{margin-bottom:0;}
+
+.intro-box{
+  background:var(--surface-2);border:1px solid var(--border-hi);
+  padding:1.1rem 1.4rem;
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));
+  max-width:560px;
+}
+.intro-box-title{font-family:var(--font-h);font-size:.44rem;letter-spacing:.2em;color:var(--text-dim);text-transform:uppercase;margin-bottom:.6rem;}
+.intro-box p{font-size:.67rem;line-height:1.65;color:var(--text);letter-spacing:.03em;margin-bottom:.35rem;}
+.intro-box p:last-child{margin-bottom:0;}
+.intro-box strong{color:#fff;}
+
+.intro-objectives{display:flex;flex-direction:column;gap:.35rem;max-width:580px;}
+.intro-obj{display:flex;gap:.65rem;align-items:flex-start;}
+.obj-arrow{color:var(--accent);font-size:.62rem;margin-top:.08rem;flex-shrink:0;}
+.obj-text{font-size:.65rem;color:var(--text);line-height:1.5;letter-spacing:.02em;}
+
+.intro-rules{display:flex;flex-direction:column;gap:.45rem;max-width:580px;}
+.intro-rule{display:flex;gap:.65rem;align-items:flex-start;}
+.rule-n{font-family:var(--font-h);font-size:.52rem;color:var(--accent);min-width:18px;flex-shrink:0;padding-top:.08rem;}
+.rule-t{font-size:.65rem;color:var(--text);line-height:1.5;letter-spacing:.02em;}
+.rule-t strong{color:#fff;}
+.rule-t small{display:block;font-size:.58rem;color:var(--text-dim);margin-top:.15rem;letter-spacing:.02em;}
+
+.intro-nav-row{padding-top:.75rem;border-top:1px solid var(--border);}
+
+/* ── ANIMATIONS ── */
+@keyframes spin-cw{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes spin-ccw{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 6px var(--green)}50%{opacity:.4;box-shadow:none}}
+@keyframes fade-up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-orb">
+      <div class="r r1"></div>
+      <div class="r r2"></div>
+      <div class="core"></div>
+    </div>
+    <span class="brand-name">Core Nexus</span>
+  </div>
+  <div class="top-sep"></div>
+  <span class="top-tag">Ordres de Mission</span>
+  <div class="top-sep"></div>
+  <div class="top-mission" id="top-mission"></div>
+  <div class="top-right">
+    <div class="top-counter" id="top-counter"></div>
+    <div class="top-dot"></div>
+  </div>
+</header>
+
+<div class="workspace">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span>⬡</span> Index des missions <em id="sidebar-total"></em>
+    </div>
+    <div class="sidebar-scroll" id="sidebar-scroll"></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   DONNÉES — ORDRES DE MISSION
+══════════════════════════════════════════════════ */
+const MISSIONS = [
+  {id:"000",codename:"ARCHITECTURE-MULTI-REPO",title:"ARCHITECTURE MULTI-REPO OPEN SOURCE",emoji:"🏗️📦",designation:"Fondation Multi-Package Open Source — Opération Socle",phase:"ALPHA",classification:"Fondation & Infrastructure",dependencies:null,package_name:null,briefing:"Le Terminal de Combat n'est pas un monolithe. Ses composants fondamentaux — système réactif, couche de stockage, protocole réseau, interface de visualisation — ont vocation à vivre en dehors du Terminal, dans la communauté open source. Chaque librairie réside dans son propre dépôt GitHub indépendant. Pas de monorepo. Pas de Turborepo. Chaque package évolue, se versionne et se publie de façon autonome.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"demi-journée",junior:false,confirmed:true},
+  {id:"001",codename:"OBSERVABLE",title:"@efficimo/observable",emoji:"👁️⚡",designation:"Extraction et Publication du Système Réactif — Opération Signal",phase:"ALPHA",classification:"Fondation & Infrastructure",dependencies:"MISSION-000 (Architecture Monorepo — workspace pnpm)",package_name:"@efficimo/observable",briefing:"Au cœur du Terminal de Combat pulsent des observables — des flux de valeurs auxquels les composants s'abonnent pour réagir en temps réel. Cette infrastructure réactive n'appartient pas à Core Nexus : elle est universelle, réutilisable, publiable. @efficimo/observable est un système de programmation réactive minimaliste, sans aucune dépendance obligatoire.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"demi-journée",junior:true,confirmed:false},
+  {id:"002",codename:"STORAGE",title:"@efficimo/storage",emoji:"💾⚡",designation:"Extraction et Publication de la Couche de Stockage — Opération Mémoire",phase:"ALPHA",classification:"Fondation & Infrastructure",dependencies:"MISSION-000 (Architecture Monorepo), MISSION-001 (@efficimo/observable)",package_name:"@efficimo/storage",briefing:"Les données du Terminal survivent aux rechargements. localStorage, sessionStorage, Cache API, IndexedDB — autant de théâtres de persistance. Mais accéder à ces APIs brutes, c'est écrire du code fragile, non réactif, impossible à tester. @efficimo/storage expose une interface unifiée et réactive par-dessus toutes ces couches.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"demi-journée",junior:true,confirmed:false},
+  {id:"003",codename:"CRYPTOVAULT",title:"@efficimo/cipher",emoji:"🔐⚗️",designation:"Librairie Cryptographique Souveraine — Opération Citadelle",phase:"ALPHA",classification:"Sécurité & Chiffrement — Package Open Source",dependencies:"MISSION-000 (Architecture Monorepo), MISSION-001 (@efficimo/observable)",package_name:"@efficimo/cipher",briefing:"Web Crypto API est puissante mais verbieuse, piégeuse et non réactive. @efficimo/cipher offre deux couches : des fonctions pures pour le chiffrement AES-256-GCM et la dérivation de clé PBKDF2, et une classe CipherVault qui gère l'état de déverrouillage comme un ObservableValue. La biométrie WebAuthn avec extension PRF permet de dériver une clé cryptographique déterministe sans jamais stocker la clé en clair.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:true},
+  {id:"004",codename:"REACTIVE-WORKERS",title:"@efficimo/workers",emoji:"⚡🧵",designation:"Librairie Workers Réactifs — Opération Flux Parallèle",phase:"ALPHA",classification:"Moteur & Performance — Package Open Source",dependencies:"MISSION-000 (Architecture Monorepo), MISSION-001 (@efficimo/observable)",package_name:"@efficimo/workers",briefing:"Web Workers existent depuis longtemps mais leur API est archaïque : postMessage/onmessage manuels, pas de typage, pas de gestion d'erreur propre, pas de streaming, pas d'annulation native. @efficimo/workers offre une interface typée, réactive et annulable par-dessus les Web Workers natifs.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:true},
+  {id:"005",codename:"MEMENTO",title:"@efficimo/memento",emoji:"⏳🧠",designation:"Librairie Historique Réactif — Opération Machine Temporelle",phase:"ALPHA",classification:"Archives & Persistance — Package Open Source",dependencies:"MISSION-000 (Architecture Monorepo), MISSION-001 (@efficimo/observable)",package_name:"@efficimo/memento",briefing:"Undo/redo est un pattern universel, mais sa bonne implémentation est rarement triviale : gérer l'historique, la persistance, la réactivité et la navigation arbitraire dans le temps demande une infrastructure que chaque projet réécrit à sa façon. @efficimo/memento résout ce problème une fois pour toutes.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"demi-journée à 1 jour",junior:true,confirmed:false},
+  {id:"006",codename:"MONITOR",title:"@efficimo/monitor",emoji:"📊⚡",designation:"Librairie Métriques Réactives — Opération Vigile Réactif",phase:"ALPHA",classification:"Performance & Observabilité — Package Open Source",dependencies:"MISSION-000 (Architecture Monorepo), MISSION-001 (@efficimo/observable)",package_name:"@efficimo/monitor",briefing:"Mesurer les performances d'une application web sans dépendance externe est plus difficile qu'il n'y paraît : les APIs navigateur sont dispersées (PerformanceObserver, navigation timing, layout shifts) et les seuils de classification doivent être alignés sur les Core Web Vitals. @efficimo/monitor unifie tout ça dans une interface réactive.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"demi-journée",junior:true,confirmed:false},
+  {id:"007",codename:"ECRANS-NOMADES",title:"@efficimo/dock",emoji:"🪟⚓",designation:"Librairie Panels Détachables — Opération Fenêtres Souveraines",phase:"BETA",classification:"Interface & Expérience — Package Open Source",dependencies:"MISSION-000 (Monorepo), MISSION-001 (@efficimo/observable), MISSION-002 (@efficimo/storage — persistance localStorage)",package_name:"@efficimo/dock",briefing:"Un Architecte sur deux écrans ne veut pas choisir entre son dashboard et son chat. @efficimo/dock permet à n'importe quel composant React déclaré comme panel d'être éjecté en un clic dans sa propre fenêtre browser, de disparaître du layout principal, et de rester parfaitement synchronisé via BroadcastChannel.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:true},
+  {id:"010",codename:"CITADELLE-ZERO",title:"LA CITADELLE ZÉRO",emoji:"🔐🏰",designation:"Chiffrement Souverain à Connaissance Nulle — Opération Coffre-Fort",phase:"ALPHA",classification:"Sécurité & Chiffrement",dependencies:"MISSION-003 (@efficimo/cipher), MISSION-004 (@efficimo/workers)",package_name:null,briefing:"Les Archives du Nexus contiennent des informations sensibles sur chaque Architecte. Ce protocole renforce le mécanisme de sécurité en deux axes : Web Worker Crypto pour éviter de bloquer l'interface lors du chiffrement de gros volumes, et WebAuthn pour l'authentification biométrique sans mot de passe.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"4-5 jours",junior:false,confirmed:true},
+  {id:"011",codename:"CLE-STEGANOGRAPHIQUE",title:"LA CLÉ STÉGANOGRAPHIQUE",emoji:"🔑🖼️",designation:"Authentification par Image Mémoire — Opération Pixels Secrets",phase:"NEXUS+",classification:"Sécurité & Chiffrement",dependencies:null,package_name:null,briefing:"Chez les Pixel Architects, les secrets ne se gardent pas dans des coffres — ils se dissimulent dans la lumière elle-même. Ce protocole explore la stéganographie visuelle : la Clé de Compilation est encodée dans les valeurs de couleur de l'image de profil via l'algorithme LSB (Least Significant Bit). Même photo = même clé.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"3 jours",junior:false,confirmed:true},
+  {id:"012",codename:"MACHINE-TEMPORELLE",title:"LA MACHINE TEMPORELLE",emoji:"⏳🕰️",designation:"Protocole Memento — Navigation dans les Strates du Passé",phase:"ALPHA",classification:"Archives & Persistance",dependencies:"MISSION-005 (@efficimo/memento — createMemento, IndexedDBAdapter)",package_name:null,briefing:"Les Codex du Nexus ne sont pas immuables. Chaque modification d'une Anomalie, chaque déplacement de statut, chaque intervention d'un Architecte laisse une empreinte dans le tissu du système. Ce protocole intègre @efficimo/memento dans Core Nexus pour un historique undo/redo complet et persisté dans IndexedDB.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2-3 jours",junior:false,confirmed:false},
+  {id:"013",codename:"SENTINELLE-SILENCIEUSE",title:"LA SENTINELLE SILENCIEUSE",emoji:"🛡️📡",designation:"Protocole de Résilience Hors-Connexion — Opération Zone de Silence",phase:"ALPHA",classification:"Archives & Persistance",dependencies:null,package_name:null,briefing:"Sur le Front de l'Algorithme, les communications avec le Dépôt Immuable (GitHub) sont parfois coupées. Un Architecte en transit dans les Zones de Silence Numérique ne doit pas être neutralisé : son Terminal de Combat doit rester opérationnel. Service Worker + sync différée = résilience totale.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"3-4 jours",junior:false,confirmed:false},
+  {id:"014",codename:"DISQUE-FANTOME",title:"LE DISQUE FANTÔME",emoji:"💾👻",designation:"Virtualisation du Stockage Local — Opération Disque Infini",phase:"ALPHA",classification:"Archives & Persistance",dependencies:null,package_name:null,briefing:"Le Codex du Nexus grossit. Les 5 méga-octets du stockage standard (localStorage) ne suffisent plus à contenir les Archives d'une escouade active. Ce protocole exploite Cache API et IndexedDB comme bases NoSQL virtuelles — sans limite de taille, avec une API unifiée.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"1 jour",junior:true,confirmed:false},
+  {id:"015",codename:"BASTION-PWA",title:"LE BASTION PWA",emoji:"📱⚡",designation:"Implantation Native sur Station de Travail — Opération Poste Avancé",phase:"ALPHA",classification:"Interface & Expérience",dependencies:null,package_name:null,briefing:"Le Terminal de Combat du Nexus vit dans un navigateur. Les Architectes méritent un Poste Avancé permanent : icône dans la barre d'applications, fenêtre sans chrome de navigateur, lancement instantané même sans réseau. Web App Manifest + Service Worker + installation cross-OS.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"1 jour",junior:false,confirmed:false},
+  {id:"016",codename:"SYNCHRONISATION-ONGLETS",title:"LA SYNCHRONISATION DES ONGLETS",emoji:"🔄📑",designation:"Cohérence Multi-Instance du Terminal — Opération Conscience Unifiée",phase:"ALPHA",classification:"Communications & Réseau",dependencies:null,package_name:null,briefing:"Un Architecte peut ouvrir plusieurs instances de son Terminal de Combat simultanément. Sans coordination, ces instances divergent et causent des corruptions de données. Ce protocole instaure une conscience partagée entre tous les onglets via BroadcastChannel pour la communication et Web Locks pour l'exclusion mutuelle.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"1 jour",junior:true,confirmed:false},
+  {id:"017",codename:"ARCHIVE-DECLARATIVE",title:"L'ARCHIVE DÉCLARATIVE",emoji:"📜🗃️",designation:"Exploitation du Substrat HTML Natif — Opération Code Primordial",phase:"ALPHA",classification:"Interface & Expérience",dependencies:null,package_name:null,briefing:"Les Architectes ont une tendance naturelle à tout résoudre par des scripts. Pourtant, le Substrat HTML contient des artefacts natifs puissants qui remplacent des centaines de lignes de JS avec une meilleure accessibilité et aucune dépendance : dialog, template, details/summary, popover.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"1 jour",junior:true,confirmed:false},
+  {id:"018",codename:"PEAU-DE-CAMELEON",title:"LA PEAU DE CAMÉLÉON",emoji:"🦎🎨",designation:"Protocoles Visuels Adaptatifs — Opération Interface Vivante",phase:"BETA",classification:"Interface & Expérience",dependencies:null,package_name:null,briefing:"L'interface du Terminal de Combat ne doit pas être une coquille rigide. Elle doit être vivante — réagissant à son contenu, à son contexte, à son espace disponible. Ce protocole explore CSS Houdini pour des effets graphiques custom compilés, Container Queries pour un layout truly responsive, et @scope pour l'isolation de style.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2 jours",junior:false,confirmed:false},
+  {id:"019",codename:"CHRONIQUE-CINEMATIQUE",title:"LA CHRONIQUE CINÉMATIQUE",emoji:"🎬✨",designation:"Narration Visuelle Interactive — Opération Ligne du Temps Vivante",phase:"BETA",classification:"Interface & Expérience",dependencies:null,package_name:null,briefing:"L'histoire du Chapitre mérite mieux qu'une liste statique. Ce protocole crée une Chronique — une page narrative interactive dont chaque panel se révèle au défilement — et applique les View Transitions aux navigations liste→détail pour une fluidité cinématographique. Scroll-Driven Animations pour piloter les effets visuels.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2 jours",junior:false,confirmed:false},
+  {id:"020",codename:"AMBASSADEURS",title:"LES AMBASSADEURS",emoji:"🤝🔌",designation:"Registre Unifié des Connexions aux Services Tiers — Opération Diplomatie",phase:"BETA",classification:"Intégration Système & Services Tiers",dependencies:"MISSION-010 (Citadelle-Zéro — stockage chiffré des tokens)",package_name:null,briefing:"Le Terminal de Combat opère en terrain hostile — mais il n'est pas seul. GitLab, GitHub, YouTrack, Google, AWS : autant d'alliés potentiels, chacun parlant son propre protocole. Les Ambassadeurs sont les émissaires du Terminal — chaque provider est une ambassade, chaque token un traité diplomatique.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"3-5 jours",junior:false,confirmed:true},
+  {id:"021",codename:"FLUX-DE-TRAITEMENT",title:"LE FLUX DE TRAITEMENT",emoji:"⚡🌊",designation:"Moteur Analytique Parallèle — Opération Calcul sans Friction",phase:"BETA",classification:"Moteur & Performance",dependencies:"MISSION-004 (@efficimo/workers — ReactiveWorker, WorkerPool)",package_name:null,briefing:"Le Terminal de Combat n'a qu'un seul fil d'exécution principal. Si une opération lourde — chiffrement d'un gros Codex, calcul de statistiques sur 1000 Anomalies — s'y exécute, l'interface se fige. Ce protocole déporte tous les calculs analytiques dans un pool de Workers via @efficimo/workers.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2-3 jours",junior:false,confirmed:false},
+  {id:"022",codename:"FORGE-WASM",title:"LA FORGE WASM",emoji:"⚙️🗄️",designation:"Moteur SQL Embarqué haute performance — Opération Codex Infini",phase:"BETA",classification:"Moteur & Performance",dependencies:null,package_name:null,briefing:"Le Codex JSON du Nexus est efficace pour des volumes modestes. Mais quand une escouade enregistre des milliers d'Anomalies sur plusieurs cycles de combat, les recherches deviennent lentes. Ce protocole embarque SQLite via WASM (sql.js / wa-sqlite) directement dans le navigateur — un moteur SQL complet, sans serveur.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"4-5 jours",junior:false,confirmed:true},
+  {id:"023",codename:"VIGILE-ELECTRONIQUE",title:"LA VIGILE ÉLECTRONIQUE",emoji:"👁️📈",designation:"Auto-Surveillance des Performances en Production — Opération Introspection",phase:"BETA",classification:"Moteur & Performance",dependencies:"MISSION-006 (@efficimo/monitor — createMonitor)",package_name:null,briefing:"Un Nexus qui ne surveille pas ses propres performances est aveugle à sa propre corruption. Le Terminal de Combat doit détecter ses propres anomalies internes : frames perdues, interactions lentes, décalages de rendu. PerformanceObserver + Long Animation Frame API, intégrés via @efficimo/monitor.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:false},
+  {id:"024",codename:"CRENEAU-FANTOME",title:"LE CRÉNEAU FANTÔME",emoji:"⏱️👻",designation:"Traitement Différé dans les Silences du Processeur — Opération Temps Mort",phase:"BETA",classification:"Moteur & Performance",dependencies:null,package_name:null,briefing:"Le Terminal de Combat ne dort jamais — mais son processeur, si. Entre deux interactions, il existe des créneaux fantômes : des intervalles de silence où le moteur JavaScript attend, sans rien faire de vital. Ce protocole exploite requestIdleCallback pour exécuter des tâches différées sans jamais bloquer l'interface.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"demi-journée",junior:true,confirmed:false},
+  {id:"025",codename:"TABLEAU-MULTI-SOURCE",title:"LE TABLEAU MULTI-SOURCE",emoji:"📊🔌",designation:"Dashboard Unifié Multi-Outils — Opération Convergence des Flux",phase:"BETA",classification:"Tableau de Bord & Visualisation",dependencies:null,package_name:null,briefing:"L'escouade utilise plusieurs canaux de rapport : GitHub Issues pour les corrections de code, des JSON locaux pour les Anomalies internes, et potentiellement d'autres outils selon les projets. Ce protocole unifie toutes ces sources dans un seul Tableau de Commandement via le pattern Adapter.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2-3 jours",junior:false,confirmed:false},
+  {id:"026",codename:"SIGNAL-APPEL",title:"LE SIGNAL D'APPEL",emoji:"🔔📳",designation:"Surveillance Permanente par Notifications Natives — Opération Sentinelle",phase:"BETA",classification:"Communications & Réseau",dependencies:null,package_name:null,briefing:"Le Terminal de Combat ne peut pas toujours rester ouvert. Mais les Anomalies, elles, n'attendent pas. Un Architecte en déplacement, terminal fermé, doit pouvoir recevoir l'alerte d'une intrusion critique directement depuis l'OS. Web Push + Notifications + Badge API.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:false},
+  {id:"027",codename:"SIGIL-DU-PROTOCOLE",title:"LE SIGIL DU PROTOCOLE",emoji:"🔗📁",designation:"Intégration OS Profonde — Protocoles, Fichiers et Partage",phase:"NEXUS+",classification:"Arsenal Physique & Intégration Système",dependencies:null,package_name:null,briefing:"Une PWA reste un site web jusqu'à ce qu'elle grave son Sigil dans l'OS. Ce protocole accomplit cette transformation : un schéma d'URL personnalisé pour ouvrir le Terminal depuis n'importe quelle app (nexus://), un handler de fichiers .nexus, et un Share Target pour recevoir du contenu partagé.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"3-5 jours",junior:false,confirmed:false},
+  {id:"028",codename:"PRESENTATEUR-COMMANDEMENT",title:"LE PRÉSENTATEUR DE COMMANDEMENT",emoji:"📺🖥️",designation:"Interface Double-Écran pour Présentation d'Escouade — Opération Tribune",phase:"BETA",classification:"Tableau de Bord & Visualisation",dependencies:null,package_name:null,briefing:"Lors des cérémonies d'escouade — démonstrations, sprint reviews, présentations aux alliés — l'Architecte présentateur a besoin de deux vues simultanées : son interface de contrôle privée (notes, prochaine diapo) et la vue publique projetée sur l'écran de la salle. Presentation API.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"1-2 jours",junior:false,confirmed:false},
+  {id:"029",codename:"ATELIER-DES-PATTERNISTES",title:"L'ATELIER DES PATTERNISTES",emoji:"🏛️📐",designation:"Formation par le Jeu aux Design Patterns — Opération Transmission du Savoir",phase:"BETA",classification:"Intelligence & Formation",dependencies:null,package_name:null,briefing:"Les Design Patterns sont les doctrines de combat des Pixel Architects. Théoriques sur le papier, ils deviennent instinctifs seulement par la pratique. Ce protocole crée une page /laboratory dans le Terminal — un terrain d'entraînement interactif où chaque Pattern est enseigné par un mini-jeu ludique.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"3 jours (5 mini-jeux)",junior:false,confirmed:false},
+  {id:"030",codename:"ORACLE-LOCAL",title:"L'ORACLE LOCAL",emoji:"🧠🔮",designation:"Intelligence Artificielle Embarquée — Opération Cerveau Souverain",phase:"NEXUS+",classification:"Intelligence & Formation",dependencies:null,package_name:null,briefing:"Les Pixel Architects ne confient pas leurs secrets aux Tours de Commandement externes. Leur intelligence aussi est souveraine. Ce protocole embarque un moteur d'inférence directement dans le Terminal de Combat via Transformers.js — IA locale, hors ligne, sans serveur.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"4-5 jours",junior:false,confirmed:true},
+  {id:"031",codename:"ECOLE-DES-ARCHITECTES",title:"L'ÉCOLE DES ARCHITECTES",emoji:"🏫⚛️",designation:"Pédagogie React Avancée — Opération Transmission du Cycle de Vie",phase:"ALPHA",classification:"Intelligence & Formation",dependencies:null,package_name:null,briefing:"Tout Architecte Recrue doit comprendre les mécanismes profonds du Terminal de Combat React. Ce protocole crée une section /school dans le Terminal où trois composants pédagogiques révèlent les pièges les plus courants du cycle de vie React : re-renders inutiles, stale closures, memory leaks.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2 jours",junior:false,confirmed:false},
+  {id:"032",codename:"SIGNAL-PROXIMITAIRE",title:"LE SIGNAL PROXIMITAIRE",emoji:"📡🎵",designation:"Détection de Présence Physique par Signature Acoustique",phase:"NEXUS+",classification:"Communications & Réseau",dependencies:null,package_name:null,briefing:"Ce protocole expérimental détourne l'API Audio pour détecter si deux Architectes se trouvent physiquement dans la même salle. Un Terminal émet un signal sonore à haute fréquence (15-18 kHz). Un second Terminal, via son microphone, capte et identifie ce signal — sans NFC, sans Bluetooth, sans serveur.",difficulty:"★★★★★",difficulty_label:"Grand Architecte",duration:"1 semaine",junior:false,confirmed:true},
+  {id:"033",codename:"CENTRE-DE-COMMANDEMENT",title:"LE CENTRE DE COMMANDEMENT PHYSIQUE",emoji:"🖥️💡",designation:"Boîtier de Surveillance Matérielle — Opération Poste Physique",phase:"NEXUS+",classification:"Arsenal Physique",dependencies:null,package_name:null,briefing:"Ce protocole construit un boîtier de surveillance matérielle branché en USB qui matérialise l'état du Nexus dans le monde réel : LED RGB qui change de couleur selon les Anomalies, écran OLED 128×64 affichant les métriques en temps réel. WebHID + WebSerial.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2-3 jours",junior:false,confirmed:false},
+  {id:"034",codename:"INTERFACE-HARMONIQUE",title:"L'INTERFACE HARMONIQUE",emoji:"🎹🎛️",designation:"Pilotage par Instrument Musical — Opération Launchpad du Nexus",phase:"NEXUS+",classification:"Arsenal Physique",dependencies:null,package_name:null,briefing:"Ce protocole transforme un contrôleur MIDI (Launchpad, pad de beatmaker, clavier musical) en panneau de contrôle tactile du Terminal de Combat. Chaque pad correspond à une action : clôturer une Anomalie, changer son statut, déclencher un déploiement. Web MIDI API.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2 jours",junior:false,confirmed:false},
+  {id:"035",codename:"LIAISON-BLUETOOTH",title:"LA LIAISON BLUETOOTH",emoji:"🔵💡",designation:"Pont Numérique-Physique via BLE — Opération Phare du Chapitre",phase:"NEXUS+",classification:"Arsenal Physique",dependencies:null,package_name:null,briefing:"Ce protocole installe un Phare physique dans l'espace de travail de l'équipe : une ampoule connectée en Bluetooth Low Energy qui reflète l'état du Nexus. Phare vert si tout va bien, jaune pour une anomalie prioritaire, rouge pour une corruption critique. Web Bluetooth API.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"2 jours",junior:false,confirmed:false},
+  {id:"036",codename:"CAPTEURS-SENSORIELS",title:"LES CAPTEURS SENSORIELS",emoji:"🎮📳",designation:"Arsenal de Périphériques Exotiques — Opération Multimodale",phase:"NEXUS+",classification:"Arsenal Physique",dependencies:null,package_name:null,briefing:"Ce protocole regroupe quatre capteurs physiques indépendants du Terminal : Gamepad API pour les manettes, Device Posture API pour la détection d'inclinaison, Web NFC API pour les tags physiques, et Vibration API pour le retour haptique. Quatre POC à implémenter séparément.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"3 jours (4 POC)",junior:false,confirmed:false},
+  {id:"037",codename:"VOIX-DU-KERNEL",title:"LA VOIX DU KERNEL",emoji:"🎤🗣️",designation:"Interface Vocale Mains-Libres — Opération Parole du Nexus",phase:"BETA",classification:"Arsenal Physique",dependencies:null,package_name:null,briefing:"Ce protocole installe une interface vocale dans le Terminal de Combat. Reconnaissance vocale (Web Speech Recognition) pour les commandes traduites en actions, et Synthèse vocale (Web Speech Synthesis) pour que le Terminal réponde. L'Architecte dicte, le Nexus exécute.",difficulty:"★★☆☆☆",difficulty_label:"Architecte",duration:"1 jour (A) / 3 jours (B)",junior:true,confirmed:false},
+  {id:"038",codename:"ARSENAL-QUANTIQUE",title:"L'ARSENAL QUANTIQUE",emoji:"⚗️🔬",designation:"APIs Expérimentales de Pointe — Opération Avant-Garde Technologique",phase:"NEXUS+",classification:"Moteur & Performance",dependencies:null,package_name:null,briefing:"Ce protocole rassemble les APIs en phase expérimentale ou récemment stabilisées — le front technologique du Terminal de Combat. Cinq armes indépendantes : WebGPU pour le calcul GPU, Temporal API pour les dates, Compute Pressure API pour la charge CPU, Speculation Rules API pour le prefetch, EyeDropper API.",difficulty:"★★★★☆",difficulty_label:"Champion",duration:"1 semaine (5 POC)",junior:false,confirmed:false},
+  {id:"039",codename:"HOLOGRAMME-XR",title:"L'HOLOGRAMME XR",emoji:"🥽🌐",designation:"Tableau de Bord Spatial en Réalité Augmentée — Opération Nexus Étendu",phase:"NEXUS+",classification:"Tableau de Bord & Visualisation",dependencies:null,package_name:null,briefing:"Le Tableau de Commandement cesse d'être plat. Dans ce protocole, les Anomalies du Nexus ne s'affichent plus sur un écran 2D — elles flottent dans l'espace. Chaque Anomalie est un cube tridimensionnel que l'Architecte peut saisir et déplacer physiquement. WebXR Device API.",difficulty:"★★★★★",difficulty_label:"Grand Architecte",duration:"1-2 semaines",junior:false,confirmed:false},
+  {id:"040",codename:"GRILLE-CRISTALLINE",title:"LA GRILLE CRISTALLINE",emoji:"🔷⬡",designation:"Cartographie Hexagonale des Sigils — Opération Cristal",phase:"BETA",classification:"Interface & Visualisation",dependencies:"MISSION-001 (@efficimo/observable), MISSION-019 (View Transitions)",package_name:null,briefing:"Les Sigils ne sont pas de simples badges. Ce sont des cristaux de mémoire — chaque accomplissement d'un Architecte se solidifie en une structure géométrique précise, ancrée dans un espace infini appelé la Grille Cristalline. Canvas 2D + grille hexagonale + View Transitions.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:false},
+  {id:"008",codename:"RESEAU-MESH-FANTOME",title:"LE RÉSEAU MESH FANTÔME",emoji:"🕸️📡",designation:"Protocole de Routage Distribué Souverain — Opération Constellation",phase:"BETA",classification:"Communications & Réseau",dependencies:"MISSION-001 (@efficimo/observable), MISSION-016 (BroadcastChannel), MISSION-032 (Signal Proximitaire)",package_name:"plexus",briefing:"Les Pixel Architects opèrent sans serveur centralisé — c'est leur doctrine. Plusieurs Terminals de Combat, tournant sur des machines différentes, forment une Constellation : un réseau auto-organisé où chaque nœud connaît ses voisins directs. Routage distance-vector entre navigateurs via WebRTC + BroadcastChannel.",difficulty:"★★★★★",difficulty_label:"Grand Architecte",duration:"1-2 semaines",junior:false,confirmed:false},
+  {id:"009",codename:"INTERFACE-CONSTELLATION",title:"L'INTERFACE CONSTELLATION",emoji:"🌌🕸️",designation:"Visualisation Temps Réel du Mesh Plexus — Opération Cartographie",phase:"NEXUS+",classification:"Interface & Tableau de Bord",dependencies:"MISSION-008 (Réseau Mesh Fantôme — lib Plexus), MISSION-001 (@efficimo/observable)",package_name:"plexus-ui",briefing:"Un réseau invisible n'est qu'une abstraction. L'Interface Constellation rend visible la Plexus : chaque nœud devient une étoile sur une carte orbitale, chaque connexion directe un fil lumineux, chaque message une impulsion qui se propage d'étoile en étoile en temps réel. Canvas SVG animé.",difficulty:"★★★☆☆",difficulty_label:"Maître",duration:"1-2 jours",junior:false,confirmed:false}
+];
+
+/* ── GROUPES (ordre de présentation) ── */
+const GROUPS = [
+  {id:'g0',label:'GROUPE 0 — FONDATION',icon:'🏗️',ids:['000']},
+  {id:'g1',label:'GROUPE 1 — PACKAGES NPM',icon:'📦',ids:['001','002','003','004','005','006','007']},
+  {id:'g2',label:'GROUPE 2 — APPLICATION ALPHA',icon:'🔐',ids:['010','011','012','013','014','015','016','017','018','019']},
+  {id:'g3',label:'GROUPE 3 — APPLICATION BETA',icon:'🤝',ids:['020','021','022','023','024','025','026','027','028','029']},
+  {id:'g4',label:'GROUPE 4 — NEXUS+',icon:'⚗️',ids:['030','031','032','033','034','035','036','037','038','039','040']},
+  {id:'gf',label:'FINALE — RÉSEAU MESH',icon:'🕸️',ids:['008','009']}
+];
+
+/* ordre plat: index 0 = intro, 1-N = missions */
+const ORDER = [null,'000','001','002','003','004','005','006','007',
+  '010','011','012','013','014','015','016','017','018','019',
+  '020','021','022','023','024','025','026','027','028','029',
+  '030','031','032','033','034','035','036','037','038','039','040',
+  '008','009'];
+
+/* ── STATE ── */
+let cur = 0;
+
+/* ── HELPERS ── */
+function byId(id){return MISSIONS.find(m=>m.id===id);}
+function dlevel(lbl){return{Recrue:1,Architecte:2,Maître:3,Champion:4,'Grand Architecte':5}[lbl]||2;}
+function phaseClass(p){if(p==='ALPHA')return'ph-alpha';if(p==='BETA')return'ph-beta';return'ph-nexus';}
+function dlClass(lbl){return'dl-'+dlevel(lbl);}
+function diffColor(lbl){return{Recrue:'#9ca3af',Architecte:'var(--green)',Maître:'var(--accent)',Champion:'var(--amber)','Grand Architecte':'var(--error)'}[lbl]||'var(--green)';}
+function phaseGlow(p){
+  if(p==='ALPHA') return 'rgba(0,229,255,.05)';
+  if(p==='BETA')  return 'rgba(46,106,255,.06)';
+  return 'rgba(168,85,247,.05)';
+}
+
+/* ── INIT ── */
+function init(){
+  document.getElementById('sidebar-total').textContent = ORDER.length-1+' missions';
+  buildSidebar();
+  render();
+}
+
+/* ── SIDEBAR ── */
+function buildSidebar(){
+  const wrap = document.getElementById('sidebar-scroll');
+  wrap.innerHTML = '';
+
+  // Intro
+  const intro = el('div','m-item'+(cur===0?' active':''));
+  intro.dataset.index = 0;
+  intro.id = 'si-0';
+  intro.innerHTML = `<span class="m-id">●</span><span class="m-emoji">📋</span><div class="m-label"><div class="m-name">Présentation d'équipe</div></div>`;
+  intro.addEventListener('click',()=>go(0));
+  wrap.appendChild(intro);
+
+  GROUPS.forEach(g=>{
+    const gh = el('div','group-header');
+    gh.innerHTML = `${g.icon} ${g.label} <span class="gh-n">${g.ids.length}</span>`;
+    wrap.appendChild(gh);
+
+    g.ids.forEach(mid=>{
+      const m = byId(mid);
+      if(!m) return;
+      const idx = ORDER.indexOf(mid);
+      const dl = dlevel(m.difficulty_label);
+      const item = el('div','m-item'+(cur===idx?' active':''));
+      item.dataset.index = idx;
+      item.dataset.dl = dl;
+      item.id = `si-${idx}`;
+      item.innerHTML = `
+        <span class="m-id">${m.id}</span>
+        <span class="m-emoji">${m.emoji}</span>
+        <div class="m-label"><div class="m-name">${m.codename}</div></div>
+        ${m.junior?'<span class="m-rec j">J</span>':''}
+        ${m.confirmed?'<span class="m-rec c">C</span>':''}
+        <span class="m-stars">${m.difficulty.slice(0,2)}</span>`;
+      item.addEventListener('click',()=>go(idx));
+      wrap.appendChild(item);
+    });
+  });
+}
+
+function el(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
+
+/* ── RENDER ── */
+function render(){
+  updateTopbar();
+  updateSidebarActive();
+  const main = document.getElementById('main');
+  if(cur===0) renderIntro(main);
+  else renderMission(main, byId(ORDER[cur]));
+  // scroll active into view
+  const si = document.getElementById(`si-${cur}`);
+  if(si) si.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function go(idx){
+  cur = Math.max(0, Math.min(idx, ORDER.length-1));
+  render();
+}
+
+function updateTopbar(){
+  const total = ORDER.length-1;
+  document.documentElement.style.setProperty('--progress', cur===0?'0%':`${(cur/total)*100}%`);
+
+  const tc = document.getElementById('top-counter');
+  const tm = document.getElementById('top-mission');
+
+  if(cur===0){
+    tc.innerHTML = `<em>${total}</em> missions`;
+    tm.innerHTML = '<strong>PRÉSENTATION ÉQUIPE</strong>';
+  } else {
+    const m = byId(ORDER[cur]);
+    tc.innerHTML = `MISSION <em>${cur}</em> / <em>${total}</em>`;
+    tm.innerHTML = `${m.emoji} <strong>MISSION-${m.id}</strong> — ${m.codename}`;
+  }
+}
+
+function updateSidebarActive(){
+  document.querySelectorAll('.m-item').forEach(el=>{
+    el.classList.toggle('active', parseInt(el.dataset.index)===cur);
+  });
+}
+
+/* ── MISSION VIEW ── */
+function renderMission(main, m){
+  document.documentElement.style.setProperty('--phase-glow', phaseGlow(m.phase));
+  const dl = dlevel(m.difficulty_label);
+  const hasPkg = !!m.package_name;
+  const hasDeps = !!m.dependencies;
+
+  main.innerHTML = '';
+  const view = el('div','view');
+  view.innerHTML = `
+    <div class="mh">
+      <div class="mh-emoji">${m.emoji}</div>
+      <div class="mh-text">
+        <div class="mh-num">MISSION-${m.id} &nbsp;·&nbsp; ${m.classification}</div>
+        <div class="mh-title">${m.title}</div>
+        <div class="mh-codename">${m.codename}</div>
+        <div class="badges">
+          <span class="badge ${phaseClass(m.phase)}">${m.phase}</span>
+          <span class="badge ${dlClass(m.difficulty_label)}">${m.difficulty} ${m.difficulty_label}</span>
+          ${hasPkg?`<span class="badge npm">npm · ${m.package_name}</span>`:''}
+          ${m.junior?'<span class="badge rec-j">★ Recommandé Junior</span>':''}
+          ${m.confirmed?'<span class="badge rec-c">★ Recommandé Confirmé</span>':''}
+        </div>
+      </div>
+    </div>
+
+    <div class="m-desig">${m.designation}</div>
+
+    <div class="meta-grid">
+      <div class="meta-cell">
+        <div class="meta-lbl">Classification</div>
+        <div class="meta-val">${m.classification}</div>
+      </div>
+      <div class="meta-cell">
+        <div class="meta-lbl">Phase</div>
+        <div class="meta-val">${m.phase}</div>
+      </div>
+      ${hasDeps?`<div class="meta-cell full"><div class="meta-lbl">Dépendances</div><div class="meta-val">${m.dependencies}</div></div>`:''}
+    </div>
+
+    <div class="briefing">
+      <div class="briefing-lbl">Briefing Opérationnel</div>
+      <div class="briefing-txt">${m.briefing}</div>
+    </div>
+
+    <div class="tactical">
+      <div class="tac-card">
+        <div class="tac-lbl">Niveau de difficulté</div>
+        <div class="tac-stars" style="color:${diffColor(m.difficulty_label)}">${m.difficulty}</div>
+        <div class="tac-dlbl" style="color:${diffColor(m.difficulty_label)}">${m.difficulty_label}</div>
+      </div>
+      <div class="tac-card">
+        <div class="tac-lbl">Durée estimée</div>
+        <div class="tac-dur">${m.duration}</div>
+        <div class="tac-note">Effort individuel · Hors revue</div>
+      </div>
+    </div>
+
+    <div class="m-nav">
+      <button class="nav-btn" id="nav-prev" ${cur<=1?'disabled':''}>
+        <span class="arrow">←</span> Précédent
+      </button>
+      <div class="nav-pos"><em>${cur}</em> / <em>${ORDER.length-1}</em></div>
+      <button class="nav-btn" id="nav-next" ${cur>=ORDER.length-1?'disabled':''}>
+        Suivant <span class="arrow">→</span>
+      </button>
+    </div>
+  `;
+
+  view.querySelector('#nav-prev')?.addEventListener('click',()=>go(cur-1));
+  view.querySelector('#nav-next')?.addEventListener('click',()=>go(cur+1));
+  main.appendChild(view);
+}
+
+/* ── INTRO VIEW ── */
+function renderIntro(main){
+  document.documentElement.style.setProperty('--phase-glow','rgba(46,106,255,.04)');
+  main.innerHTML = '';
+  const wrap = el('div','intro-wrap');
+  wrap.innerHTML = `
+    <div>
+      <div class="intro-kicker">Brief d'équipe · Core Nexus</div>
+      <div class="intro-h1">Ordres de Mission</div>
+      <div class="intro-sub">"On n'apprend pas en regardant. On apprend en compilant."</div>
+    </div>
+
+    <div class="intro-speech">
+      <p>"Vous connaissez tous Core Nexus — l'app qu'on utilise au quotidien.
+      Ce que vous savez peut-être moins, c'est que derrière l'interface
+      se cachent des décisions techniques qui méritent d'être comprises,
+      démontées, et reconstruites par vous.</p>
+      <p>C'est l'objectif des Ordres de Mission."</p>
+    </div>
+
+    <div class="intro-box">
+      <div class="intro-box-title">Ce ne sont pas des tutoriels</div>
+      <p><strong>Ce ne sont pas des tutoriels à suivre.</strong><br>Ce sont des specs à implémenter.</p>
+      <p>La mission dit <strong>"quoi"</strong> et <strong>"pourquoi"</strong>.<br>C'est vous qui décidez <strong>"comment"</strong>.</p>
+    </div>
+
+    <div>
+      <div class="intro-kicker" style="margin-bottom:.75rem">Objectifs globaux</div>
+      <div class="intro-objectives">
+        <div class="intro-obj"><span class="obj-arrow">→</span><span class="obj-text">Comprendre comment fonctionne notre stack de l'intérieur</span></div>
+        <div class="intro-obj"><span class="obj-arrow">→</span><span class="obj-text">Contribuer à des packages open source réels (<code>@efficimo/*</code>)</span></div>
+        <div class="intro-obj"><span class="obj-arrow">→</span><span class="obj-text">Développer un raisonnement d'architecte, pas juste d'exécutant</span></div>
+        <div class="intro-obj"><span class="obj-arrow">→</span><span class="obj-text">Apprendre à lire une spec technique et à la traduire en code</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="intro-kicker" style="margin-bottom:.75rem">Règles du jeu</div>
+      <div class="intro-rules">
+        <div class="intro-rule"><span class="rule-n">1.</span><span class="rule-t"><strong>Une mission à la fois.</strong><small>On ne jongle pas entre 3 missions. On finit ce qu'on commence.</small></span></div>
+        <div class="intro-rule"><span class="rule-n">2.</span><span class="rule-t"><strong>Lire la spec avant de coder.</strong><small>10 minutes de lecture = 2 heures de débogage évitées.</small></span></div>
+        <div class="intro-rule"><span class="rule-n">3.</span><span class="rule-t"><strong>Les livrables sont des checklists.</strong><small>Cocher = c'est fait ET ça compile ET c'est testé. Pas de "ça marche chez moi".</small></span></div>
+        <div class="intro-rule"><span class="rule-n">4.</span><span class="rule-t"><strong>On pose des questions, on ne se noie pas.</strong><small>Bloqué 45min sur le même point → tu demandes.</small></span></div>
+        <div class="intro-rule"><span class="rule-n">5.</span><span class="rule-t"><strong>Le code est open source.</strong><small>Ce qu'on produit dans @efficimo/* est public sur npm. On écrit pour des inconnus.</small></span></div>
+      </div>
+    </div>
+
+    <div class="intro-nav-row">
+      <button class="nav-btn" id="intro-start">
+        Commencer les missions <span class="arrow">→</span>
+      </button>
+    </div>
+  `;
+
+  wrap.querySelector('#intro-start').addEventListener('click',()=>go(1));
+  main.appendChild(wrap);
+}
+
+/* ── KEYBOARD ── */
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') go(cur+1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp') go(cur-1);
+  if(e.key==='Home') go(0);
+  if(e.key==='End') go(ORDER.length-1);
+});
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-002                                         ║
+║  @efficimo/storage                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+💾⚡
+
+DÉSIGNATION     : Extraction et Publication de la Couche de Stockage — Opération Mémoire
+CODENAME        : STORAGE
+PHASE           : [ALPHA]
+CLASSIFICATION  : Fondation & Infrastructure
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo), MISSION-001 (@efficimo/observable)
+PRÉCÈDE         : MISSION-012 (Machine Temporelle), MISSION-013 (Sentinelle Silencieuse)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les données du Terminal survivent aux rechargements. localStorage,
+sessionStorage, Cache API, IndexedDB — autant de théâtres de persistance
+que le Terminal exploite. Mais accéder à ces APIs brutes, c'est écrire du
+code fragile, non réactif, impossible à tester.
+
+@efficimo/storage transforme la couche de stockage Web en flux observables.
+Une clé du localStorage devient un ObservableValue — un composant React
+peut s'y abonner directement, sans polling, sans event listener manuel.
+Quand une autre fenêtre modifie la même clé, l'observable le propage
+instantanément via l'événement 'storage' du navigateur.
+
+La lib existe déjà dans core-nexus sous src/storage/ — cette mission
+l'extrait, la généralise (supprime les clés applicatives), la teste
+et la publie sur npm en dépendant de @efficimo/observable.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÉTAT DU CODE EXISTANT (src/storage/ dans core-nexus)
+
+  BaseStorage.ts     — classe générique typée sur les clés + observables map
+  StorageObservable.ts — Observable<string | null> pointant sur une clé Storage
+  LocalStorage.ts    — singleton applicatif (RESTE dans core-nexus, pas dans le package)
+  SessionStorage.ts  — singleton applicatif (RESTE dans core-nexus, pas dans le package)
+  StorageKeys.ts     — interface des clés applicatives (RESTE dans core-nexus)
+
+  RÈGLE : le package exporte uniquement les génériques.
+  Les singletons et les clés de core-nexus restent dans apps/core-nexus.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  StorageObservable<K extends string>
+  ─────────────────────────────────────
+  Observable d'une clé dans un objet Storage natif (localStorage / sessionStorage).
+  Implémente ObservableValueInterface<string | null>.
+
+  class StorageObservable<K extends string>
+    extends Observable<string | null>
+    implements ObservableValueInterface<string | null>
+  {
+    constructor(key: K, storage: Storage)
+    getValue(): string | null           // lit depuis storage.getItem()
+    next(value: string | null | SetFunction<string | null>): Promise<void>
+    subscribe(fn: (v: string | null) => void): Subscription  // émet immédiatement
+  }
+
+  BaseStorage<K extends string>
+  ───────────────────────────────
+  Gestionnaire d'observables pour un objet Storage (local ou session).
+  Maintient un cache d'observables (Map) et réagit à l'événement 'storage'
+  pour propager les changements cross-onglets.
+
+  class BaseStorage<K extends string> {
+    constructor(storage: Storage)
+
+    // Observable sur une clé — créé au premier appel, mis en cache ensuite
+    getObservable(key: K, defaultValue?: string | null): StorageObservable<K>
+
+    // Observable avec désérialisation JSON via schéma Zod
+    getSerializedObservable<T>(
+      key: K,
+      schema: ZodType<T>,
+      defaultValue?: T
+    ): JsonSerializeObservableValue<T>   // de @efficimo/observable/zod
+
+    // Raccourcis synchrones
+    get(key: K, defaultValue?: string | null): string | null
+    set(key: K, value: string | null): void
+    has(key: K): boolean
+    remove(key: K): void
+    clear(): void
+  }
+
+  FACTORY (usage recommandé côté application)
+  ────────────────────────────────────────────
+  Plutôt que d'instancier BaseStorage directement, les applications
+  définissent leurs clés via extension de l'interface StorageKeys et
+  utilisent createStorage() :
+
+  // Dans apps/core-nexus/src/storage/LocalStorage.ts
+  import { BaseStorage } from '@efficimo/storage'
+  import type { LocalStorageKeys } from './StorageKeys'
+
+  export const LocalStorage = new BaseStorage<keyof LocalStorageKeys>(localStorage)
+
+  Le type générique K garantit que seules les clés déclarées dans
+  l'interface applicative sont acceptées — erreur TypeScript au compile
+  si une clé inconnue est utilisée.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. DÉPLACER le code dans packages/storage/src/ :
+     - Copier BaseStorage.ts et StorageObservable.ts
+     - Remplacer l'import @/observable/* → @efficimo/observable
+
+  2. NE PAS MIGRER dans le package :
+     - LocalStorage.ts et SessionStorage.ts (singletons applicatifs)
+     - StorageKeys.ts (clés spécifiques à core-nexus)
+     Ces fichiers restent dans apps/core-nexus/src/storage/ et
+     remplacent leurs imports @/storage/* → @efficimo/storage
+
+  3. CONFIGURER package.json :
+     {
+       "name": "@efficimo/storage",
+       "version": "0.1.0",
+       "type": "module",
+       "exports": {
+         ".": "./src/index.ts"
+       },
+       "peerDependencies": {
+         "@efficimo/observable": ">=0.1.0",
+         "zod": ">=3.0.0"
+       },
+       "peerDependenciesMeta": {
+         "zod": { "optional": true }
+       },
+       "license": "MIT"
+     }
+     Note : zod est une peer optionnelle — requis uniquement si
+     getSerializedObservable() est utilisée.
+
+  4. CRÉER src/index.ts :
+     export { BaseStorage } from './BaseStorage'
+     export { StorageObservable } from './StorageObservable'
+     export type { StorageInterface } from './types'
+
+  5. ÉCRIRE les tests Vitest (src/__tests__/) :
+     Environnement : jsdom (accès à localStorage/sessionStorage simulé)
+
+     - storageObservable.test.ts :
+         getValue() retourne la valeur courante
+         next() écrit dans le storage et notifie
+         subscribe() émet la valeur courante immédiatement
+         déduplication (isEqual) — pas de notification si même valeur
+         cross-tab simulation via événement 'storage' manuel
+
+     - baseStorage.test.ts :
+         getObservable() retourne le même observable pour la même clé
+         set()/get() raccourcis
+         has() et remove()
+         clear() vide le cache + le storage
+         getSerializedObservable() avec Zod — parse valide, invalide → null
+
+  6. METTRE À JOUR apps/core-nexus :
+     - apps/core-nexus/src/storage/LocalStorage.ts : importe depuis @efficimo/storage
+     - apps/core-nexus/src/storage/SessionStorage.ts : idem
+     - apps/core-nexus/src/storage/StorageObservable.ts : SUPPRIMER (migré)
+     - apps/core-nexus/src/storage/BaseStorage.ts : SUPPRIMER (migré)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/storage/
+  ├── src/
+  │   ├── index.ts                    ← export public
+  │   ├── BaseStorage.ts
+  │   ├── StorageObservable.ts
+  │   └── __tests__/
+  │       ├── storageObservable.test.ts
+  │       └── baseStorage.test.ts
+  ├── package.json
+  ├── tsconfig.json                   ← extends ../../tsconfig.base.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - TypeScript strict (extends tsconfig.base.json)
+  - Vitest + jsdom — environnement de test avec Web Storage API simulée
+  - @efficimo/observable ≥ 0.1.0 — peer dependency
+  - pnpm workspaces — résolution du workspace:* protocol
+  - Turborepo — pipeline (build dépend du build de @efficimo/observable)
+  - Changesets — versioning indépendant
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : demi-journée            │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package
+  [ ] packages/storage/src/index.ts               : export public
+  [ ] packages/storage/src/BaseStorage.ts         : copié/nettoyé (import @efficimo/observable)
+  [ ] packages/storage/src/StorageObservable.ts   : copié/nettoyé
+  [ ] packages/storage/package.json
+  [ ] packages/storage/tsconfig.json
+  [ ] packages/storage/README.md
+  [ ] packages/storage/CHANGELOG.md
+
+  Tests
+  [ ] packages/storage/src/__tests__/storageObservable.test.ts
+  [ ] packages/storage/src/__tests__/baseStorage.test.ts
+
+  Migration core-nexus
+  [ ] apps/core-nexus/src/storage/LocalStorage.ts   : importe @efficimo/storage
+  [ ] apps/core-nexus/src/storage/SessionStorage.ts : importe @efficimo/storage
+  [ ] Suppression de apps/core-nexus/src/storage/BaseStorage.ts
+  [ ] Suppression de apps/core-nexus/src/storage/StorageObservable.ts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  Extraction propre — le code existant est déjà bien découplé des logiques
+  applicatives. La valeur ajoutée réelle est la réactivité cross-onglets
+  via l'événement 'storage' : une valeur modifiée dans un onglet propage
+  automatiquement dans tous les ObservableValue abonnés des autres onglets.
+  Ce comportement est précieux mais invisible dans le code actuel — le
+  README doit le documenter explicitement.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  ENVIRONNEMENT JSDOM POUR LES TESTS
+    jsdom simule localStorage et sessionStorage mais l'événement 'storage'
+    cross-onglets n'est pas émis automatiquement dans les tests. Pour tester
+    ce comportement, il faut déclencher manuellement window.dispatchEvent(
+    new StorageEvent('storage', { key, newValue, storageArea: localStorage })).
+
+  SINGLETON PATTERN DANS CORE-NEXUS
+    LocalStorage.ts dans core-nexus utilise le pattern singleton avec
+    instance statique. Ce pattern RESTE dans l'application — le package
+    n'impose pas de singleton. Les consommateurs choisissent leur pattern
+    d'instanciation.
+
+  GETSERIALIZEDOBSERVABLE ET ZOD
+    BaseStorage.getSerializedObservable() dépend de JsonSerializeObservableValue
+    qui importe Zod. Si Zod n'est pas installé, cette méthode ne doit pas
+    être importée. Options :
+    a) Accepter Zod comme peer dep optionnel et laisser le bundler gérer
+       l'erreur si la méthode est appelée sans Zod (approche actuelle)
+    b) Séparer getSerializedObservable() dans src/zod.ts (sous-export)
+       pour isoler complètement la dépendance Zod
+    Recommandation : option a) pour commencer, option b) si demande communauté.
+
+  STORAGE EVENT ET PWA STANDALONE
+    L'événement 'storage' ne traverse pas les browsing context groups. Une
+    PWA en mode standalone et un onglet navigateur (même origin) sont dans
+    des groupes distincts — les StorageObservable de l'un ne réagissent pas
+    aux changements de l'autre. Si la synchronisation cross-context PWA ↔
+    browser est requise, BroadcastChannel est la seule solution fiable.
+    Le consommateur est responsable de ce plumbing — @efficimo/storage ne
+    l'intègre pas nativement.
+
+  SESSIONSSTORAGE EN STANDALONE
+    En PWA standalone, il n'y a pas de tabs. Chaque fenêtre PWA a sa propre
+    sessionStorage, vidée à la fermeture de la fenêtre (pas de persistence
+    entre deux lancements). À documenter dans le README comme contrainte.
+
+  CLÉS TYPÉES
+    Le générique K extends string garantit la sûreté de type uniquement si
+    l'interface de clés est déclarée dans l'application. Il est conseillé
+    de ne jamais créer new BaseStorage<string> — toujours paramétrer avec
+    une union de clés concrètes (ex: keyof LocalStorageKeys).
+
+  ✦ RECOMMANDATION
+    Faire MISSION-001 en premier (peerDep obligatoire). Ensuite écrire les
+    tests avec jsdom activé dans vitest.config.ts (environment: 'jsdom').
+    Valider que la simulation de l'événement 'storage' fonctionne avant de
+    merger — c'est la feature différenciante du package.

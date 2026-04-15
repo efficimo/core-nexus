@@ -1,0 +1,106 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-033                                         ║
+║  LE CENTRE DE COMMANDEMENT PHYSIQUE                                      ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🖥️💡
+
+DÉSIGNATION     : Boîtier de Surveillance Matérielle — Opération Poste Physique
+CODENAME        : CENTRE-DE-COMMANDEMENT
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Arsenal Physique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole construit un boîtier de surveillance matérielle branché en USB qui
+matérialise l'état du Nexus dans le monde réel :
+
+  LED RGB — Vert/Jaune/Rouge/Bleu selon l'état des Anomalies
+  ÉCRAN OLED 128×64 — Nombre d'Anomalies actives, dernier compilateur, état WebRTC
+  BUZZER — Signaux sonores distincts selon la sévérité
+
+CHOIX DE PROTOCOLE :
+  WebSerial est préférable pour les Arduino (port série USB-CDC — pas de driver).
+  WebHID s'applique aux périphériques implémentant le profil HID USB (clavier,
+  manette…). Un Arduino Nano standard parle via port série → WebSerial.
+  Pour HID natif, il faudrait flasher un firmware HID custom (bootloader spécial).
+
+⚠ WebSerial/WebHID requièrent un geste utilisateur pour ouvrir le port.
+  La connexion ne peut pas s'établir automatiquement au démarrage de l'app.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Établir la connexion avec l'Arduino via WebSerial (port.open({baudRate: 9600}))
+     déclenchée par un bouton dans l'interface (geste utilisateur requis)
+  2. Définir le protocole de communication ASCII simple :
+     ex: "LED:255,0,0\n" pour rouge, "OLED:Anomalies:5\n", "BUZZ:1\n"
+  3. Mapper les états Nexus sur des commandes :
+     - Vert : 0 anomalie critique
+     - Jaune : 1+ anomalies haute priorité non assignées
+     - Rouge : corruption critique
+     - Bleu pulse : déploiement en cours
+  4. Composant "Panneau Physique" dans les paramètres (connexion + test couleurs)
+  5. Déclenchement automatique depuis les mutations TanStack Query
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - WebSerial API (navigator.serial.requestPort() — Chrome/Edge uniquement)
+    port.open({baudRate: 9600}) → ReadableStreamDefaultReader + WritableStreamDefaultWriter
+  - WebHID API (alternative si firmware HID custom sur le microcontrôleur)
+  - Protocole ASCII sur série (commandes lisibles et débogables facilement)
+  - TanStack Query (onSuccess/onMutate hooks pour déclencher les commandes)
+
+  MATÉRIEL SUGGÉRÉ
+  - Raspberry Pi Pico (RP2040) — WebSerial natif via USB, firmware MicroPython simple
+  - Arduino Nano + WS2812B (FastLED) + SSD1306 OLED (I2C, Adafruit_SSD1306)
+  - ESP32 — WebSerial OU WiFi (peut aussi recevoir des commandes via WebSocket local)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2-3 jours               │
+  │ Effort        : Moyen (+ montage HW)    │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module SerialDriver.ts (WebSerial — connexion + envoi de commandes ASCII)
+  [ ] Protocole de communication documenté (dictionnaire de commandes)
+  [ ] Firmware Arduino/Pico (interpréteur de commandes ASCII + FastLED + SSD1306)
+  [ ] Composant PhysicalPanel (connexion port + test couleurs + preview état)
+  [ ] Déclenchement automatique depuis les mutations TanStack Query
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION À FORT WOW FACTOR, BIEN DÉCOUPÉE
+
+  ★ APPRÉCIATION
+  Une lampe qui passe au rouge quand une Anomalie Critique est ouverte — c'est le
+  genre de feature qui fait que les visiteurs pensent que l'équipe est dans une
+  salle de contrôle de la NASA. Excellent pour les présentations et les sprints reviews.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - Un Arduino Nano standard parle via port série (UART sur USB-CDC). Utiliser
+    WebSerial, pas WebHID. WebHID nécessiterait un firmware USB HID custom.
+  - WebSerial est Chrome/Edge uniquement. Pas Firefox, pas Safari.
+  - La connexion WebSerial nécessite un clic utilisateur (navigator.serial.requestPort()).
+    Impossible d'auto-connecter au démarrage — ajouter un bouton "Connecter le boîtier".
+  - Choisir un protocole ASCII lisible (pas binaire) pour faciliter le debug
+    dans le moniteur série de l'IDE Arduino pendant le développement.
+  - Raspberry Pi Pico est recommandé pour ce projet : MicroPython + USB CDC natif,
+    pas besoin de driver, firmware en 10 lignes de Python.
+
+  ✦ RECOMMANDATION
+  Commencer avec juste le LED (3 couleurs + une LED WS2812B isolée) avant de
+  monter le boîtier complet. Valider WebSerial → LED en 2h, puis ajouter l'OLED,
+  puis le buzzer. Construire la "salle de guerre" progressivement.

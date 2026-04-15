@@ -1,0 +1,145 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 09                                                ║
+║  MODES D'EXÉCUTION — INLINE, WORKER, SHAREDWORKER                      ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Plexus peut s'exécuter entièrement sur le thread principal (inline) ou
+déporter sa logique dans un Worker. L'API publique est identique dans les
+deux cas. La couche WebRTC ne peut jamais quitter le thread principal.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPARAISON DES TROIS MODES
+
+```mermaid
+graph TD
+  subgraph Inline["Mode INLINE (défaut)"]
+    direction LR
+    I_APP["Application"] --> I_CORE["Plexus\n(routing + RTC)\nThread principal"]
+    I_CORE --> I_RTC["RTCDataChannel"]
+  end
+
+  subgraph Worker["Mode WORKER"]
+    direction LR
+    W_APP["Application"] --> W_PROXY["Proxy\n(postMessage)\nThread principal"]
+    W_PROXY <-->|"postMessage"| W_CORE["Plexus core\n(routing + gossip)\nWorker"]
+    W_PROXY --> W_RTC["RTCDataChannel\n(thread principal)"]
+    W_CORE -->|"décision forward"| W_PROXY
+  end
+
+  subgraph SharedWorker["Mode SHAREDWORKER"]
+    direction LR
+    S_APP1["Onglet 1"] --> S_PORT1["port.postMessage"]
+    S_APP2["Onglet 2"] --> S_PORT2["port.postMessage"]
+    S_PORT1 <--> S_CORE["Plexus core\n(SharedWorker)\nUne seule instance"]
+    S_PORT2 <--> S_CORE
+    S_PORT1 --> S_RTC["RTCDataChannel\n(onglet 1)"]
+  end
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SÉPARATION DES RESPONSABILITÉS EN MODE WORKER
+
+```mermaid
+flowchart LR
+  subgraph Main["Thread principal"]
+    RTC["RTCDataChannel\n(réception/envoi)"]
+    PROXY["Proxy API\n(send, broadcast,\nsubscribe, hook)"]
+    BC["BroadcastChannel\n(Satellite relay)"]
+  end
+
+  subgraph W["Worker"]
+    FWD["forward()\ndeliver()"]
+    SEEN["seenMessages\n(déduplication)"]
+    NODES["nodes Map\n(routing table)"]
+    GOSSIP["Gossip\n(STATE_UPDATE)"]
+    PENDING["pendingQueues\n(store-and-forward)"]
+    MESH["exchangeMap\n(maillage intelligent)"]
+  end
+
+  RTC -->|"données brutes\npostMessage"| FWD
+  FWD -->|"décision: envoyer à nodeX\npostMessage"| RTC
+  PROXY -->|"send() / hook()\npostMessage"| FWD
+  FWD -->|"onMessageReceived\nonMessagePending\npostMessage"| PROXY
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SHAREDWORKER — GATEWAY SANS ÉLECTION
+
+```mermaid
+sequenceDiagram
+  participant T1 as Onglet 1
+  participant T2 as Onglet 2
+  participant SW as SharedWorker\n(Plexus core)
+  participant P as Pair distant
+
+  T1->>SW: new SharedWorker() → port.start()
+  Note over SW: Première connexion\n→ devient Gateway de fait\n(pas d'élection nécessaire)
+
+  T2->>SW: new SharedWorker() → port.start()
+  Note over SW: Deuxième connexion\n→ enregistré comme Satellite
+
+  T1->>SW: port.postMessage { type: "SEND", to: "nodeX", ... }
+  SW->>T1: port.postMessage { type: "RTC_SEND", channelId, data }
+  T1->>P: DataChannel.send(data)
+
+  P->>T1: DataChannel message
+  T1->>SW: port.postMessage { type: "RTC_RECV", data }
+  SW->>SW: forward() → deliver()
+  SW->>T2: port.postMessage { type: "MESSAGE_RECEIVED", stamps, body }
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROXY TRANSPARENT — API IDENTIQUE DANS LES TROIS MODES
+
+```mermaid
+flowchart TD
+  CODE["Code applicatif\nnode.send(...)\nnode.onMessageReceived.subscribe(...)"]
+
+  INLINE["new Plexus(opts)\nMode inline"]
+  WORKER["PlexusWorker.create(url, opts)\nProxy postMessage"]
+  SHARED["PlexusSharedWorker.create(url, opts)\nProxy port SharedWorker"]
+
+  CODE --> INLINE
+  CODE --> WORKER
+  CODE --> SHARED
+
+  INLINE --> EXEC["Exécution directe\nsur thread principal"]
+  WORKER --> EXEC2["Exécution dans Worker\n+ délégation RTC\nau thread principal"]
+  SHARED --> EXEC3["Exécution dans SharedWorker\npartagé entre onglets"]
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AVANTAGES ET LIMITES PAR MODE
+
+  MODE INLINE
+  ✓ Zéro overhead de sérialisation
+  ✓ Debugging simple (tout dans un thread)
+  ✗ Gossip + routing sur le thread UI — risque de jank si réseau verbeux
+
+  MODE WORKER
+  ✓ Routing + gossip hors thread principal — UI fluide garantie
+  ✓ Compatible avec les navigateurs sans SharedWorker
+  ✗ Overhead postMessage sur chaque message RTC reçu
+  ✗ RTC toujours sur le thread principal
+
+  MODE SHAREDWORKER
+  ✓ Une seule instance pour tous les onglets — gateway naturel
+  ✓ Survie aux fermetures d'onglets sans ré-élection
+  ✓ Routing centralisé — pas de duplication d'état entre onglets
+  ✗ SharedWorker non disponible sur Safari iOS
+  ✗ RTC toujours délégué à un onglet — si cet onglet se ferme,
+    les DataChannels sont perdus (le SharedWorker survit mais perd ses canaux)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NOTE D'IMPLÉMENTATION
+
+  Le protocole postMessage entre proxy et Worker est interne à Plexus.
+  Une alternative est d'utiliser Comlink (lib Google ~2kb) qui génère
+  automatiquement le proxy depuis n'importe quelle classe exposée dans
+  un Worker — éliminant le câblage manuel du protocole postMessage.

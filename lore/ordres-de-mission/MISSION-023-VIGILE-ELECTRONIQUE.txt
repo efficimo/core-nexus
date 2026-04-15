@@ -1,0 +1,124 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-023                                         ║
+║  LA VIGILE ÉLECTRONIQUE                                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+👁️📈
+
+DÉSIGNATION     : Auto-Surveillance des Performances en Production — Opération Introspection
+CODENAME        : VIGILE-ELECTRONIQUE
+PHASE           : [BETA]
+CLASSIFICATION  : Moteur & Performance
+DÉPENDANCES     : MISSION-006 (@efficimo/monitor — createMonitor, métriques built-in, useMetric)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Un Nexus qui ne surveille pas ses propres performances est aveugle à sa
+propre corruption. Le Terminal de Combat doit être capable de détecter
+ses propres anomalies internes : frames perdues, interactions lentes,
+décalages de rendu. Et quand il détecte qu'il se dégrade, il doit
+s'adapter — réduire ses effets, signaler l'état à l'Architecte.
+
+La Long Animation Frame API (LoAF, Chrome 123+) détecte les frames
+supérieures à 50ms — les fameux "janky frames" qui font ramer l'UI.
+Le PerformanceObserver centralise la collecte de toutes les métriques
+Web Vitals : LCP, FID/INP, CLS. Ce protocole crée un dashboard de
+santé interne en temps réel et un mode dégradé automatique.
+
+Lore-cohérence maximale : le Nexus diagnostique ses propres glitches.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  PROTOCOLE I — INSTANCIATION DU MONITOR
+  1. Créer le singleton monitor = createMonitor({ metrics: [LCP, INP, CLS, FCP, TTFB, LoAF] })
+     depuis @efficimo/monitor (MISSION-006) — 6 métriques Web Vitals actives en une ligne
+     PerformanceObserver, guards de support navigateur et calcul INP p98 sont encapsulés
+
+  PROTOCOLE II — RÉACTIVITÉ UI
+  2. Exposer le monitor via React Context (MonitorProvider) dans l'arbre de composants
+     — les composants consomment useMetric(monitor, 'lcp'), useMetric(monitor, 'inp'), etc.
+  3. Abonner monitor.stream à un handler de mode dégradé :
+     monitor.stream.subscribe(({ metric }) => {
+       if (metric.rating === 'poor') activateDegradedMode()
+     })
+
+  PROTOCOLE III — DASHBOARD SANTÉ + MODE DÉGRADÉ
+  4. Composant PerfDashboard : useMetric() pour chaque métrique — mise à jour réactive
+     automatique sans plumbing manuel (LCP, INP, CLS, TTFB, FCP, LoAF)
+  5. Mode dégradé : classe .perf-degraded sur <body>
+     → désactiver animations CSS lourdes (prefers-reduced-motion ou sélecteur direct)
+     → réduire fréquence de rafraîchissement des composants dynamiques
+  6. Signal visuel dans la navbar : rating 'good' → vert, 'needs-improvement' → orange, 'poor' → rouge
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/monitor >= 0.1.0 — createMonitor, LCP, INP, CLS, FCP, TTFB, LoAF, useMetric
+    (remplace web-vitals npm + PerfMonitor.ts manuel — PerformanceObserver encapsulé)
+    Guards de support navigateur (SSR, LoAF Chrome-only) gérés dans la lib
+  - CSS : classe .perf-degraded sur <body> → désactivation des animations
+    via @media (prefers-reduced-motion) ou sélecteur direct
+  - ObservableValue (via @efficimo/monitor → @efficimo/observable) : pilote
+    le state de santé sans zustand — monitor.get('lcp') suffit comme source de vérité
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Singleton monitor = createMonitor({ metrics: [LCP, INP, CLS, FCP, TTFB, LoAF] }) — MISSION-006
+  [ ] MonitorProvider (React Context) exposant le monitor dans l'arbre de composants
+  [ ] Composant PerfDashboard : widget repliable dans les Paramètres du Terminal
+  [ ] Indicateur de santé dans la navbar (icône colorée selon l'état)
+  [ ] Mode dégradé automatique : classe CSS + réduction des animations
+  [ ] Seuils configurables (alertes jaune/rouge selon les budgets perf)
+  [ ] Test de validation : throttling CPU Chrome DevTools → vérifier détection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — LORE-COHÉRENCE MAXIMALE, VALEUR TECHNIQUE RÉELLE
+
+  ★ APPRÉCIATION
+  Mission élégante conceptuellement et utile en pratique. Un app qui surveille
+  ses propres performances et se dégrade proprement est un signe de maturité
+  technique. La Long Animation Frame API est récente (Chrome 123, 2024) et
+  peu connue — l'utiliser dans le Terminal est un signal fort de modernité.
+  Cohérence lore parfaite : le Nexus diagnostique ses propres glitches internes.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - LOAF vs LONG TASKS : Long Animation Frame API remplace avantageusement
+    l'ancienne Long Tasks API. Elle fournit plus de détails (scripts, style,
+    layout) et est mieux corrélée aux janks perçus par l'utilisateur.
+    Utiliser LoAF en priorité, Long Tasks uniquement comme fallback.
+  - INP vs FID : FID (First Input Delay) est obsolète depuis mars 2024.
+    INP (Interaction to Next Paint) le remplace comme Core Web Vital.
+    @efficimo/monitor expose INP nativement avec calcul p98 correct.
+  - MODE DÉGRADÉ GRANULARITÉ : Éviter de tout désactiver d'un coup.
+    Préférer des niveaux : NOMINAL → ALERTE (réduire animations) →
+    CRITIQUE (désactiver effets lourds, réduire polling). L'utilisateur
+    ne doit pas percevoir une dégradation brutale.
+  - PRODUCTION UNIQUEMENT : Les métriques PerformanceObserver sont
+    significatives en production (hardware réel, réseau réel). En dev
+    avec DevTools ouvert, les chiffres sont faussés. Toujours valider
+    avec un build de production et Chrome sans extensions.
+
+  ✦ RECOMMANDATION
+  Implémenter MISSION-006 (@efficimo/monitor) en premier. Ensuite, brancher
+  createMonitor dans core-nexus avec les 6 métriques built-in et logger
+  monitor.stream en console — valider que les mesures sont cohérentes avant
+  de construire l'UI. MonitorProvider + useMetric + indicateur navbar en second.
+  Mode dégradé en dernier. Tester avec CPU throttling ×4 dans Chrome DevTools
+  pour simuler un mobile bas de gamme et déclencher les seuils 'poor'.

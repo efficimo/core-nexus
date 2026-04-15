@@ -1,0 +1,126 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-018                                         ║
+║  LA PEAU DE CAMÉLÉON                                                     ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🦎🎨
+
+DÉSIGNATION     : Protocoles Visuels Adaptatifs — Opération Interface Vivante
+CODENAME        : PEAU-DE-CAMELEON
+PHASE           : [BETA]
+CLASSIFICATION  : Interface & Expérience
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+L'interface du Terminal de Combat ne doit pas être une coquille rigide.
+Elle doit être vivante — réagissant à son contenu, à son contexte, à son
+espace disponible. Ce protocole explore trois disciplines CSS de pointe :
+
+  CONTAINER QUERIES — Les widgets du Tableau se réorganisent selon l'espace
+  accordé, pas selon la taille de l'écran. Un widget Sigil à 100px de large
+  devient une icône ; à 500px, un panneau interactif complet.
+  ✓ Bien supporté : tous navigateurs modernes depuis 2022.
+
+  CSS HOUDINI (@property) — Des propriétés CSS typées (angle, color, number)
+  animables mathématiquement. Exemple : l'angle d'un gradient qui tourne en
+  douceur — animation normalement impossible sans @property.
+  ✓ Chrome/Edge stable. Firefox support limité (à vérifier selon le projet).
+
+  CSS :has() + ANCHOR POSITIONING — :has() permet à l'interface de réagir
+  à la présence d'éléments (survoler le bouton "Supprimer" change l'ambiance).
+  Anchor Positioning ancre des éléments flottants (tooltips, popovers) à
+  un élément source sans JavaScript de positionnement.
+  ⚠ Anchor Positioning : Chrome 125+ stable. Firefox 131+ (2024). Vérifier compat.
+
+  CSS :focus-within — Style d'un conteneur parent quand un de ses enfants
+  a le focus. Parfait pour les champs de formulaire, les panneaux de filtre,
+  les blocs de saisie d'Anomalie : le bloc entier s'illumine sans JavaScript.
+  ✓ Supporté partout.
+
+  @supports — Détection native de support CSS au niveau du moteur de rendu.
+  Envelopper les règles expérimentales (backdrop-filter, anchor positioning,
+  @property) dans @supports garantit un fallback propre sans JS de détection.
+  ✓ Très bon support (ironiquement, prévoir un fallback pour les très vieux navigateurs).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Convertir les widgets Spark/Sigil/Implant en composants autonomes avec
+     container-type: inline-size et rules @container internes
+  2. Créer un "Thermomètre d'Humeur" avec @property pour animer un gradient :
+     @property --gradient-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  3. Implémenter :has() pour des réactions d'ambiance globale
+     (ex : body:has(.anomalie-critique) change la couleur d'accentuation)
+  4. Utiliser Anchor Positioning pour les tooltips et popovers contextuels :
+     anchor-name: --trigger sur l'élément source ;
+     position-anchor: --trigger sur le tooltip ;
+     top: anchor(bottom) ; left: anchor(left) ;
+  5. Appliquer :focus-within sur les blocs de saisie du Terminal :
+     .anomalie-field:focus-within { border-color: var(--nexus-accent); box-shadow: ... }
+     → zéro JavaScript, accessibilité incluse
+  6. Envelopper les règles expérimentales dans @supports :
+     @supports (anchor-name: --x) { /* Anchor Positioning */ }
+     @supports (backdrop-filter: blur(1px)) { /* glassmorphism */ }
+     → fallback propre sans casser les navigateurs non supportés
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - CSS Container Queries (@container, container-type: inline-size)
+  - CSS Houdini @property (syntax, inherits, initial-value — typé)
+  - CSS :has() selector (bien supporté depuis 2023 dans tous les navigateurs)
+  - CSS Anchor Positioning (anchor-name, position-anchor, anchor() function)
+    Support : Chrome 125+, Firefox 131+, Safari 17.4+
+  - CSS :focus-within (style du parent selon le focus d'un enfant — partout)
+  - @supports (détection native de support CSS — envelopper les règles expérimentales)
+  - CSS custom properties (variables CSS — fallback robuste)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2 jours                 │
+  │ Effort        : Moyen                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Refonte des widgets Spark/Sigil/Implant avec @container
+  [ ] Composant MoodThermometer (@property --gradient-angle animé en CSS pur)
+  [ ] Règles :has() pour ambiance dynamique sur présence d'Anomalies Critiques
+  [ ] Tooltips via Anchor Positioning (remplacement du JS de positionnement)
+  [ ] :focus-within sur tous les blocs de saisie (formulaires, filtres, champs Anomalie)
+  [ ] @supports wrapping sur Anchor Positioning, backdrop-filter, @property
+  [ ] Tableau de compatibilité navigateur documenté pour Anchor Positioning
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION CSS EXTRÊMEMENT SOLIDE
+
+  ★ APPRÉCIATION
+  La mission la plus "clean" du projet CSS. Les trois techniques sont complémentaires
+  et chacune remplace du JavaScript par de la logique déclarative. Container Queries
+  est déjà un must-have dans tout projet modern. @property est la perle rare.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - La syntaxe Anchor Positioning a légèrement changé entre les drafts. La version
+    stable utilise anchor-name (sur la source) et position-anchor (sur le flottant),
+    puis anchor(bottom), anchor(left), etc. dans les propriétés de position.
+    Pas de propriété "position-anchor" sur l'élément source — c'est anchor-name.
+  - @property est au cœur de CSS Houdini. Firefox l'a ajouté tardivement — vérifier
+    le support requis par le projet avant de l'utiliser en production sans fallback.
+  - :has() est désormais bien supporté (tous navigateurs 2023+) — pas de problème.
+  - Container Queries : ne pas oublier container-type: inline-size sur le parent
+    (ou container-type: size pour les deux axes). Sans ça, @container ne fonctionne pas.
+
+  ✦ RECOMMANDATION
+  Commencer par Container Queries (valeur immédiate, support parfait), puis @property
+  pour l'effet visuel "wow", puis Anchor Positioning pour les tooltips. Les trois
+  peuvent être développés indépendamment et livrés progressivement.

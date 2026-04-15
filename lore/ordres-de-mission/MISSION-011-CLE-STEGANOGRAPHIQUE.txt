@@ -1,0 +1,104 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-011                                         ║
+║  LA CLÉ STÉGANOGRAPHIQUE                                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔑🖼️
+
+DÉSIGNATION     : Authentification par Image Mémoire — Opération Pixels Secrets
+CODENAME        : CLE-STEGANOGRAPHIQUE
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Sécurité & Chiffrement
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Chez les Pixel Architects, les secrets ne se gardent pas dans des coffres.
+Ils se dissimulent dans la lumière elle-même.
+
+Ce protocole expérimental explore la stéganographie visuelle : la Clé de
+Compilation de l'Architecte est encodée dans les valeurs de couleur de son
+image de profil via l'algorithme LSB (Least Significant Bit). À l'œil humain,
+l'image est inchangée. Pour le Terminal de Combat, elle est un artefact physique.
+
+L'Architecte glisse sa photo sur l'interface. Le Terminal lit les valeurs
+de chaque pixel via l'API Canvas, extrait les bits encodés, reconstruit la Clé,
+et déverrouille les Archives.
+
+⚠ CONTRAINTE CRITIQUE : PNG uniquement — JPEG détruit les LSB par compression
+  avec perte, rendant la clé irrecupérable.
+⚠ AVERTISSEMENT SÉCURITÉ : La sécurité est dans l'obscurité (security through
+  obscurity). Quiconque connaît la méthode peut extraire la clé de n'importe
+  quelle image. Mécanisme pédagogique et de présentation, pas de sécurité réelle.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Implémenter l'encodeur LSB : modifier les bits de poids faible des canaux
+     RGB de chaque pixel pour encoder la payload (clé de déchiffrement)
+  2. Implémenter le décodeur : lecture des pixels via Canvas getImageData(),
+     extraction des LSB, reconstruction de la payload, validation par checksum
+  3. Forcer le format PNG en sortie (canvas.toBlob('image/png')) pour préserver
+     les LSB — toute recompression JPEG invalide la clé
+  4. Créer une page "Forge de l'Artefact" (encodage + prévisualisation avant/après)
+  5. Créer la page "Authentification par Artefact" (drag & drop de l'image)
+  6. Calculer la capacité maximale d'une image : (largeur × hauteur × 3) / 8 octets
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - HTML Canvas API (getImageData / putImageData / toBlob('image/png'))
+  - Algorithme LSB (Least Significant Bit) avec header de longueur et checksum
+  - File API moderne : file.arrayBuffer() / createObjectURL()
+    (FileReader est déprécié au profit de l'API File synchrone)
+  - Web Crypto API (SHA-256 pour le checksum de la payload extraite)
+  - OffscreenCanvas dans un Worker (traitement hors thread principal)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)      │
+  │ Durée estimée : 3 jours                 │
+  │ Effort        : Élevé                   │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module steganography.ts (encode / decode LSB avec header de longueur)
+  [ ] Validation du checksum SHA-256 de la payload
+  [ ] Contrôle de capacité (taille image vs taille clé)
+  [ ] Export PNG obligatoire (canvas.toBlob('image/png'))
+  [ ] Page "Forge de l'Artefact" (encodage + comparaison pixel avant/après zoomée)
+  [ ] Composant ArtifactLogin (drag & drop, extraction, déverrouillage)
+  [ ] Test unitaire : encode → decode → clé identique (5 images test)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION SPECTACULAIRE, À USAGE PÉDAGOGIQUE ASSUMÉ
+
+  ★ APPRÉCIATION
+  Le "wow factor" de cette mission est maximal en présentation. "Ma photo de profil
+  est ma clé d'accès" — personne ne voit ça venir. Techniquement honnête et
+  entièrement faisable en 3 jours. Parfait pour une démo d'équipe.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - PNG OBLIGATOIRE : toute sauvegarde en JPEG ou WebP avec perte détruit les LSB.
+    Forcer canvas.toBlob('image/png') et rejeter tout fichier non-PNG en entrée.
+  - FileReader API est déprécié depuis 2022. Utiliser file.arrayBuffer() ou
+    URL.createObjectURL() pour le drag & drop.
+  - La capacité LSB dépend de la taille de l'image : une clé AES-256 = 32 octets
+    = 256 bits. Besoin minimum d'une image 10×10 pixels (300 bits disponibles).
+  - Ce n'est pas de la vraie sécurité : n'importe qui avec le code source peut
+    extraire la clé de n'importe quelle image. À utiliser et présenter comme
+    un mécanisme ludique, pas comme une protection réelle.
+
+  ✦ RECOMMANDATION
+  Ajouter une option "Comparer les pixels" dans la Forge qui montre en zoom ×20
+  la différence quasi-imperceptible entre l'original et l'image encodée. C'est
+  le moment "aha" de la démonstration.

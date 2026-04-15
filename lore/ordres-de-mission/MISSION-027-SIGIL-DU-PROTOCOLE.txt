@@ -1,0 +1,124 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-027                                         ║
+║  LE SIGIL DU PROTOCOLE                                                  ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔗📁
+
+DÉSIGNATION     : Intégration OS Profonde — Protocoles, Fichiers et Partage
+CODENAME        : SIGIL-DU-PROTOCOLE
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Arsenal Physique & Intégration Système
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Une PWA reste un site web jusqu'à ce qu'elle grave son Sigil dans l'OS.
+Ce protocole accomplit cette transformation. Trois axes d'intégration :
+un schéma d'URL personnalisé pour ouvrir le Terminal depuis n'importe
+quelle app, un handler de fichiers .nexus pour importer des archives de
+mission, et un Share Target pour recevoir du contenu partagé depuis
+n'importe quelle application de l'appareil.
+
+Après cette mission, un lien nexus://anomalie/42 dans un email ou un
+message Slack ouvre directement la fiche de l'anomalie dans le Terminal.
+Un fichier .nexus double-cliqué lance l'import. Une sélection de texte
+dans n'importe quelle app peut être envoyée au Terminal en deux gestes.
+Le Terminal est désormais une application native à part entière.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  PROTOCOLE I — URL SCHEME CUSTOM (Protocol Handler API)
+  1. Déclarer dans le manifest.json :
+     "protocol_handlers": [{ "protocol": "web+nexus", "url": "/open?uri=%s" }]
+  2. Enregistrer dynamiquement :
+     navigator.registerProtocolHandler('web+nexus', '/open?uri=%s')
+  3. Route /open : parser l'URI web+nexus://anomalie/42 → router vers la fiche
+     → un lien dans Slack/email/terminal OS ouvre directement le Terminal
+
+  PROTOCOLE II — FILE HANDLER (.nexus)
+  4. Déclarer dans le manifest.json :
+     "file_handlers": [{ "action": "/import", "accept": { "application/nexus": [".nexus"] } }]
+  5. Lire le fichier via launchQueue (API expérimentale Chrome) :
+     window.launchQueue.setConsumer(launchParams => {
+       launchParams.files[0].getFile().then(f => importNexusArchive(f))
+     })
+  6. Définir le format .nexus (JSON chiffré ou archive ZIP) et le parser
+
+  PROTOCOLE III — SHARE TARGET
+  7. Déclarer dans le manifest.json :
+     "share_target": { "action": "/share", "method": "POST",
+       "enctype": "multipart/form-data",
+       "params": { "title": "title", "text": "text", "url": "url" } }
+  8. Route /share (Service Worker) : intercepter la requête POST,
+     extraire les données partagées, les injecter dans le Terminal
+     (créer une note rapide, pré-remplir une anomalie, etc.)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Protocol Handler API : navigator.registerProtocolHandler() + manifest protocol_handlers
+    Schéma : web+nexus:// (le préfixe web+ est requis pour les custom schemes)
+  - File Handling API : manifest file_handlers + window.launchQueue (Chrome 102+)
+    ⚠ Expérimental — nécessite PWA installée
+  - Web Share Target API : manifest share_target + Service Worker fetch handler
+    Fonctionne sur Android Chrome installé, Chrome desktop (partiel), pas Safari
+  - manifest.json : champ "scope", "start_url" doivent être cohérents avec les routes
+  - Service Worker : intercepter les POST vers /share (méthode fetch)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)       │
+  │ Durée estimée : 3-5 jours               │
+  │ Effort        : Élevé                   │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] manifest.json : protocol_handlers, file_handlers, share_target déclarés
+  [ ] Route /open : parser web+nexus:// et router vers l'entité cible
+  [ ] Module ProtocolHandler.ts : registerProtocolHandler + parsing URI
+  [ ] Route /import : launchQueue consumer + parser format .nexus
+  [ ] Définition du format .nexus (schéma JSON, version, chiffrement optionnel)
+  [ ] Route /share (Service Worker) : extraction et injection des données partagées
+  [ ] UI : confirmation visuelle à chaque réception (toast "Import reçu", etc.)
+  [ ] Tests sur PWA installée (les 3 protocoles nécessitent l'installation)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — TRANSFORMATION PWA → APP NATIVE, SUPPORT FRAGMENTÉ
+
+  ★ APPRÉCIATION
+  Mission symboliquement importante : c'est ce qui distingue une PWA installée
+  d'un simple site web. Le schéma web+nexus:// en particulier a une valeur
+  pratique immédiate — copier-coller un lien dans un email et voir le Terminal
+  s'ouvrir directement sur la bonne anomalie est impressionnant et utile.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - PWA INSTALLÉE OBLIGATOIRE : Les trois protocoles nécessitent que la PWA
+    soit installée (manifest + Service Worker + HTTPS). Tester dans Chrome
+    avec "Installer l'application" activé.
+  - web+nexus:// vs nexus:// : Les navigateurs n'acceptent que les schémas
+    préfixés web+ pour les custom protocols. nexus:// seul est refusé.
+  - FILE HANDLING : window.launchQueue n'est disponible que sur Chrome 102+
+    avec la PWA installée. Toujours vérifier 'launchQueue' in window.
+  - SHARE TARGET POST : Le Service Worker doit intercepter la requête POST
+    vers /share avant que React Router ne la gère. L'ordre des fetch handlers
+    est critique. Stocker les données dans IndexedDB puis rediriger vers /.
+  - GITHUB PAGES : Les routes /open, /import, /share doivent être gérées
+    en SPA (404 → index.html). Vérifier la config de redirection GitHub Pages.
+
+  ✦ RECOMMANDATION
+  Implémenter les trois protocoles dans l'ordre de valeur décroissante :
+  1. web+nexus:// (le plus visible, fonctionne même sans installation)
+  2. Share Target (très utile mobile)
+  3. File Handler (le plus expérimental)
+  Tester chaque étape avec la PWA installée en local via HTTPS (localhost).

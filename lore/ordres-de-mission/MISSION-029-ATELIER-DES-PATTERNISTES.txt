@@ -1,0 +1,120 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-029                                         ║
+║  L'ATELIER DES PATTERNISTES                                              ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🏛️📐
+
+DÉSIGNATION     : Formation par le Jeu aux Design Patterns — Opération Transmission du Savoir
+CODENAME        : ATELIER-DES-PATTERNISTES
+PHASE           : [BETA]
+CLASSIFICATION  : Intelligence & Formation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Design Patterns sont les doctrines de combat des Pixel Architects.
+Théoriques sur le papier, ils deviennent instinctifs seulement par la pratique.
+Ce protocole crée une page /laboratory dans le Terminal — un terrain d'entraînement
+interactif où chaque Pattern est enseigné par un mini-jeu qui l'incarne.
+
+  OBSERVATEUR (Tamagotchi d'escouade) — Un composant "Météo" de l'équipe
+  réagit aux changements de statut des Architectes. Défi : ajouter un nouveau
+  composant écouteur sans modifier le composant Météo.
+
+  STRATÉGIE (Sélecteur d'algorithme) — Le tableau de bord des Sparks a trois
+  modes de rendu (grille, chaos, emoji). Défi : aucun if/else dans le composant,
+  uniquement currentStrategy.render(data).
+
+  PROXY (Le Videur) — Un proxy ES6 sur le Codex des Anomalies journalise chaque
+  accès avec un son via Web Audio API et bloque les modifications non autorisées.
+
+  ADAPTATEUR (La Manette JS) — Piloter le Terminal avec un gamepad via
+  un adaptateur qui traduit les signaux MIDI/manette en commandes Nexus.
+
+  COMMANDE (L'Undo Infini) — Chaque action crée un objet Command stocké
+  dans un historique. Bouton "Rejouer" ou Ctrl+Z pour annuler.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Créer la page /laboratory avec 5 sections (une par pattern)
+  2. Implémenter chaque mini-jeu pédagogique avec son défi interactif
+  3. Ajouter un système de validation de défi (bouton "Tester ma solution")
+  4. Afficher les explications du pattern avec analogies (non techniques)
+  5. Lier les patterns à des parties réelles du code Nexus existant
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Design Pattern Observateur :
+    ⚠ EventEmitter est Node.js, pas disponible en navigateur natif.
+    En browser : utiliser EventTarget + dispatchEvent(new CustomEvent('eventName', { detail }))
+    ou une Map<string, Set<Function>> maison. Ne pas importer 'events' de Node.
+  - Design Pattern Stratégie (interface de rendu interchangeable via union de types TS)
+  - Design Pattern Proxy (ES6 Proxy — handler.get/set/deleteProperty)
+    ⚠ Un objet Proxy ne peut pas être structuredCloned → ne pas le passer
+    en postMessage Worker. Le Proxy doit rester dans le thread principal.
+  - Design Pattern Adaptateur (traduction d'interface — parfait pour MISSION-036)
+  - Design Pattern Commande (Command + CommandHistory avec pile d'annulation)
+  - Web Audio API (OscillatorNode + GainNode pour le son de log du Proxy)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : 3 jours (5 mini-jeux)   │
+  │ Effort        : Moyen                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Page /laboratory avec routing TanStack Router
+  [ ] 5 composants de mini-jeux (un par pattern)
+  [ ] Système de défi + validation
+  [ ] Documentation inline (tooltips explicatifs, analogies)
+  [ ] Liens vers les usages réels du pattern dans le code Nexus
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION PÉDAGOGIQUE FORTE, UNE CORRECTION IMPORTANTE
+
+  ★ APPRÉCIATION
+  L'apprentissage par l'exemple interactif est la meilleure approche pour
+  les patterns. Le mini-jeu du Proxy avec son feedback sonore est le plus
+  mémorable. Le pattern Commande est le plus directement réutilisable dans
+  le reste du projet (MIDI, Gamepad, actions Nexus). Mission idéale pour
+  embarquer des nouvelles recrues.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION OBSERVATEUR : EventEmitter n'existe pas dans le navigateur —
+    c'est une classe de Node.js. En browser, deux options :
+    1. EventTarget natif : class NexusBus extends EventTarget, utiliser
+       addEventListener / dispatchEvent / removeEventListener. Propre et standard.
+    2. Map<string, Set<Function>> maison : plus simple à enseigner comme POC
+       pédagogique, montre explicitement le mécanisme pub/sub.
+    Ne pas importer 'events' depuis Node.js — ça ne fonctionne pas directement
+    en browser sans bundler polyfill et c'est une mauvaise habitude à enseigner.
+  - ES6 PROXY ET STRUCTUREDCLONE : Un objet Proxy ne survit pas à structuredClone()
+    ni à postMessage(). Impossible de l'envoyer à un Worker. Cette limitation
+    est importante à mentionner dans la démo du Proxy — les Recrues tomberont
+    sur ce comportement si elles essaient de passer le proxy à un Worker.
+  - PATTERN COMMANDE ET UNDO : Pour l'undo, s'assurer que chaque Command
+    implémente execute() ET undo(). Stocker une pile (array) + un pointeur.
+    Ctrl+Z dépile en appelant undo(). Ctrl+Y re-exécute.
+  - LIER AU CODE RÉEL : Le Core Nexus utilise déjà un Observable custom
+    (MISSION-016, BroadcastChannel). C'est une implémentation réelle du pattern
+    Observateur à montrer comme exemple vivant dans la démo.
+
+  ✦ RECOMMANDATION
+  Commencer par le pattern Commande — il est le plus utile dans le projet
+  (MIDI, Gamepad, toutes les mutations). Ensuite Observateur (avec EventTarget
+  natif, montrer la base de l'architecture réactive). Proxy en dernier —
+  le plus fun mais aussi le plus limité en pratique. Chaque pattern devrait
+  avoir un "Où l'utilise-t-on dans le vrai code Nexus ?" comme ancrage.

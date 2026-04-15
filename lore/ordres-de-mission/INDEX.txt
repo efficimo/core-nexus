@@ -1,0 +1,93 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║           REGISTRE DES ORDRES DE MISSION — CORE NEXUS                   ║
+║                   "Architecto ergo sum."                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+CLASSIFICATION : ACCÈS MAÎTRE-PATTERNISTE REQUIS
+Archivé dans la Structure Mère — Nœud ∞
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GROUPE 0 — FONDATION MONOREPO
+  MISSION-000  🏗️📦  ARCHITECTURE-MONOREPO      ★★☆☆☆  pnpm workspaces + Turborepo + Changesets
+
+GROUPE 1 — PACKAGES OPEN SOURCE  (couches de dépendance croissante)
+
+  L1 — zéro dépendance externe
+  MISSION-001  👁️⚡  OBSERVABLE                 ★★☆☆☆  @efficimo/observable — système réactif (npm)
+
+  L2 — dépendent de observable
+  MISSION-002  💾⚡  STORAGE                    ★★☆☆☆  @efficimo/storage — stockage réactif (npm)
+  MISSION-003  🔐⚡  CRYPTOVAULT                ★★★☆☆  @efficimo/crypto — chiffrement AES + WebAuthn (npm)
+  MISSION-004  ⚙️🌊  REACTIVE-WORKERS           ★★★☆☆  @efficimo/workers — Web Workers réactifs (npm)
+  MISSION-005  ⏳🧠  MEMENTO                    ★★☆☆☆  @efficimo/memento — historique undo/redo réactif (npm)
+  MISSION-006  📊⚡  MONITOR                    ★★☆☆☆  @efficimo/monitor — métriques Web Vitals réactives (npm)
+
+  L3 — dépend de observable + storage
+  MISSION-007  🪟⚓  ECRANS-NOMADES             ★★★☆☆  @efficimo/dock — panels détachables réactifs (npm)
+
+  L4/L5 — protocoles réseau
+  MISSION-008  🕸️📡  RESEAU-MESH-FANTOME        ★★★★☆  plexus — WebRTC P2P via Gists GitHub (npm)
+  MISSION-009  🌌🕸️  INTERFACE-CONSTELLATION    ★★★☆☆  plexus-ui — visualisation SVG du mesh (npm)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GROUPE 2 — APPLICATION [ALPHA] — Sécurité & Fondation
+  MISSION-010  🔐🏰  CITADELLE-ZERO             ★★★★☆  Chiffrement souverain + Biométrie WebAuthn
+  MISSION-011  🔑🖼️  CLE-STEGANOGRAPHIQUE       ★★★★☆  Clé cachée dans une image (Canvas)
+  MISSION-012  ⏳🕰️  MACHINE-TEMPORELLE         ★★★☆☆  Audit temporel (Memento + IndexedDB)
+  MISSION-013  🛡️📡  SENTINELLE-SILENCIEUSE     ★★★☆☆  Sync hors-ligne (Service Worker)
+  MISSION-014  💾👻  DISQUE-FANTOME             ★★☆☆☆  Cache API comme base NoSQL virtuelle
+  MISSION-015  📱⚡  BASTION-PWA                ★★☆☆☆  Installation PWA multi-OS
+  MISSION-016  🔄📑  SYNCHRONISATION-ONGLETS    ★★☆☆☆  BroadcastChannel + Web Locks
+  MISSION-017  📜🗃️  ARCHIVE-DECLARATIVE        ★★☆☆☆  HTML avancé (dialog, template, details)
+  MISSION-018  🦎🎨  PEAU-DE-CAMELEON           ★★★☆☆  CSS Houdini + Container Queries
+  MISSION-019  🎬✨  CHRONIQUE-CINEMATIQUE      ★★★☆☆  View Transitions + Scroll-Driven Animations
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GROUPE 3 — APPLICATION [BETA] — Interactions & Intégrations
+  MISSION-020  🤝🔌  AMBASSADEURS               ★★★★☆  Registre OAuth2/token unifié — GitHub, GitLab, Google
+  MISSION-021  ⚡🌊  FLUX-DE-TRAITEMENT         ★★★☆☆  Web Workers + Streams API — analytics réactifs
+  MISSION-022  ⚙️🗄️  FORGE-WASM                 ★★★★☆  WASM + SQLite — base de données embarquée
+  MISSION-023  👁️📈  VIGILE-ELECTRONIQUE        ★★★☆☆  PerformanceObserver + Long Animation Frame API
+  MISSION-024  ⏱️👻  CRENEAU-FANTOME            ★★☆☆☆  requestIdleCallback — tâches différées en temps mort
+  MISSION-025  📊🔌  TABLEAU-MULTI-SOURCE       ★★★☆☆  Dashboard unifié multi-outils (Adapter Pattern)
+  MISSION-026  🔔📳  SIGNAL-APPEL               ★★★☆☆  Web Push + Notifications + Badge API
+  MISSION-027  🔗📁  SIGIL-DU-PROTOCOLE         ★★★★☆  Protocol Handler + File Handling + Share Target
+  MISSION-028  📺🖥️  PRESENTATEUR-COMMANDEMENT  ★★☆☆☆  Presentation API — double écran
+  MISSION-029  🏛️📐  ATELIER-DES-PATTERNISTES   ★★☆☆☆  Workshop Design Patterns ludiques
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GROUPE 4 — APPLICATION [NEXUS+] — Expérimental & Hardware
+  MISSION-030  🧠🔮  ORACLE-LOCAL               ★★★★☆  IA locale (TensorFlow.js / Transformers.js)
+  MISSION-031  🏫⚛️  ECOLE-DES-ARCHITECTES      ★★★☆☆  Pédagogie React — cycle de vie avancé
+  MISSION-032  📡🎵  SIGNAL-PROXIMITAIRE        ★★★★★  Détection de présence via AudioContext
+  MISSION-033  🖥️💡  CENTRE-DE-COMMANDEMENT     ★★★☆☆  WebHID/WebSerial — boîtier LED/OLED
+  MISSION-034  🎹🎛️  INTERFACE-HARMONIQUE       ★★★☆☆  Web MIDI — Launchpad comme panneau de contrôle
+  MISSION-035  🔵💡  LIAISON-BLUETOOTH          ★★★☆☆  Web Bluetooth — lampe physique de statut
+  MISSION-036  🎮📳  CAPTEURS-SENSORIELS        ★★★☆☆  Gamepad + Device Posture + NFC + Vibration
+  MISSION-037  🎤🗣️  VOIX-DU-KERNEL             ★★☆☆☆  Web Speech — assistant vocal mains-libres
+  MISSION-038  ⚗️🔬  ARSENAL-QUANTIQUE          ★★★★☆  APIs expérimentales (WebGPU, Temporal, etc.)
+  MISSION-039  🥽🌐  HOLOGRAMME-XR              ★★★★★  WebXR — Kanban spatial 3D
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LÉGENDE DIFFICULTÉ
+  ★☆☆☆☆  Recrue          (< 2h)
+  ★★☆☆☆  Architecte      (demi-journée)
+  ★★★☆☆  Maître          (1-2 jours)
+  ★★★★☆  Champion        (3-5 jours)
+  ★★★★★  Grand Architecte (1 semaine+)
+
+PHASES DE DÉPLOIEMENT
+  [ALPHA]   Phase Fondation — socle et sécurité                (010-019)
+  [BETA]    Phase Interaction — collaboration et UX             (020-029)
+  [NEXUS+]  Phase Ascension — hardware et expérimental         (030-039)
+
+NUMÉROTATION
+  000       Fondation monorepo
+  001-009   Packages open source (couches de dépendance)
+  010-019   Application ALPHA
+  020-029   Application BETA
+  030-039   Application NEXUS+

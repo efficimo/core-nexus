@@ -1,0 +1,110 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-036                                         ║
+║  LES CAPTEURS SENSORIELS                                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🎮📳
+
+DÉSIGNATION     : Arsenal de Périphériques Exotiques — Opération Multimodale
+CODENAME        : CAPTEURS-SENSORIELS
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Arsenal Physique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole regroupe quatre capteurs physiques du Terminal. Chaque POC est
+indépendant. Disponibilité navigateur/OS résumée pour chaque capteur.
+
+  GAMEPAD API ✓ Desktop + Mobile — Un contrôleur (Xbox, PlayStation) devient
+  la manette de navigation du Tableau. Joystick gauche : navigation. Bouton A :
+  ouvrir l'Anomalie. Triggers : changer de projet.
+  Polling obligatoire via requestAnimationFrame (pas d'événements pour les axes).
+
+  DEVICE POSTURE API ⚠ Expérimental — Sur terminal pliable (Surface Duo),
+  détecter l'angle de pliage pour adapter l'interface en bifold.
+  Support très limité (Chrome sur appareils foldable uniquement).
+
+  WEB NFC API ⚠ Chrome Android uniquement — Un tag NFC collé sur le bureau
+  ouvre l'Anomalie assignée ou déverrouille le Codex de l'Architecte.
+  Non disponible sur desktop, iOS, Firefox.
+
+  VIBRATION API ⚠ Android Chrome — Signatures haptiques distinctes selon
+  la sévérité des événements. Non disponible sur iOS (Safari ne supporte pas).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  [GAMEPAD — accessible à tous sur desktop]
+  1. Polling du Gamepad via requestAnimationFrame (navigator.getGamepads())
+  2. Mapper axes + boutons sur navigation du Tableau
+  3. Overlay de contrôles actifs (guide visuel des boutons)
+
+  [DEVICE POSTURE — expérimental foldable]
+  4. Détecter l'état via navigator.devicePosture.type ('continuous' | 'folded')
+  5. Layout bifold : CSS @media (device-posture: folded) + env(fold-top)
+
+  [NFC — Chrome Android uniquement]
+  6. NDEFReader.scan() → lire identifiant → mapper sur Anomalie
+  7. NDEFWriter.write() → encoder données Architecte dans un tag NFC
+
+  [VIBRATION — Android Chrome uniquement]
+  8. navigator.vibrate([200]) — court = notification normale
+  9. navigator.vibrate([500, 100, 500]) — pattern = corruption critique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Gamepad API : navigator.getGamepads() dans une boucle rAF
+    (gamepadconnected event pour détecter la connexion initiale)
+  - Device Posture API : navigator.devicePosture (expérimental, flag Chrome)
+    + CSS @media (device-posture: folded) + env(fold-top / fold-left...)
+  - Web NFC : NDEFReader, NDEFWriter (Chrome Android, HTTPS requis)
+  - Vibration API : navigator.vibrate(pattern) (Android Chrome, pas iOS)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 3 jours (4 POC indep.)  │
+  │ Effort        : Moyen par POC           │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module GamepadNavigator.ts (polling rAF + mapping boutons/axes)
+  [ ] Overlay guide contrôleur (affiché quand gamepad connecté)
+  [ ] Layout PostureAdaptive (CSS + env fold variables — si matériel disponible)
+  [ ] Module NFCBadge.ts (NDEFReader scan + NDEFWriter encode — Chrome Android)
+  [ ] Module HapticSignatures.ts (patterns vibration nommés — Android Chrome)
+  [ ] Page "Laboratoire Capteurs" pour tester chaque modalité
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION À PRIORISER PAR DISPONIBILITÉ MATÉRIELLE
+
+  ★ APPRÉCIATION
+  Le Gamepad API est le meilleur ROI de cette mission — universel, fun, accessible.
+  Piloter le Tableau avec une manette Xbox pendant un sprint review, ça marque les
+  esprits. Le NFC badge est le plus "cyberpunk" conceptuellement.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - GAMEPAD : Il n'y a pas d'événements pour les changements d'axes (seulement
+    gamepadconnected/disconnected). Le polling dans requestAnimationFrame est obligatoire.
+    Faire tourner la boucle rAF uniquement quand un gamepad est connecté.
+  - NFC : Chrome Android uniquement, pas de desktop, pas iOS, pas Firefox.
+    Les tags NFC NDEF sont peu coûteux (~0.10€/tag sur Amazon). Bonne démo mobile.
+  - VIBRATION : iOS Safari ne supporte pas navigator.vibrate(). Android Chrome OK.
+  - DEVICE POSTURE : Très expérimental. Nécessite un appareil foldable réel ou
+    l'émulation DevTools (Chrome DevTools > More Tools > Sensors > Device Posture).
+
+  ✦ RECOMMANDATION
+  Ordre de priorité conseillé : Gamepad (desktop, universel, fun) → Vibration
+  (Android, 30min de code) → NFC (si quelqu'un a un Android Chrome + tags NFC)
+  → Device Posture (si quelqu'un a un appareil foldable ou veut tester en DevTools).

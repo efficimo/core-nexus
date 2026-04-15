@@ -1,0 +1,127 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 08                                                ║
+║  FILE D'ATTENTE PENDANTE — STORE-AND-FORWARD                            ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Un message dont la destination est inconnue ou injoignable n'est pas
+abandonné. Il attend dans une file par destination et est retransmis
+dès qu'un chemin devient disponible.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CYCLE DE VIE D'UN MESSAGE PENDANT
+
+```mermaid
+stateDiagram-v2
+  [*] --> routing : send() appelé
+
+  routing --> delivered : route connue\net pair joignable
+  routing --> pending : noRoute\nou peerFailed
+
+  pending --> retry : onPeerConnected\nou STATE_UPDATE reçu\nou timer (15s)
+
+  retry --> delivered : route disponible\nlivraison réussie
+  retry --> pending : toujours injoignable\n(attempts++)
+
+  pending --> expired : age > pendingTtl (5min)\nou attempts ≥ pendingMaxAttempts
+
+  delivered --> [*]
+  expired --> [*] : onMessageExpired émis
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DÉCLENCHEURS DE DRAIN DE LA FILE
+
+```mermaid
+flowchart TD
+  T1["onPeerConnected\n(nouveau pair direct)"]
+  T2["STATE_UPDATE reçu\n(routing table enrichie)"]
+  T3["Timer périodique\n(toutes les 15s)"]
+
+  DRAIN["drain()\nPour chaque nodeId en file :\n  → forward() rappelé sur chaque message"]
+
+  T1 --> DRAIN
+  T2 --> DRAIN
+  T3 --> DRAIN
+
+  DRAIN --> OK["Livraison réussie\n→ retiré de la file\n→ ajouté à seenMessages"]
+  DRAIN --> FAIL["Échec à nouveau\n→ reste en file\n→ attempts++"]
+  DRAIN --> EXP["age > TTL\nou attempts ≥ max\n→ onMessageExpired\n→ DropReason: expired"]
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCÉNARIO — DESTINATION HORS LIGNE PUIS RETOUR
+
+```mermaid
+sequenceDiagram
+  participant A
+  participant B
+  participant D as D (hors ligne)
+
+  A->>A: send({ to: D, type: "ANOMALIE_UPDATE" })
+  Note over A: D absent de nodes\n→ DropReason: noRoute
+  A->>A: pendingQueues["D"].push(envelope)\nonMessagePending émis
+
+  Note over D: D se reconnecte\nvia B
+
+  B->>A: STATE_UPDATE { D: dist=2, via=B }
+  Note over A: routing table mise à jour\n→ drain() déclenché
+
+  A->>A: drain() → forward(envelope)
+  Note over A: route[D].via = B\n→ envoi possible
+
+  A->>B: enveloppe hops=["A"]
+  B->>D: enveloppe hops=["A","B"]
+  Note over D: stamps.to === D\n→ deliver ✓\nonMessageReceived émis
+  Note over A: message retiré de pendingQueues["D"]
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DE LA FILE ET EVICTION FIFO
+
+```mermaid
+flowchart LR
+  subgraph "pendingQueues (Map)"
+    subgraph "nodeId-D (max 50)"
+      M1["msg-001\nqueuedAt: T\nattempts: 2"]
+      M2["msg-002\nqueuedAt: T+10s\nattempts: 1"]
+      M3["msg-003\nqueuedAt: T+20s\nattempts: 0"]
+    end
+    subgraph "nodeId-E (max 50)"
+      M4["msg-010\nqueuedAt: T+5s\nattempts: 0"]
+    end
+  end
+
+  NEW["Nouveau message\nvers D"] -->|"file pleine (50) ?\n→ shift() le plus ancien"| M1
+  NEW -->|"push()"| M3
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INTERACTION AVEC SEENMESSAGES
+
+```mermaid
+flowchart TD
+  SEND["send() → pending"]
+  NOTE1["⚠ PAS ajouté à seenMessages\nà ce stade"]
+
+  RETRY["drain() → forward() réussi"]
+  NOTE2["✓ ajouté à seenMessages\nseulement ici"]
+
+  SEND --> NOTE1
+  RETRY --> NOTE2
+
+  NOTE2 --> WHY["Pourquoi ?\nSi ajouté trop tôt :\nle premier retry serait\nconsidéré 'duplicate'\net silencieusement ignoré"]
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PARAMÈTRES PLEXUS ASSOCIÉS
+
+  pendingTtl           : 300 000  — durée max en file (ms) — 5 minutes
+  pendingMaxSize       : 50       — messages max par destination (FIFO eviction)
+  pendingRetryInterval : 15 000   — période du timer de retry (ms)
+  pendingMaxAttempts   : 10       — tentatives max avant abandon (DropReason: expired)

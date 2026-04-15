@@ -1,0 +1,101 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-014                                         ║
+║  LE DISQUE FANTÔME                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+💾👻
+
+DÉSIGNATION     : Virtualisation du Stockage Local — Opération Disque Infini
+CODENAME        : DISQUE-FANTOME
+PHASE           : [ALPHA]
+CLASSIFICATION  : Archives & Persistance
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Codex du Nexus grossit. Les 5 méga-octets du stockage standard (localStorage)
+ne suffisent plus à contenir les Archives d'une escouade active. Ce protocole en
+deux axes exploite des zones de mémoire du Terminal de Combat bien plus vastes :
+
+AXE 1 — DISQUE VIRTUEL (Cache API comme base NoSQL — usage créatif)
+  La Cache API, conçue pour les requêtes HTTP, peut être détournée pour stocker
+  des volumes massifs de données en les enveloppant dans de faux objets Response.
+  Capacité : selon l'espace disque disponible (quota navigateur, souvent plusieurs Go).
+  Note : il s'agit d'un détournement créatif à valeur pédagogique — en production,
+  IndexedDB (via Dexie.js) est le choix canonique pour les grandes collections.
+
+AXE 2 — MIROIR LOCAL (File System Access API)
+  L'application demande l'autorisation d'écrire directement dans un dossier du
+  système de fichiers de l'Architecte (ex: Documents/NexusSync). Les Codex sont
+  synchronisés localement — un pont physique entre le Terminal et l'OS.
+  ⚠ Chrome/Edge uniquement — Firefox ne supporte pas File System Access API.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Créer une couche d'abstraction StorageEngine avec interface unifiée
+     capable de basculer entre localStorage, Cache API, et File System Access API
+     selon les capacités du Terminal détecté (feature detection)
+  2. Appeler navigator.storage.persist() pour demander le stockage durable
+     (empêche le navigateur d'effacer les données sous pression mémoire)
+  3. Encapsuler les Codex chiffrés dans de faux objets Response pour les
+     stocker dans la Cache API (exercice de détournement créatif documenté)
+  4. Demander l'accès au dossier local et synchroniser les Codex (FSAPI)
+  5. Afficher un indicateur de stockage utilisé / disponible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Cache API (stockage HTTP détourné — usage créatif/pédagogique)
+  - File System Access API (showDirectoryPicker — Chrome/Edge seulement)
+  - StorageManager API (navigator.storage.estimate() + navigator.storage.persist())
+  - IndexedDB via Dexie.js (alternative recommandée pour la prod)
+  - Pattern Adapter (interface commune StorageEngine aux différents backends)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : 1 jour                  │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Classe StorageEngine avec interface unifiée (get/set/delete/size)
+  [ ] Adaptateur CacheStorage wrappant les données en fake Response
+  [ ] Adaptateur FileSystemStorage avec gestion des permissions (showDirectoryPicker)
+  [ ] Appel navigator.storage.persist() au démarrage + indication dans UI
+  [ ] Composant StorageMonitor (jauge de capacité — navigator.storage.estimate())
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION PÉDAGOGIQUE, VALEUR PRATIQUE NUANCÉE
+
+  ★ APPRÉCIATION
+  La valeur de cette mission est avant tout pédagogique : comprendre les limites
+  et les possibilités des APIs de stockage navigateur. L'Axe 2 (File System Access)
+  est le plus pratique — un vrai pont avec l'OS qui impressionne à chaque démo.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - Le "hack" Cache API comme NoSQL n'est PAS recommandé pour la production.
+    En production, IndexedDB + Dexie.js est le choix standard pour de gros volumes.
+    La valeur ici est de comprendre comment l'API peut être détournée.
+  - navigator.storage.persist() est souvent ignoré mais crucial : sans lui,
+    le navigateur peut effacer les données IndexedDB/Cache sous pression mémoire.
+    Le navigateur peut refuser si les conditions heuristiques ne sont pas réunies
+    (site peu visité, pas installé comme PWA).
+  - File System Access API nécessite un geste utilisateur pour chaque nouvelle
+    session (le handle de dossier doit être re-demandé ou stocké en IndexedDB
+    entre sessions via FileSystemDirectoryHandle.requestPermission()).
+
+  ✦ RECOMMANDATION
+  Construire cette mission comme un "tour des APIs de stockage" — localStorage,
+  IndexedDB, Cache API, FSAPI — avec des benchmarks de capacité et de vitesse.
+  Idéal comme mission de formation pour comprendre où stocker quoi et pourquoi.

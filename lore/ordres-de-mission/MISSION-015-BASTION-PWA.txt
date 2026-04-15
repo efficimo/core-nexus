@@ -1,0 +1,151 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-015                                         ║
+║  LE BASTION PWA                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+📱⚡
+
+DÉSIGNATION     : Implantation Native sur Station de Travail — Opération Poste Avancé
+CODENAME        : BASTION-PWA
+PHASE           : [ALPHA]
+CLASSIFICATION  : Interface & Expérience
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Terminal de Combat du Nexus vit dans un navigateur. Les Architectes méritent
+un Poste Avancé permanent : icône dans la barre d'applications, fenêtre sans
+chrome de navigateur, lancement instantané même sans réseau.
+
+TRÉPIED OBLIGATOIRE :
+  1. HTTPS — déjà assuré par GitHub Pages
+  2. Manifeste Web App — manifest.json définissant name, icons, display, couleurs
+  3. Service Worker — cache-first, chargement instantané hors-ligne
+
+WINDOW CONTROLS OVERLAY — Sur Chrome/Edge desktop, l'area des boutons système
+est récupérée pour le design. Activer via "display_override": ["window-controls-overlay"]
+dans le manifest. Lire la zone disponible via :
+  navigator.windowControlsOverlay.getTitlebarAreaRect()
+⚠ Chrome/Edge desktop uniquement. Firefox et Safari ne supportent pas cette feature.
+
+INSTALLATION :
+  - Chrome/Edge Linux/Windows/macOS : événement beforeinstallprompt (Chrome/Edge only)
+  - Safari macOS/iOS : "Partager > Ajouter à l'écran d'accueil" (flux manuel)
+  - Firefox : a abandonné le support SSB (Site-Specific Browser) depuis 2022
+    Workaround Firefox Linux : raccourci bureau pointant vers
+    firefox --new-window --kiosk https://[url]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Créer manifest.json complet :
+     name, short_name, icons (192/512/maskable), display: "standalone",
+     theme_color, background_color, start_url, shortcuts, display_override
+  2. Service Worker sw.js avec Cache-First (statique) + Network-First (données)
+     et gestion des mises à jour (skipWaiting + clients.claim)
+  3. Intercepter beforeinstallprompt pour bouton "Installer le Bastion" (Chrome/Edge)
+  4. Implémenter Window Controls Overlay (manifest + getTitlebarAreaRect())
+  5. Documenter l'installation sur chaque plateforme (Chrome, Edge, Safari, Firefox)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web App Manifest (manifest.json avec display_override pour WCO)
+  - Service Worker API (Cache + Network stratégies, skipWaiting, clients.claim)
+  - beforeinstallprompt event (Chrome/Edge seulement)
+  - Window Controls Overlay API :
+    navigator.windowControlsOverlay.getTitlebarAreaRect()
+    navigator.windowControlsOverlay.visible
+    (NON titleBarAppId — propriété inexistante)
+  - CSS env(titlebar-area-x/y/width/height) pour positionner le contenu
+    dans la zone WCO
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : 1 jour                  │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] manifest.json complet avec icônes en toutes tailles + maskable icon
+  [ ] sw.js (Cache-First statique, Network-First données, skipWaiting)
+  [ ] Bouton "Installer le Bastion" (beforeinstallprompt + gestion du prompt)
+  [ ] Layout Window Controls Overlay dans la Navbar
+     (CSS env(titlebar-area-*) + JS getTitlebarAreaRect())
+  [ ] Guide d'installation plateforme par plateforme (Chrome ✓, Edge ✓, Safari ✓, Firefox workaround)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION PRIORITAIRE, CORRECTIONS TECHNIQUES IMPORTANTES
+
+  ★ APPRÉCIATION
+  C'est la mission avec la meilleure rentabilité du projet : une journée de travail
+  transforme une page web en application desktop installable. Devrait être Phase ALPHA
+  priorité #1 — l'équipe l'utilisera quotidiennement après ça.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION : getTitlebarAreaRect() et non titleBarAppId. La propriété
+    navigator.windowControlsOverlay expose visible et getTitlebarAreaRect().
+    Pour positionner les éléments dans la zone WCO, utiliser les variables CSS
+    env(titlebar-area-x), env(titlebar-area-y), env(titlebar-area-width),
+    env(titlebar-area-height).
+  - beforeinstallprompt ne se déclenche pas sur Firefox ni Safari. Ces navigateurs
+    ont leurs propres flux d'installation. L'événement peut ne pas se déclencher
+    si le site a déjà été installé ou si les critères PWA ne sont pas tous remplis.
+  - Window Controls Overlay ne fonctionne qu'en Chrome/Edge installé sur desktop.
+    En mode navigateur classique (non installé), la feature est inactive.
+  - Pour les mises à jour Service Worker : sans skipWaiting + clients.claim,
+    le nouvel SW attend que tous les onglets soient fermés avant d'activer.
+    Ajouter un banner "Mise à jour disponible — Recharger" pour informer l'utilisateur.
+
+  COEXISTENCE AVEC ÉCRANS NOMADES (→ MISSION-007)
+    En mode PWA installée sur desktop, window.open() crée une nouvelle
+    fenêtre PWA dans le même contexte — BroadcastChannel et Plexus
+    fonctionnent nativement entre ces fenêtres. C'est le comportement
+    idéal pour les panels détachables.
+    Sur mobile en mode standalone, window.open() sort du contexte PWA —
+    le bouton "Détacher" doit être masqué sur mobile (media query + détection
+    display-mode: standalone). Voir MISSION-007 pour les détails.
+
+  COEXISTENCE AVEC PLEXUS (→ MISSION-008)
+    Le Service Worker intercepte toutes les requêtes fetch() de la page,
+    y compris celles de GistBeacon vers api.github.com. Configurer une
+    route NetworkOnly pour cette origine afin d'éviter que le SW serve
+    un Gist périmé — ce qui ferait rater des pairs à Plexus :
+
+      // Dans sw.js — Workbox ou vanilla
+      // Vanilla :
+      self.addEventListener('fetch', event => {
+        if (event.request.url.startsWith('https://api.github.com/')) {
+          event.respondWith(fetch(event.request))  // bypass cache
+          return
+        }
+        // ... stratégie normale pour le reste
+      })
+
+      // Workbox :
+      registerRoute(
+        ({ url }) => url.hostname === 'api.github.com',
+        new NetworkOnly()
+      )
+
+    Ajouter également NetworkOnly pour les URLs d'instance GitLab/YouTrack
+    si MISSION-020 (Ambassadeurs) est implémentée.
+
+    WebRTC est indisponible dans les Service Workers — ne jamais tenter
+    d'instancier Plexus depuis le contexte SW. Le SW et le SharedWorker
+    Plexus sont deux Workers distincts avec des responsabilités séparées.
+
+  ✦ RECOMMANDATION
+  Mission à faire en priorité absolue. La valeur est immédiate et visible. Commencer
+  par le manifest + SW basique (1h), installer l'app, profiter de l'effet. Ajouter
+  WCO en bonus si Chrome/Edge est le navigateur principal de l'équipe.

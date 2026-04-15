@@ -1,0 +1,132 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-028                                         ║
+║  LE PRÉSENTATEUR DE COMMANDEMENT                                         ║
+╚══════════════════════════════════════════════════════════════════════════╝
+📺🖥️
+
+DÉSIGNATION     : Interface Double-Écran pour Présentation d'Escouade — Opération Tribune
+CODENAME        : PRESENTATEUR-COMMANDEMENT
+PHASE           : [BETA]
+CLASSIFICATION  : Tableau de Bord & Visualisation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Lors des cérémonies d'escouade — démonstrations, sprint reviews, présentations
+aux alliés — l'Architecte présentateur a besoin de deux vues simultanées :
+son interface de contrôle privée (notes, prochaine diapo) et la vue publique
+projetée sur l'écran de la salle.
+
+La Presentation API permet au Terminal de Combat de piloter un second écran
+(TV, projecteur, second moniteur) indépendamment. L'écran principal reste
+l'interface de gestion ; le grand écran affiche une vue simplifiée, spectaculaire,
+conçue pour le public.
+
+Ce protocole crée deux vues : la Salle de Guerre (contrôle, édition) et
+la Tribune (statistiques et graphiques plein écran, mode présentation).
+
+⚠ Presentation API : Chrome/Edge uniquement. Pas Firefox, pas Safari.
+  Approche alternative recommandée : window.open() + BroadcastChannel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  APPROCHE PRINCIPALE — BroadcastChannel + window.open() (universelle)
+  1. Bouton "Ouvrir la Tribune" → window.open('/tribune', 'tribune', 'popup')
+     → nouvelle fenêtre déplacée vers le second écran par l'utilisateur
+  2. BroadcastChannel('nexus-tribune') pour synchroniser l'état en temps réel
+     (même origine, même appareil — fonctionne entre fenêtres du même domaine)
+
+  APPROCHE AVANCÉE — Presentation API (Chrome/Edge, second écran détecté)
+  3. new PresentationRequest(['/tribune']) → .start() (geste utilisateur requis)
+     → PresentationConnection.send() pour transmettre l'état
+  4. Page /tribune : navigator.presentation.receiver pour récupérer la connexion
+     et écouter les messages de la Salle de Guerre
+
+  COMMUN AUX DEUX APPROCHES
+  5. Concevoir la vue Tribune : stats plein écran, graphiques de vélocité,
+     liste des Architectes, Sparks récents — optimisée pour grand écran
+  6. Mode "Présentation" dans la Salle de Guerre (contrôles navigation + notes)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - BroadcastChannel (approche primaire — universel, même origine)
+    Synchronise deux fenêtres sur le même appareil. Simple et fiable.
+  - window.open('/tribune', 'tribune', 'popup') (ouverture de la fenêtre Tribune)
+  - Presentation API (approche avancée — Chrome/Edge uniquement) :
+    new PresentationRequest(['/tribune']).start()
+    → PresentationConnection : .send(JSON.stringify(state)) / .onmessage
+    Page Tribune : navigator.presentation.receiver.connectionList
+  - CSS @media (design optimisé grand écran 16/9 pour la vue Tribune)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module PresentationController.ts (BroadcastChannel + Presentation API)
+  [ ] Route /tribune (vue grand écran, CSS 16/9 optimisé)
+  [ ] Synchronisation d'état Salle de Guerre ↔ Tribune (BroadcastChannel)
+  [ ] Bouton "Ouvrir la Tribune" (window.open + canal BroadcastChannel)
+  [ ] Amélioration Presentation API (si Chrome/Edge : sélecteur d'écran natif)
+  [ ] Contrôles de présentation dans la Navbar (navigation slide + notes)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION TRÈS UTILE, ARCHITECTURE À INVERSER
+
+  ★ APPRÉCIATION
+  C'est la mission avec le meilleur ratio effort/impact en contexte de
+  présentation d'équipe. Une vue dédiée grand écran projetée pendant le
+  sprint review, pilotée depuis la Salle de Guerre — c'est immédiatement
+  professionnel. La Tribune CSS plein écran est la partie la plus visible.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - INVERSION PRINCIPALE/FALLBACK : Le fichier original présentait BroadcastChannel
+    comme "fallback". C'est l'inverse qui est recommandé :
+    • BroadcastChannel + window.open() = approche PRINCIPALE (universelle,
+      fonctionne sur tous navigateurs, sur tous OS, ne nécessite aucune permission)
+    • Presentation API = amélioration PROGRESSIVE (Chrome/Edge uniquement,
+      permet de sélectionner le second écran nativement sans que l'utilisateur
+      ait à déplacer la fenêtre manuellement)
+  - PRESENTATION API USAGE CORRECT : L'API fonctionne ainsi :
+    Côté contrôleur :
+      const req = new PresentationRequest(['/tribune']);
+      const conn = await req.start(); // geste utilisateur requis
+      conn.send(JSON.stringify(state));
+    Côté Tribune :
+      const receiver = navigator.presentation.receiver;
+      const list = await receiver.connectionList;
+      list.connections[0].onmessage = (e) => setState(JSON.parse(e.data));
+    ⚠ La page /tribune doit être une URL servie (pas un blob/data URL).
+      GitHub Pages convient parfaitement.
+  - VIRTUALKEYBOARD API : L'original mentionnait VirtualKeyboard API pour
+    la navigation. Cette API est conçue pour contrôler le comportement du
+    clavier virtuel mobile (resize viewport ou non). Elle n'est pas pertinente
+    pour la navigation de présentation. Utiliser simplement des event listeners
+    sur keydown (ArrowLeft/ArrowRight, Escape, Spacebar).
+  - BROADCASTCHANNEL PORTÉE : BroadcastChannel fonctionne entre fenêtres/onglets
+    du même origine sur le même appareil. Il ne traverse pas les appareils
+    (pas de réseau). Pour synchroniser deux machines différentes, il faudrait
+    WebRTC ou WebSockets.
+
+  ✦ RECOMMANDATION
+  Construire d'abord la vue Tribune (CSS + données) et valider son rendu
+  en plein écran. Ensuite ajouter le BroadcastChannel pour la synchronisation
+  (30 min). C'est déjà une feature complète et impressionnante. La Presentation
+  API peut être ajoutée comme amélioration pour Chrome en 1h supplémentaire.
+  Tester avec deux moniteurs physiques : déplacer la fenêtre Tribune sur le
+  second écran + F11 pour fullscreen.

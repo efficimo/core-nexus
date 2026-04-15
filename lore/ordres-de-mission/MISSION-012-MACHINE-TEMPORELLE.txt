@@ -1,0 +1,104 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-012                                         ║
+║  LA MACHINE TEMPORELLE                                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⏳🕰️
+
+DÉSIGNATION     : Protocole Memento — Navigation dans les Strates du Passé
+CODENAME        : MACHINE-TEMPORELLE
+PHASE           : [ALPHA]
+CLASSIFICATION  : Archives & Persistance
+DÉPENDANCES     : MISSION-005 (@efficimo/memento — createMemento, IndexedDBAdapter)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Codex du Nexus ne sont pas immuables. Chaque modification d'une Anomalie,
+chaque déplacement de statut, chaque intervention d'un Architecte laisse une
+empreinte dans le tissu du système. Pourtant, ces empreintes sont perdues dès
+que le Terminal de Combat est fermé.
+
+Ce protocole vise à enregistrer des instantanés delta-compressés de l'état du
+Tableau dans IndexedDB, créant une timeline navigable que les Architectes pourront
+remonter pour comprendre l'évolution des corruptions et analyser la vélocité de
+l'escouade.
+
+La Partition de Défilement (Scroll-Driven Animations) matérialisera cette timeline
+en bas de l'écran : faire défiler physiquement le temps.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Instancier un createMemento<BoardState>({ initial, compress: true, maxSize: 100,
+       adapter: new IndexedDBAdapter({ dbName: 'core-nexus', storeName: 'board-history' }) })
+     @efficimo/memento (MISSION-005) gère le diff/patch, la compression delta,
+     le FIFO et la persistance IDB — aucun Caretaker/Originator à écrire
+  2. Appeler memento.record(newState, label) à chaque modification significative du Tableau
+     canUndo/canRedo (ObservableValue<boolean>) pilotent l'UI de navigation temporelle
+  3. Afficher une timeline interactive en bas d'écran pilotée par le défilement
+     (Scroll-Driven Animations — animation-timeline: view() par élément)
+  4. memento.goto(index) permet la navigation vers n'importe quelle strate passée
+     en mode lecture seule — bannière d'avertissement si cursor < fin de l'historique
+  5. Calculer et afficher la vélocité de l'équipe sur une période sélectionnée
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/memento >= 0.1.0 — createMemento + IndexedDBAdapter
+    (remplace Dexie.js et l'implémentation manuelle du pattern Memento)
+    Quota IDB réel : ~60% de l'espace disque disponible, pas une limite fixe
+  - navigator.storage.persist() pour prévenir l'éviction par le navigateur
+  - CSS Scroll-Driven Animations (animation-timeline: view() — per-element)
+    Note: scroll() pour le scroll de page, view() pour l'entrée dans le viewport
+  - React Context (diffusion du Memento dans l'arbre de composants)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2-3 jours               │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Instanciation createMemento<BoardState>({ compress: true, maxSize: 100, adapter: IndexedDBAdapter })
+      — MISSION-005 — remplace Dexie, Caretaker manuel et algorithme diff custom
+  [ ] Appels memento.record() à chaque mutation du Tableau (label descriptif requis)
+  [ ] Composant TimelineScroll animé par le défilement (animation-timeline: view())
+  [ ] Vue "Mode Passé" (lecture seule) avec bannière d'avertissement
+  [ ] Calcul de vélocité affiché sur la page Architectes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION SOLIDE, QUELQUES AJUSTEMENTS
+
+  ★ APPRÉCIATION
+  Concept fort et directement utile pour l'équipe. Le pattern Memento est
+  parfait pour ce cas d'usage et sert en même temps de leçon architecturale.
+  La Scroll-Driven Animation sur une timeline est un effet "wow" garanti.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - La compression delta est gérée nativement par @efficimo/memento via l'option
+    compress: true — aucun algorithme diff à écrire. Le diff/patch JSON (RFC 6902)
+    est encapsulé dans la lib.
+  - @efficimo/memento utilise l'API IndexedDB native (pas Dexie) via IndexedDBAdapter —
+    zéro dépendance externe à ajouter dans core-nexus.
+  - animation-timeline: scroll() anime selon le scroll de la page entière ;
+    animation-timeline: view() anime selon l'entrée de l'élément dans le viewport.
+    Pour une timeline d'items, view() est le bon choix.
+  - Phase corrigée ALPHA (pas BETA) — l'audit trail est utile dès le début.
+
+  ✦ RECOMMANDATION
+  Implémenter MISSION-005 (@efficimo/memento) en premier. Ensuite, brancher
+  createMemento sur le BoardState de core-nexus — record() à chaque action.
+  Valider l'UX de goto() (time-travel) avant de construire le composant
+  TimelineScroll — la Scroll Animation est la couche de présentation,
+  pas le cœur fonctionnel.

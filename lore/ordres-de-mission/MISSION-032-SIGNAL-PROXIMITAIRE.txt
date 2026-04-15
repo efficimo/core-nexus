@@ -1,0 +1,105 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-032                                         ║
+║  LE SIGNAL PROXIMITAIRE                                                  ║
+╚══════════════════════════════════════════════════════════════════════════╝
+📡🎵
+
+DÉSIGNATION     : Détection de Présence Physique par Signature Acoustique
+CODENAME        : SIGNAL-PROXIMITAIRE
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Communications & Réseau
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole expérimental détourne l'API Audio pour détecter si deux Architectes
+se trouvent physiquement dans la même salle.
+
+Un Terminal émet un signal sonore à haute fréquence (15-18 kHz — limite de
+l'audible humain, en dessous du plafond WebAudio à ~22kHz). Un second Terminal,
+via son microphone, capte et identifie ce signal. Si le signal correspond au
+pattern émis, les deux Terminals sont co-localisés. Le Nexus peut alors proposer
+automatiquement un Lien Direct local (WebRTC) sans saisie manuelle.
+
+⚠ CONTRAINTES MATÉRIELLES IMPORTANTES :
+  - La fréquence maximale de WebAudio est sampleRate/2 (~22050 Hz en pratique).
+    "Ultrasonore" inaudible (>22kHz) n'est pas émettable via le navigateur.
+    Utiliser 15-18kHz : à peine perceptible pour les humains, mais fiable.
+  - La réponse fréquentielle des haut-parleurs et micros de laptop coupe souvent
+    avant 18kHz. Tester sur le matériel cible avant de promettre la fonctionnalité.
+  - getUserMedia (microphone) requiert HTTPS + permission explicite de l'utilisateur.
+  - La détection par latence sonore (vitesse du son) est peu fiable — une même
+    pièce de 10m représente ~29ms, difficile à distinguer du jitter de traitement.
+    Préférer la détection par correspondance de signature (même signal = même local).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Émettre un signal haute fréquence encodé (15-18kHz, modulation par fréquence)
+     via OscillatorNode + GainNode, avec un pattern unique par session
+  2. Capturer le flux microphone via getUserMedia + AudioWorklet
+     (AudioWorklet est préférable à ScriptProcessorNode, déprécié)
+  3. Analyser le spectre fréquentiel via AnalyserNode (FFT size 2048)
+     et identifier la présence de la fréquence émise dans le spectre capté
+  4. Si détection positive : proposer connexion WebRTC locale automatique
+  5. Ajouter une UI de permission microphone explicite et expliquée
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web Audio API :
+    • AudioContext (contexte principal)
+    • OscillatorNode (émission à fréquence précise)
+    • GainNode (contrôle du volume d'émission)
+    • AnalyserNode + FFT (analyse spectrale du microphone)
+  - AudioWorklet API (traitement audio sur thread dédié — remplace ScriptProcessorNode)
+  - getUserMedia (accès microphone, HTTPS requis)
+  - WebRTC (connexion locale post-détection, voir MISSION-008)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★★  (Grand Architecte)│
+  │ Durée estimée : 1 semaine               │
+  │ Effort        : Très élevé              │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module ProximityEmitter.ts (OscillatorNode 15-18kHz + pattern encodé)
+  [ ] AudioWorklet processor pour la capture spectrale (proximity-detector.js)
+  [ ] Algorithme de corrélation FFT pour identifier le signal dans le bruit
+  [ ] UI "Radar de Proximité" avec visualisation du spectre en temps réel
+  [ ] Déclenchement automatique du flux de connexion WebRTC local si détection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION FASCINANTE, FAISABILITÉ PARTIELLE
+
+  ★ APPRÉCIATION
+  Le concept est génial — "nos laptops se parlent en ultra-haute fréquence pour
+  se détecter mutuellement". Aucun outil mainstream ne fait ça, et l'expliquer
+  en démo provoque systématiquement des réactions. L'AudioWorklet est une API
+  sous-utilisée qui mérite d'être explorée.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - WebAudio ne peut pas émettre au-delà de sampleRate/2 (~22kHz). "Ultrason"
+    est impropre — utiliser "haute fréquence" (15-18kHz).
+  - La réponse fréquentielle des haut-parleurs laptop s'arrête souvent à 15-16kHz
+    en pratique. Tester sur le matériel avant de fixer la fréquence cible.
+  - ScriptProcessorNode est déprécié — utiliser AudioWorklet obligatoirement.
+  - La détection n'est PAS garantie dans tous les environnements (bruit de fond,
+    hardware médiocre, isolation acoustique). Le taux de succès sera variable.
+
+  ✦ RECOMMANDATION
+  Aborder cette mission comme une exploration honnête avec un résultat variable
+  selon le matériel. Prévoir un fallback manuel (partage du Gist ID) si la
+  détection acoustique échoue. La valeur est dans l'apprentissage AudioWorklet
+  + FFT, pas dans la fiabilité de production.

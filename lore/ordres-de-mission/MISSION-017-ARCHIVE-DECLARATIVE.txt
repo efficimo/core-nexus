@@ -1,0 +1,105 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-017                                         ║
+║  L'ARCHIVE DÉCLARATIVE                                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+📜🗃️
+
+DÉSIGNATION     : Exploitation du Substrat HTML Natif — Opération Code Primordial
+CODENAME        : ARCHIVE-DECLARATIVE
+PHASE           : [ALPHA]
+CLASSIFICATION  : Interface & Expérience
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Architectes du Nexus ont une tendance naturelle à tout résoudre par des
+scripts. Pourtant, le Substrat HTML (le Code Primordial) contient des artefacts
+natifs puissants qui remplacent des centaines de lignes de JS avec une meilleure
+accessibilité et aucune dépendance :
+
+  <dialog> et .showModal() — Le navigateur gère le centrage, l'overlay (::backdrop),
+  la touche Échap, et le focus trap automatiquement. Supporte returnValue pour
+  récupérer la décision de l'utilisateur. Accessible out of the box (role=dialog,
+  aria-modal implicites).
+
+  <details> et <summary> — Accordéons, FAQ, sections repliables sans JS.
+  Stylisables via CSS, animables avec @starting-style (Chrome 117+).
+
+  <datalist> — Autocomplétion native liée à un <input> via l'attribut list="id".
+  Pas de bibliothèque, pas d'état React, performances optimales.
+
+  Inputs exotiques (<input type="color">, <input type="range">) — Sélecteurs
+  natifs OS. Reliés à des CSS custom properties via oninput en temps réel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Créer un composant NexusModal React basé sur <dialog> natif avec
+     .showModal() / .close() et récupération de returnValue
+  2. Ajouter des sections <details>/<summary> dans les pages Lore / Spark / Architecte
+  3. Implémenter <datalist> pour l'autocomplétion des tags d'Anomalie (sans lib)
+  4. Color picker via <input type="color"> → CSS custom properties en temps réel
+     (document.documentElement.style.setProperty('--accent', color))
+  5. Démonstration de <template> + cloneNode(true) pour rendu de listes performant
+     (valeur pédagogique — en production React gère le rendu)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - HTML <dialog> API (.showModal(), .close(), returnValue, ::backdrop)
+  - HTML <details> / <summary> (+ @starting-style pour animation d'ouverture)
+  - HTML <datalist> (autocomplétion native — attribut list sur <input>)
+  - HTML <template> → template.content.cloneNode(true) (pas document.importNode)
+    Note : document.importNode est pour les imports cross-document (iframe/XHR).
+    Pour les templates du même document, cloneNode(true) est correct.
+  - CSS custom properties (--accent mis à jour via JS setProperty)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : 1 jour                  │
+  │ Effort        : Faible-Moyen            │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Composant NexusModal basé sur <dialog> natif (showModal + returnValue)
+  [ ] Sections <details> dans les pages Lore / Spark / Architecte
+  [ ] <datalist> pour l'autocomplétion des tags dans les formulaires
+  [ ] Panneau de personnalisation de thème (color picker → CSS vars en live)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION FONDAMENTALE, IMPACT IMMÉDIAT
+
+  ★ APPRÉCIATION
+  La mission la plus accessible et la plus concrètement utile de la série interface.
+  <dialog> devrait remplacer toutes les modales maison du projet dans la même
+  journée. Le color picker → CSS vars est l'une de ces features qui fait "oooh"
+  quand on la voit pour la première fois.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - document.importNode est pour les documents différents (import depuis un iframe
+    ou un document parsé). Pour les templates dans le même document :
+    template.content.cloneNode(true) est la bonne pratique.
+  - Dans le contexte React de Core Nexus, <template> est plus une démonstration
+    pédagogique (comprendre les Web Components natifs) qu'une pratique de production.
+    React gère ses propres rendus — l'utiliser dans un useEffect comme démonstration.
+  - <dialog> en React : utiliser useRef pour accéder à l'élément DOM et appeler
+    ref.current.showModal() / ref.current.close(). Gérer le backdrop click
+    via un event listener sur le dialog lui-même (close sur click extérieur).
+  - @starting-style pour animer l'ouverture de <details> est Chrome 117+ / Safari 17.5+.
+    Pas encore Firefox — prévoir un fallback non-animé.
+
+  ✦ RECOMMANDATION
+  Commencer par NexusModal (<dialog>) — remplacement immédiat de toutes les modales
+  existantes. Impact visible dès le premier commit. Ensuite color picker → CSS vars
+  pour la personnalisation thème. Le reste en bonus.

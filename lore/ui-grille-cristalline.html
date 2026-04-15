@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grille Cristalline — Sigils</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+
+:root {
+  --bg:        #05070b;
+  --surface:   #0a0f18;
+  --surface-2: #0d1420;
+  --border:    #161f35;
+  --border-hi: #1f2e4d;
+  --text:      #b8c4d8;
+  --text-dim:  #354560;
+  --text-faint:#1a2540;
+  --accent:    #2e6aff;
+  --connected: #00e676;
+  --error:     #ff2055;
+  --warn:      #ffab00;
+  --font-ui:   'Share Tech Mono', monospace;
+  --font-h:    'Orbitron', sans-serif;
+  --topbar-h:  48px;
+  --ctrl-h:    44px;
+}
+
+body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font-size:12px; }
+
+body::after {
+  content:''; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+/* ── LAYOUT ── */
+.app { display:grid; grid-template-rows:var(--topbar-h) 1fr var(--ctrl-h); height:100vh; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 1rem; gap:.75rem; z-index:100;
+}
+
+.brand-orb { position:relative; width:24px; height:24px; flex-shrink:0; }
+.brand-orb .r { position:absolute; border-radius:50%; border-style:dashed; }
+.brand-orb .r1 { inset:0; border-width:1.5px; border-color:var(--accent); opacity:.6; animation:spin-cw 6s linear infinite; }
+.brand-orb .r2 { inset:6px; border-width:1px; border-color:var(--connected); opacity:.4; animation:spin-ccw 9s linear infinite; }
+.brand-orb .core { position:absolute; inset:10px; border-radius:50%; background:var(--accent); opacity:.7; }
+
+.top-title {
+  font-family:var(--font-h); font-size:.6rem; font-weight:900;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--text);
+}
+
+.top-sep { width:1px; height:20px; background:var(--border); margin:0 .25rem; }
+
+.top-tag {
+  padding:.12rem .45rem; font-size:.48rem; letter-spacing:.15em;
+  border:1px solid rgba(46,106,255,.3); background:rgba(46,106,255,.08);
+  color:var(--accent);
+  clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px));
+}
+
+/* Architect selector */
+.arch-selector {
+  margin-left:auto; display:flex; align-items:center; gap:.5rem;
+}
+
+.arch-label { font-size:.52rem; color:var(--text-dim); letter-spacing:.1em; }
+
+.arch-select {
+  background:var(--surface-2); border:1px solid var(--border-hi);
+  color:var(--text); font-family:var(--font-ui); font-size:.62rem;
+  padding:.3rem .6rem;
+  clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+  cursor:pointer; outline:none;
+  letter-spacing:.05em;
+  -webkit-appearance:none; appearance:none;
+  padding-right:1.5rem;
+}
+
+.arch-select-wrap { position:relative; }
+.arch-select-wrap::after {
+  content:'▾'; position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+  color:var(--text-dim); font-size:.6rem; pointer-events:none;
+}
+
+.top-right { display:flex; align-items:center; gap:.75rem; margin-left:1rem; }
+.top-stat { font-size:.52rem; color:var(--text-dim); letter-spacing:.08em; display:flex; align-items:center; gap:.3rem; }
+.top-dot { width:5px; height:5px; border-radius:50%; background:var(--connected); box-shadow:0 0 5px var(--connected); animation:pulse-dot 2s ease-in-out infinite; }
+
+/* ── CANVAS ── */
+.canvas-wrap { position:relative; overflow:hidden; cursor:grab; background:var(--bg); }
+.canvas-wrap:active { cursor:grabbing; }
+#hex-canvas { display:block; width:100%; height:100%; }
+
+/* ── CONTROLS ── */
+.controls {
+  background:var(--surface); border-top:1px solid var(--border);
+  display:flex; align-items:center; padding:0 1rem; gap:.75rem;
+}
+
+.coord-display {
+  font-size:.55rem; color:var(--text-dim); letter-spacing:.08em;
+  display:flex; align-items:center; gap:.4rem; min-width:160px;
+}
+
+.coord-val { color:var(--text); }
+
+.ctrl-group { display:flex; gap:.25rem; align-items:center; margin:0 auto; }
+
+.ctrl-btn {
+  padding:.2rem .55rem; font-size:.52rem; font-family:var(--font-ui);
+  letter-spacing:.1em; text-transform:uppercase;
+  border:1px solid var(--border-hi); background:transparent;
+  color:var(--text-dim); cursor:pointer;
+  clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px));
+  transition:all .15s;
+}
+.ctrl-btn:hover { color:var(--text); border-color:#2e3c60; }
+.ctrl-btn.active { background:rgba(46,106,255,.1); color:var(--accent); border-color:rgba(46,106,255,.4); }
+
+.ctrl-sep { width:1px; height:20px; background:var(--border); }
+
+.ctrl-btn.r-common    { --rc:#4b5563; }
+.ctrl-btn.r-rare      { --rc:#3b82f6; }
+.ctrl-btn.r-epic      { --rc:#a855f7; }
+.ctrl-btn.r-legendary { --rc:#f59e0b; }
+.ctrl-btn.r-common.active    { color:#4b5563; border-color:#4b5563; background:rgba(75,85,99,.1); }
+.ctrl-btn.r-rare.active      { color:#3b82f6; border-color:#3b82f6; background:rgba(59,130,246,.1); }
+.ctrl-btn.r-epic.active      { color:#a855f7; border-color:#a855f7; background:rgba(168,85,247,.1); }
+.ctrl-btn.r-legendary.active { color:#f59e0b; border-color:#f59e0b; background:rgba(245,158,11,.1); }
+
+.zoom-group { display:flex; gap:.25rem; align-items:center; }
+
+/* ── DRAWER ── */
+.drawer {
+  position:fixed; top:0; right:-320px; bottom:0; width:320px;
+  background:var(--surface); border-left:1px solid var(--border-hi);
+  z-index:500; transition:right .3s cubic-bezier(.4,0,.2,1);
+  display:flex; flex-direction:column;
+  box-shadow:-8px 0 40px rgba(0,0,0,.7);
+}
+.drawer.open { right:0; }
+
+.drawer-head {
+  padding:1rem 1rem .75rem;
+  border-bottom:1px solid var(--border);
+  display:flex; flex-direction:column; gap:.5rem;
+  flex-shrink:0;
+}
+
+.drawer-top { display:flex; align-items:flex-start; gap:.75rem; }
+
+.drawer-icon {
+  width:52px; height:52px; border-radius:10px;
+  background:var(--surface-2); border:1px solid var(--border-hi);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; flex-shrink:0;
+  position:relative;
+}
+
+.drawer-icon .icon-ring {
+  position:absolute; inset:-5px; border-radius:50%;
+  border:1.5px dashed; animation:spin-cw 5s linear infinite;
+}
+
+.drawer-meta { flex:1; }
+.drawer-name {
+  font-family:var(--font-h); font-size:.7rem; font-weight:900;
+  letter-spacing:.1em; color:var(--text); line-height:1.2;
+  margin-bottom:.25rem;
+}
+
+.rarity-badge {
+  display:inline-flex; align-items:center; gap:.3rem;
+  padding:.1rem .45rem; font-size:.48rem; letter-spacing:.15em;
+  text-transform:uppercase; border-radius:2px;
+}
+.rarity-badge.common    { color:#4b5563; border:1px solid rgba(75,85,99,.4);    background:rgba(75,85,99,.08); }
+.rarity-badge.rare      { color:#3b82f6; border:1px solid rgba(59,130,246,.4);  background:rgba(59,130,246,.08); }
+.rarity-badge.epic      { color:#a855f7; border:1px solid rgba(168,85,247,.4);  background:rgba(168,85,247,.08); }
+.rarity-badge.legendary { color:#f59e0b; border:1px solid rgba(245,158,11,.5);  background:rgba(245,158,11,.1); animation:legend-badge 2s ease-in-out infinite; }
+
+@keyframes legend-badge { 0%,100%{box-shadow:0 0 0 rgba(245,158,11,0)} 50%{box-shadow:0 0 8px rgba(245,158,11,.3)} }
+
+.drawer-close {
+  width:24px; height:24px; border:1px solid var(--border-hi);
+  background:transparent; color:var(--text-dim); cursor:pointer; border-radius:3px;
+  display:flex; align-items:center; justify-content:center; font-size:12px;
+  transition:all .15s; flex-shrink:0;
+}
+.drawer-close:hover { color:var(--text); border-color:var(--error); }
+
+.drawer-body { flex:1; overflow-y:auto; padding:.75rem 1rem; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+
+.d-section { margin-bottom:.9rem; }
+.d-section-title {
+  font-size:.48rem; letter-spacing:.2em; color:var(--text-faint);
+  text-transform:uppercase; margin-bottom:.35rem;
+  padding-bottom:.2rem; border-bottom:1px solid var(--text-faint);
+}
+.d-text { font-size:.6rem; color:var(--text-dim); line-height:1.6; letter-spacing:.03em; }
+
+.d-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:.3rem 0; border-bottom:1px solid var(--text-faint);
+  font-size:.58rem;
+}
+.d-row:last-child { border-bottom:none; }
+.d-key { color:var(--text-dim); letter-spacing:.06em; }
+.d-val { color:var(--text); }
+.d-val.cyan  { color:var(--connected); }
+.d-val.blue  { color:var(--accent); }
+
+.unlock-status {
+  display:flex; align-items:center; gap:.5rem;
+  padding:.5rem .75rem;
+  border-radius:2px; font-size:.6rem; letter-spacing:.06em;
+  clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));
+}
+.unlock-status.unlocked { background:rgba(0,230,118,.08); border:1px solid rgba(0,230,118,.25); color:var(--connected); }
+.unlock-status.locked   { background:rgba(255,32,85,.06);  border:1px solid rgba(255,32,85,.2);  color:var(--error); }
+
+/* ── HOVER TOOLTIP ── */
+.hex-tooltip {
+  position:fixed; pointer-events:none; z-index:200;
+  background:rgba(10,15,24,.95); border:1px solid var(--border-hi);
+  padding:.35rem .6rem; font-size:.55rem; letter-spacing:.06em;
+  clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));
+  display:none; backdrop-filter:blur(4px);
+}
+.hex-tooltip.visible { display:block; }
+.tt-name { color:var(--text); margin-bottom:.1rem; }
+.tt-rarity { font-size:.5rem; }
+.tt-rarity.common    { color:#4b5563; }
+.tt-rarity.rare      { color:#3b82f6; }
+.tt-rarity.epic      { color:#a855f7; }
+.tt-rarity.legendary { color:#f59e0b; }
+
+/* ── KEYFRAMES ── */
+@keyframes spin-cw  { to { transform:rotate(360deg); } }
+@keyframes spin-ccw { to { transform:rotate(-360deg); } }
+@keyframes pulse-dot { 0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.4;transform:scale(.75)} }
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-hi); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="brand-orb">
+    <div class="r r1"></div><div class="r r2"></div><div class="core"></div>
+  </div>
+  <div class="top-title">Grille Cristalline</div>
+  <div class="top-sep"></div>
+  <div class="top-tag">Mission-040 // Sigils</div>
+
+  <div class="arch-selector">
+    <span class="arch-label">Architecte :</span>
+    <div class="arch-select-wrap">
+      <select class="arch-select" id="arch-select" onchange="setArchitect(this.value)">
+        <option value="all">Tous les Architectes</option>
+        <option value="kaito">Kaito-7F2A</option>
+        <option value="nova">Nova-9B12</option>
+        <option value="aria">Aria-3E8C</option>
+        <option value="echo">Echo-2A61</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="top-right">
+    <div class="top-stat"><div class="top-dot"></div><span id="stat-sigils">24 sigils</span></div>
+    <div class="top-stat" id="stat-unlocked" style="display:none"><span id="stat-unlocked-text">—</span></div>
+    <div class="top-stat" style="color:var(--text-faint)" id="top-clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- CANVAS -->
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="hex-canvas"></canvas>
+  <div class="hex-tooltip" id="tooltip">
+    <div class="tt-name" id="tt-name">—</div>
+    <div class="tt-rarity" id="tt-rarity">—</div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="coord-display">
+    <span style="color:var(--text-faint)">⬡</span>
+    <span>q:<span class="coord-val" id="hov-q">—</span></span>
+    <span>r:<span class="coord-val" id="hov-r">—</span></span>
+    <span>s:<span class="coord-val" id="hov-s">—</span></span>
+  </div>
+
+  <div class="ctrl-group">
+    <button class="ctrl-btn active" id="flt-all" onclick="setRarityFilter('all',this)">Tous</button>
+    <button class="ctrl-btn r-common"    id="flt-common"    onclick="setRarityFilter('common',this)">Common</button>
+    <button class="ctrl-btn r-rare"      id="flt-rare"      onclick="setRarityFilter('rare',this)">Rare</button>
+    <button class="ctrl-btn r-epic"      id="flt-epic"      onclick="setRarityFilter('epic',this)">Epic</button>
+    <button class="ctrl-btn r-legendary" id="flt-legendary" onclick="setRarityFilter('legendary',this)">Legendary</button>
+    <div class="ctrl-sep"></div>
+    <button class="ctrl-btn active" id="btn-ghost" onclick="toggleGhost()">Grille ⬡</button>
+    <button class="ctrl-btn" onclick="centerCamera()">⌖ Centre</button>
+  </div>
+
+  <div class="zoom-group">
+    <button class="ctrl-btn" onclick="zoom(-0.2)">−</button>
+    <span style="font-size:.52rem;color:var(--text-dim);letter-spacing:.08em;min-width:36px;text-align:center" id="zoom-label">100%</span>
+    <button class="ctrl-btn" onclick="zoom(+0.2)">+</button>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- DRAWER -->
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-top">
+      <div class="drawer-icon" id="d-icon">
+        <div class="icon-ring" id="d-icon-ring"></div>
+        <span id="d-icon-emoji">⬡</span>
+      </div>
+      <div class="drawer-meta">
+        <div class="drawer-name" id="d-name">—</div>
+        <div class="rarity-badge" id="d-rarity">—</div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">×</button>
+    </div>
+    <div id="d-unlock-status"></div>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   DATA
+════════════════════════════════════════════════════════ */
+const SIGILS = [
+  // Common — dist 1
+  { id:'s01', name:'Premier Commit',      icon:'⚡', rarity:'common',    q:1,  r:0,  s:-1,  desc:'A mergé sa première Pull Request dans le monorepo.', cond:'Merger une PR dans efficimo/core.' },
+  { id:'s02', name:'Signal Observé',      icon:'👁', rarity:'common',    q:0,  r:1,  s:-1,  desc:'A publié @efficimo/observable sur npm.',             cond:'Compléter MISSION-001.' },
+  { id:'s03', name:'Archiviste',          icon:'💾', rarity:'common',    q:-1, r:1,  s:0,   desc:'A implémenté le stockage réactif local.',            cond:'Compléter MISSION-002.' },
+  { id:'s04', name:'Maître du Temps',     icon:'⏳', rarity:'common',    q:-1, r:0,  s:1,   desc:'A implémenté l\'undo/redo réactif.',                 cond:'Compléter MISSION-005.' },
+  { id:'s05', name:'Veilleur Vital',      icon:'📊', rarity:'common',    q:0,  r:-1, s:1,   desc:'A intégré les métriques Web Vitals.',                cond:'Compléter MISSION-006.' },
+  { id:'s06', name:'Fondateur',           icon:'🏗️', rarity:'common',    q:1,  r:-1, s:0,   desc:'A configuré le monorepo pnpm + Turborepo.',          cond:'Compléter MISSION-000.' },
+  // Common — dist 2
+  { id:'s07', name:'Portail Nomade',      icon:'🪟', rarity:'common',    q:2,  r:0,  s:-2,  desc:'A créé des panels détachables avec @efficimo/dock.', cond:'Compléter MISSION-007.' },
+  { id:'s08', name:'Bastion PWA',         icon:'📱', rarity:'common',    q:0,  r:2,  s:-2,  desc:'A rendu l\'application installable multi-OS.',       cond:'Compléter MISSION-015.' },
+  { id:'s09', name:'Synchroniseur',       icon:'🔄', rarity:'common',    q:-2, r:2,  s:0,   desc:'A synchronisé les onglets via BroadcastChannel.',    cond:'Compléter MISSION-016.' },
+  { id:'s10', name:'Veilleur HTML',       icon:'📜', rarity:'common',    q:-2, r:0,  s:2,   desc:'A maîtrisé HTML natif avancé (dialog, template).',   cond:'Compléter MISSION-017.' },
+  // Rare — dist 3-4
+  { id:'s11', name:'Cryptographe',        icon:'🔐', rarity:'rare',      q:3,  r:0,  s:-3,  desc:'A implémenté AES-256-GCM + WebAuthn biométrique.',   cond:'Compléter MISSION-003.' },
+  { id:'s12', name:'Sentinelle',          icon:'🛡️', rarity:'rare',      q:0,  r:3,  s:-3,  desc:'A maîtrisé le Service Worker offline-first.',        cond:'Compléter MISSION-013.' },
+  { id:'s13', name:'Stéganographe',       icon:'🖼️', rarity:'rare',      q:-3, r:3,  s:0,   desc:'A caché une clé cryptographique dans une image.',    cond:'Compléter MISSION-011.' },
+  { id:'s14', name:'Machine Temporelle',  icon:'🕰️', rarity:'rare',      q:-3, r:0,  s:3,   desc:'A construit l\'audit temporel persistant.',          cond:'Compléter MISSION-012.' },
+  { id:'s15', name:'Ambassadeur',         icon:'🤝', rarity:'rare',      q:0,  r:-3, s:3,   desc:'A unifié OAuth2 GitHub + GitLab + Google.',          cond:'Compléter MISSION-020.' },
+  { id:'s16', name:'Forgeur WASM',        icon:'⚗️', rarity:'rare',      q:3,  r:-3, s:0,   desc:'A intégré SQLite embarqué via WebAssembly.',         cond:'Compléter MISSION-022.' },
+  { id:'s17', name:'Caméléon CSS',        icon:'🦎', rarity:'rare',      q:2,  r:-4, s:2,   desc:'A maîtrisé CSS Houdini + Container Queries.',        cond:'Compléter MISSION-018.' },
+  { id:'s18', name:'Ouvrier Réactif',     icon:'⚙️', rarity:'rare',      q:-4, r:2,  s:2,   desc:'A publié @efficimo/workers, Web Workers réactifs.',  cond:'Compléter MISSION-004.' },
+  // Epic — dist 6
+  { id:'s19', name:'Tisserand Mesh',      icon:'🕸️', rarity:'epic',      q:6,  r:0,  s:-6,  desc:'A implémenté le routage distance-vector P2P Plexus.', cond:'Compléter MISSION-008.' },
+  { id:'s20', name:'Cartographe Stellaire',icon:'🌌',rarity:'epic',      q:0,  r:6,  s:-6,  desc:'A visualisé le mesh Plexus en SVG temps réel.',      cond:'Compléter MISSION-009.' },
+  { id:'s21', name:'Oracle IA',           icon:'🧠', rarity:'epic',      q:-6, r:6,  s:0,   desc:'A intégré une intelligence artificielle locale.',    cond:'Compléter MISSION-030.' },
+  { id:'s22', name:'Signal Proximitaire', icon:'🎵', rarity:'epic',      q:-6, r:0,  s:6,   desc:'A détecté la présence humaine via AudioContext.',    cond:'Compléter MISSION-032.' },
+  // Legendary — dist 10
+  { id:'s23', name:'Architecte XR',       icon:'🥽', rarity:'legendary', q:10, r:0,  s:-10, desc:'A construit un Kanban spatial en WebXR 3D. Peu d\'Architectes ont repoussé cette frontière.', cond:'Compléter MISSION-039.' },
+  { id:'s24', name:'Grand Architecte',    icon:'♾️', rarity:'legendary', q:0,  r:10, s:-10, desc:'A complété les 40 ordres de mission. La Grille Cristalline entière lui est familière.', cond:'Compléter les 40 missions.' },
+];
+
+const ARCHITECTS = {
+  all:   { name:'Tous',      ids:[] },
+  kaito: { name:'Kaito-7F2A', ids:['s01','s02','s03','s04','s06','s07','s11','s19'], unlockedAt:{'s01':'2025-11-01','s02':'2025-11-08','s03':'2025-11-15','s04':'2025-12-01','s06':'2025-10-28','s07':'2025-12-10','s11':'2026-01-05','s19':'2026-02-14'} },
+  nova:  { name:'Nova-9B12',  ids:['s01','s02','s05','s08','s09','s12','s20'], unlockedAt:{'s01':'2025-11-02','s02':'2025-11-09','s05':'2025-11-20','s08':'2025-12-05','s09':'2025-12-12','s12':'2026-01-10','s20':'2026-02-28'} },
+  aria:  { name:'Aria-3E8C',  ids:['s01','s03','s04','s06','s13','s14','s16','s23'], unlockedAt:{'s01':'2025-11-03','s03':'2025-11-10','s04':'2025-11-18','s06':'2025-10-29','s13':'2026-01-15','s14':'2026-01-20','s16':'2026-02-05','s23':'2026-03-22'} },
+  echo:  { name:'Echo-2A61',  ids:['s01','s02','s03','s07','s08','s18'], unlockedAt:{'s01':'2025-11-05','s02':'2025-11-12','s03':'2025-11-19','s07':'2025-12-08','s08':'2025-12-15','s18':'2026-01-28'} },
+};
+
+const RARITY = {
+  common:    { stroke:'#4b5563', fill:'rgba(75,85,99,0.1)',   glow:'#4b5563', glowSize:0,  strokeW:1.2 },
+  rare:      { stroke:'#3b82f6', fill:'rgba(59,130,246,0.12)',glow:'#3b82f6', glowSize:5,  strokeW:1.5 },
+  epic:      { stroke:'#a855f7', fill:'rgba(168,85,247,0.13)',glow:'#a855f7', glowSize:9,  strokeW:1.5 },
+  legendary: { stroke:'#f59e0b', fill:'rgba(245,158,11,0.14)',glow:'#f59e0b', glowSize:13, strokeW:2   },
+};
+
+/* ═══════════════════════════════════════════════════════
+   CANVAS SETUP
+════════════════════════════════════════════════════════ */
+const wrap   = document.getElementById('canvas-wrap');
+const canvas = document.getElementById('hex-canvas');
+const ctx    = canvas.getContext('2d');
+let canvasW = 0, canvasH = 0, dpr = 1;
+
+function setupCanvas() {
+  dpr = window.devicePixelRatio || 1;
+  const r = wrap.getBoundingClientRect();
+  canvasW = r.width; canvasH = r.height;
+  canvas.width  = canvasW * dpr;
+  canvas.height = canvasH * dpr;
+  canvas.style.width  = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  ctx.scale(dpr, dpr);
+}
+
+new ResizeObserver(() => { setupCanvas(); scheduleRedraw(); }).observe(wrap);
+setupCanvas();
+
+/* ═══════════════════════════════════════════════════════
+   HEX UTILITIES
+════════════════════════════════════════════════════════ */
+const SQRT3 = Math.sqrt(3);
+const HEX_SIZE = 46;
+
+// Pointy-top hex vertices
+function hexVertices(cx, cy, size) {
+  return Array.from({length:6}, (_,i) => [
+    cx + size * Math.sin(i * Math.PI / 3),
+    cy - size * Math.cos(i * Math.PI / 3)
+  ]);
+}
+
+// Cubic → pixel (with camera)
+function cubeToPixel(q, r, size) {
+  const x = size * (SQRT3 * q + SQRT3/2 * r);
+  const y = size * (1.5 * r);
+  return {
+    x: x * cam.zoom + cam.x + canvasW / 2,
+    y: y * cam.zoom + cam.y + canvasH / 2
+  };
+}
+
+// Pixel → cubic (no camera, from raw mouse position)
+function pixelToCube(px, py, size) {
+  const x = (px - canvasW/2 - cam.x) / (cam.zoom * size);
+  const y = (py - canvasH/2 - cam.y) / (cam.zoom * size);
+  const q = (SQRT3/3 * x - 1/3 * y);
+  const r = (2/3 * y);
+  return cubeRound(q, r, -q-r);
+}
+
+function cubeRound(q, r, s) {
+  let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s);
+  const dq = Math.abs(rq-q), dr = Math.abs(rr-r), ds = Math.abs(rs-s);
+  if (dq > dr && dq > ds)      rq = -rr - rs;
+  else if (dr > ds)             rr = -rq - rs;
+  else                          rs = -rq - rr;
+  return { q:rq, r:rr, s:rs };
+}
+
+function cubeDistance(aq,ar,bq,br) {
+  return Math.max(Math.abs(aq-bq), Math.abs(ar-br), Math.abs((-aq-ar)-(-bq-br)));
+}
+
+function coordKey(q, r) { return `${q},${r}`; }
+
+// Get visible hex coordinates
+function getVisibleCubes(extraMargin = 1) {
+  const size = HEX_SIZE * cam.zoom;
+  const margin = size * extraMargin;
+  const result = [];
+  // Convert viewport corners to approx cube range
+  const qRange = Math.ceil((canvasW / 2 + margin) / (size * SQRT3)) + 1;
+  const rRange = Math.ceil((canvasH / 2 + margin) / (size * 1.5)) + 1;
+  const ctr = pixelToCube(canvasW/2, canvasH/2, HEX_SIZE);
+
+  for (let r = ctr.r - rRange; r <= ctr.r + rRange; r++) {
+    for (let q = ctr.q - qRange; q <= ctr.q + qRange; q++) {
+      const pos = cubeToPixel(q, r, HEX_SIZE);
+      if (pos.x > -size && pos.x < canvasW + size &&
+          pos.y > -size && pos.y < canvasH + size) {
+        result.push({q, r, s:-q-r});
+      }
+    }
+  }
+  return result;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════ */
+const cam = { x:0, y:0, zoom:1 };
+let selectedArchitect = 'all';
+let rarityFilter      = 'all';
+let showGhost         = true;
+let selectedSigil     = null;
+let hoveredCoord      = null;
+
+// Build coord → sigil map
+const sigilMap = new Map();
+for (const s of SIGILS) sigilMap.set(coordKey(s.q, s.r), s);
+
+// Animation state
+const animMap  = new Map(); // coordKey → { startTime, strokeProg, fillOpacity, done }
+let animating  = false;
+let rafId      = null;
+
+/* ═══════════════════════════════════════════════════════
+   ANIMATION
+════════════════════════════════════════════════════════ */
+function initAnimation() {
+  animMap.clear();
+  const visible = getVisibleCubes(0);
+  const now = performance.now();
+  for (const {q,r} of visible) {
+    const key = coordKey(q,r);
+    if (!sigilMap.has(key)) continue;
+    const dist = cubeDistance(q, r, 0, 0);
+    animMap.set(key, {
+      startTime: now + dist * 40,
+      strokeProg: 0,
+      fillOpacity: 0,
+      done: false
+    });
+  }
+  animating = true;
+  scheduleRedraw();
+}
+
+function updateAnimations(now) {
+  let stillGoing = false;
+  for (const [key, anim] of animMap) {
+    if (anim.done) continue;
+    const elapsed = now - anim.startTime;
+    if (elapsed < 0) { stillGoing = true; continue; }
+    if (anim.strokeProg < 1) {
+      anim.strokeProg = Math.min(1, easeOut(elapsed / 350));
+      stillGoing = true;
+    } else if (anim.fillOpacity < 1) {
+      const fe = now - (anim.startTime + 350);
+      anim.fillOpacity = Math.min(1, easeIn(fe / 200));
+      stillGoing = true;
+    } else {
+      anim.done = true;
+    }
+  }
+  animating = stillGoing;
+}
+
+function easeOut(t) { return 1 - Math.pow(1-Math.min(1,t), 2); }
+function easeIn(t)  { const c = Math.min(1,t); return c*c; }
+
+/* ═══════════════════════════════════════════════════════
+   DRAW FUNCTIONS
+════════════════════════════════════════════════════════ */
+function drawHexStroke(cx, cy, size, progress, color, lineWidth) {
+  const verts = hexVertices(cx, cy, size);
+  const drawn = progress * 6;
+  const full  = Math.floor(drawn);
+  const frac  = drawn - full;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = lineWidth;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (let i = 1; i <= Math.min(full, 5); i++) ctx.lineTo(verts[i][0], verts[i][1]);
+  if (full < 6 && frac > 0) {
+    const a = verts[full % 6], b = verts[(full+1) % 6];
+    ctx.lineTo(a[0]+(b[0]-a[0])*frac, a[1]+(b[1]-a[1])*frac);
+  }
+  if (full >= 5) ctx.closePath();
+  ctx.stroke();
+}
+
+function drawHexFill(cx, cy, size, color, glowColor, glowSize) {
+  const verts = hexVertices(cx, cy, size);
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (const [x,y] of verts) ctx.lineTo(x,y);
+  ctx.closePath();
+  if (glowSize > 0) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowSize * cam.zoom; }
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function drawLegendaryShimmer(cx, cy, size, ts) {
+  const angle = (ts * 0.0004) % (Math.PI * 2);
+  const r = size * 0.75;
+  const grad = ctx.createLinearGradient(
+    cx + Math.cos(angle)*r, cy + Math.sin(angle)*r,
+    cx - Math.cos(angle)*r, cy - Math.sin(angle)*r
+  );
+  grad.addColorStop(0,   'rgba(245,158,11,0.04)');
+  grad.addColorStop(0.45,'rgba(251,191,36,0.22)');
+  grad.addColorStop(0.55,'rgba(251,191,36,0.22)');
+  grad.addColorStop(1,   'rgba(245,158,11,0.04)');
+
+  const verts = hexVertices(cx, cy, size);
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (const [x,y] of verts) ctx.lineTo(x,y);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx-size, cy-size, size*2, size*2);
+  ctx.restore();
+}
+
+function drawHexIcon(cx, cy, size, icon, opacity) {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.font = `${Math.floor(size * 0.72)}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icon, cx, cy + size * 0.04);
+  ctx.restore();
+}
+
+function drawHexName(cx, cy, size, name, opacity) {
+  if (cam.zoom < 0.7) return;
+  const alpha = Math.min(1, (cam.zoom - 0.7) / 0.3) * opacity;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.6;
+  ctx.font = `${Math.max(8, Math.floor(9 * cam.zoom))}px 'Share Tech Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#5a7090';
+  const label = name.length > 13 ? name.slice(0,12)+'…' : name;
+  ctx.fillText(label, cx, cy + size * 0.95);
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════
+   MAIN RENDER
+════════════════════════════════════════════════════════ */
+function render(ts) {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  if (animating) updateAnimations(ts);
+
+  const visible = getVisibleCubes();
+  const effectiveSize = HEX_SIZE; // world units, zoom applied in cubeToPixel
+  let hasLegendaryVisible = false;
+
+  for (const {q, r} of visible) {
+    const key     = coordKey(q, r);
+    const sigil   = sigilMap.get(key);
+    const pos     = cubeToPixel(q, r, HEX_SIZE);
+    const px = pos.x, py = pos.y;
+    const size = HEX_SIZE * cam.zoom;
+
+    // Skip off-screen
+    if (px < -size*2 || px > canvasW+size*2 || py < -size*2 || py > canvasH+size*2) continue;
+
+    const anim = animMap.get(key);
+
+    if (!sigil) {
+      // Ghost grid cell
+      if (!showGhost) continue;
+      const dist = cubeDistance(q,r,0,0);
+      if (dist > 8) continue;
+      const ghostOpacity = Math.max(0, 1 - dist/9) * 0.35;
+      ctx.globalAlpha = ghostOpacity;
+      drawHexStroke(px, py, size, 1, '#0e1828', 0.8);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    // Rarity filter
+    const filterPass = rarityFilter === 'all' || sigil.rarity === rarityFilter;
+    const filterOpacity = filterPass ? 1 : 0.15;
+
+    // Architect filter
+    const archData = ARCHITECTS[selectedArchitect];
+    const isGlobal = selectedArchitect === 'all';
+    const isUnlocked = isGlobal || archData.ids.includes(sigil.id);
+    const isLocked   = !isUnlocked;
+
+    ctx.globalAlpha = filterOpacity;
+
+    if (isLocked) {
+      // Locked state
+      const strokeProg = anim ? anim.strokeProg : 1;
+      const fillOp     = anim ? anim.fillOpacity : 1;
+      drawHexFill(px, py, size, `rgba(0,0,0,${fillOp*0.5})`, '', 0);
+      drawHexStroke(px, py, size, strokeProg, '#1a2035', 0.8);
+      drawHexIcon(px, py, size, sigil.icon, fillOp * 0.15);
+    } else {
+      const r = RARITY[sigil.rarity];
+      const strokeProg = anim ? anim.strokeProg : 1;
+      const fillOp     = anim ? anim.fillOpacity : 1;
+
+      // Hover highlight
+      const isHovered = hoveredCoord && hoveredCoord.q===q && hoveredCoord.r===r;
+
+      // Fill
+      if (fillOp > 0) {
+        ctx.globalAlpha = filterOpacity * fillOp;
+        drawHexFill(px, py, size, r.fill, r.glow, r.glowSize);
+
+        // Legendary shimmer
+        if (sigil.rarity === 'legendary') {
+          hasLegendaryVisible = true;
+          drawLegendaryShimmer(px, py, size, ts);
+        }
+        ctx.globalAlpha = filterOpacity;
+      }
+
+      // Stroke
+      const strokeColor = isHovered ? lighten(r.stroke) : r.stroke;
+      const strokeW = isHovered ? r.strokeW + 0.8 : r.strokeW;
+      if (isHovered && r.glowSize > 0) {
+        ctx.shadowColor = r.glow;
+        ctx.shadowBlur  = r.glowSize * 1.5 * cam.zoom;
+      }
+      drawHexStroke(px, py, size, strokeProg, strokeColor, strokeW);
+      ctx.shadowBlur = 0;
+
+      // Icon + label
+      if (fillOp > 0) {
+        drawHexIcon(px, py, size, sigil.icon, fillOp * (isHovered ? 1 : 0.88));
+        drawHexName(px, py, size, sigil.name, fillOp);
+      }
+
+      // Selected ring
+      if (selectedSigil && selectedSigil.id === sigil.id) {
+        ctx.strokeStyle = r.stroke;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        const verts = hexVertices(px, py, size * 1.22);
+        ctx.beginPath();
+        ctx.moveTo(verts[0][0], verts[0][1]);
+        for (const [x,y] of verts) ctx.lineTo(x,y);
+        ctx.closePath();
+        const offset = -(ts * 0.02) % 7;
+        ctx.lineDashOffset = offset;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  return hasLegendaryVisible;
+}
+
+function lighten(hex) {
+  const r = parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.min(255,r+50)},${Math.min(255,g+50)},${Math.min(255,b+50)})`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RAF LOOP
+════════════════════════════════════════════════════════ */
+let dirty = false;
+
+function scheduleRedraw() {
+  if (!rafId) rafId = requestAnimationFrame(renderLoop);
+}
+
+function renderLoop(ts) {
+  rafId = null;
+  const hasLegendary = render(ts);
+  if (animating || hasLegendary || dirty) {
+    dirty = false;
+    rafId = requestAnimationFrame(renderLoop);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   CAMERA — Pan + Zoom
+════════════════════════════════════════════════════════ */
+let dragging = false, lastMX = 0, lastMY = 0;
+
+wrap.addEventListener('mousedown', e => {
+  dragging = true; lastMX = e.clientX; lastMY = e.clientY;
+});
+window.addEventListener('mousemove', e => {
+  if (dragging) {
+    cam.x += e.clientX - lastMX;
+    cam.y += e.clientY - lastMY;
+    lastMX = e.clientX; lastMY = e.clientY;
+    dirty = true; scheduleRedraw();
+  }
+  // Hover
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const c = pixelToCube(mx, my, HEX_SIZE);
+  hoveredCoord = c;
+  const key = coordKey(c.q, c.r);
+  const sigil = sigilMap.get(key);
+
+  document.getElementById('hov-q').textContent = c.q;
+  document.getElementById('hov-r').textContent = c.r;
+  document.getElementById('hov-s').textContent = c.s;
+
+  const tooltip = document.getElementById('tooltip');
+  if (sigil) {
+    document.getElementById('tt-name').textContent = sigil.name;
+    const tt_r = document.getElementById('tt-rarity');
+    tt_r.textContent = sigil.rarity.charAt(0).toUpperCase() + sigil.rarity.slice(1);
+    tt_r.className = `tt-rarity ${sigil.rarity}`;
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+    tooltip.classList.add('visible');
+  } else {
+    tooltip.classList.remove('visible');
+  }
+
+  dirty = true; scheduleRedraw();
+});
+
+window.addEventListener('mouseup', () => { dragging = false; });
+wrap.addEventListener('mouseleave', () => {
+  hoveredCoord = null;
+  document.getElementById('tooltip').classList.remove('visible');
+});
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 0.9;
+  const newZoom = Math.max(0.35, Math.min(3.5, cam.zoom * factor));
+  // Zoom toward mouse
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left - canvasW/2;
+  const my = e.clientY - rect.top  - canvasH/2;
+  cam.x = mx + (cam.x - mx) * (newZoom / cam.zoom);
+  cam.y = my + (cam.y - my) * (newZoom / cam.zoom);
+  cam.zoom = newZoom;
+  document.getElementById('zoom-label').textContent = Math.round(cam.zoom * 100) + '%';
+  dirty = true; scheduleRedraw();
+}, { passive: false });
+
+// Click to select sigil
+wrap.addEventListener('click', e => {
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const c = pixelToCube(mx, my, HEX_SIZE);
+  const sigil = sigilMap.get(coordKey(c.q, c.r));
+  if (sigil) {
+    selectedSigil = sigil;
+    openDrawer(sigil);
+  } else {
+    selectedSigil = null;
+    closeDrawer();
+  }
+  dirty = true; scheduleRedraw();
+});
+
+/* ═══════════════════════════════════════════════════════
+   CONTROLS
+════════════════════════════════════════════════════════ */
+function centerCamera() {
+  cam.x = 0; cam.y = 0; cam.zoom = 1;
+  document.getElementById('zoom-label').textContent = '100%';
+  dirty = true; scheduleRedraw();
+}
+
+function zoom(delta) {
+  cam.zoom = Math.max(0.35, Math.min(3.5, cam.zoom + delta));
+  document.getElementById('zoom-label').textContent = Math.round(cam.zoom * 100) + '%';
+  dirty = true; scheduleRedraw();
+}
+
+function toggleGhost() {
+  showGhost = !showGhost;
+  document.getElementById('btn-ghost').classList.toggle('active', showGhost);
+  dirty = true; scheduleRedraw();
+}
+
+function setRarityFilter(rarity, btn) {
+  rarityFilter = rarity;
+  document.querySelectorAll('.ctrl-group .ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  dirty = true; scheduleRedraw();
+}
+
+function setArchitect(id) {
+  selectedArchitect = id;
+  const arch = ARCHITECTS[id];
+  const unlockEl = document.getElementById('stat-unlocked');
+  const unlockText = document.getElementById('stat-unlocked-text');
+  if (id === 'all') {
+    unlockEl.style.display = 'none';
+  } else {
+    unlockEl.style.display = '';
+    unlockText.textContent = `${arch.ids.length} / ${SIGILS.length} débloqués`;
+    unlockText.style.color = 'var(--connected)';
+  }
+  dirty = true; scheduleRedraw();
+}
+
+/* ═══════════════════════════════════════════════════════
+   DRAWER
+════════════════════════════════════════════════════════ */
+function openDrawer(sigil) {
+  const r = RARITY[sigil.rarity];
+  const arch = ARCHITECTS[selectedArchitect];
+  const isGlobal = selectedArchitect === 'all';
+  const isUnlocked = isGlobal || arch.ids.includes(sigil.id);
+  const dist = cubeDistance(sigil.q, sigil.r, 0, 0);
+
+  // Icon
+  document.getElementById('d-icon-emoji').textContent = sigil.icon;
+  document.getElementById('d-icon-ring').style.borderColor = r.stroke;
+
+  // Name + rarity
+  document.getElementById('d-name').textContent = sigil.name;
+  const rb = document.getElementById('d-rarity');
+  rb.textContent = sigil.rarity.charAt(0).toUpperCase() + sigil.rarity.slice(1);
+  rb.className = `rarity-badge ${sigil.rarity}`;
+
+  // Unlock status
+  const us = document.getElementById('d-unlock-status');
+  if (!isGlobal) {
+    if (isUnlocked) {
+      const date = arch.unlockedAt[sigil.id] || '—';
+      us.innerHTML = `<div class="unlock-status unlocked">✓ Débloqué le ${date}</div>`;
+    } else {
+      us.innerHTML = `<div class="unlock-status locked">⊘ Non débloqué</div>`;
+    }
+  } else { us.innerHTML = ''; }
+
+  // Body
+  const unlockedBy = Object.entries(ARCHITECTS)
+    .filter(([id]) => id !== 'all')
+    .filter(([,a]) => a.ids.includes(sigil.id));
+
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="d-section">
+      <div class="d-section-title">Description</div>
+      <div class="d-text">${sigil.desc}</div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Condition</div>
+      <div class="d-text" style="color:var(--accent)">${sigil.cond}</div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Coordonnées cristallines</div>
+      <div class="d-row"><span class="d-key">q</span><span class="d-val cyan">${sigil.q}</span></div>
+      <div class="d-row"><span class="d-key">r</span><span class="d-val cyan">${sigil.r}</span></div>
+      <div class="d-row"><span class="d-key">s</span><span class="d-val cyan">${sigil.s}</span></div>
+      <div class="d-row"><span class="d-key">distance</span><span class="d-val">${dist} hexagones</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Débloqué par</div>
+      ${unlockedBy.length === 0
+        ? '<div class="d-text" style="color:var(--text-faint)">Aucun Architecte pour l\'instant.</div>'
+        : unlockedBy.map(([,a]) => `<div class="d-row"><span class="d-key">${a.name}</span><span class="d-val blue">${a.unlockedAt[sigil.id]||'—'}</span></div>`).join('')
+      }
+    </div>
+  `;
+
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  selectedSigil = null;
+  dirty = true; scheduleRedraw();
+}
+
+/* ═══════════════════════════════════════════════════════
+   CLOCK
+════════════════════════════════════════════════════════ */
+setInterval(() => {
+  document.getElementById('top-clock').textContent =
+    new Date().toLocaleTimeString('fr-FR', { hour12:false });
+}, 1000);
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+initAnimation();
+</script>
+</body>
+</html>

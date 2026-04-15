@@ -1,0 +1,78 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 06                                                ║
+║  GATEWAY TAB — ÉLECTION ET CRASH RECOVERY                               ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Un seul onglet par machine gère les connexions WebRTC distantes (Gateway).
+Les autres onglets sont des Satellites — ils reçoivent et émettent via
+le BroadcastChannel (MISSION-016). L'élection est automatique et survive
+aux crashs grâce au mécanisme heartbeat.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÉLECTION AU DÉMARRAGE D'UN ONGLET
+
+```mermaid
+sequenceDiagram
+  participant Onglet as Nouvel onglet
+  participant BC as BroadcastChannel
+  participant GW as Gateway actuel
+
+  Onglet->>BC: ELECTION_REQUEST
+  alt Gateway présent
+    GW->>BC: ELECTION_ACK {tabId: "gw-42"}
+    BC->>Onglet: ELECTION_ACK
+    Note over Onglet: Devient Satellite\n→ relaie via BroadcastChannel
+  else Pas de réponse (timeout 500ms)
+    Note over Onglet: Devient Gateway\n→ ouvre connexions RTC\n→ publie heartbeat toutes les 5s
+  end
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRASH RECOVERY — PERTE DU GATEWAY
+
+```mermaid
+sequenceDiagram
+  participant GW as Gateway (crash)
+  participant BC as BroadcastChannel
+  participant S1 as Satellite 1
+  participant S2 as Satellite 2
+
+  GW--xBC: heartbeat (5s) — plus émis après crash
+  Note over S1,S2: Timeout 10s sans heartbeat\n→ Gateway considéré perdu
+
+  S1->>BC: ELECTION_REQUEST
+  S2->>BC: ELECTION_REQUEST
+
+  Note over S1,S2: Le premier à émettre gagne\n(race condition acceptable)
+
+  S1->>BC: ELECTION_ACK {tabId: "s1"}
+  Note over S1: Devient Gateway\n→ lit routingTable depuis localStorage\n→ reconstruit les connexions RTC
+
+  Note over S2: Reçoit ACK de S1\n→ reste Satellite
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FLUX DE MESSAGE — SATELLITE VERS RÉSEAU DISTANT
+
+```mermaid
+flowchart LR
+  APP["Composant React\nsend()"] -->|"MESSAGE via BC"| GW["Gateway Tab\n(RTC actif)"]
+  GW -->|"DataChannel"| PEER["Pair distant\n(autre machine)"]
+
+  PEER -->|"DataChannel"| GW
+  GW -->|"MESSAGE_RELAY via BC"| SAT1["Satellite 1"]
+  GW -->|"MESSAGE_RELAY via BC"| SAT2["Satellite 2"]
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PARAMÈTRES PLEXUS ASSOCIÉS
+
+  gatewayHeartbeat : 5 000  — intervalle d'émission heartbeat (ms)
+  gatewayTimeout   : 10 000 — délai sans heartbeat avant ré-élection (ms)
+
+  La routingTable est snapshottée dans localStorage à chaque STATE_UPDATE
+  pour permettre une reconstruction rapide par le nouveau Gateway.

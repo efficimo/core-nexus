@@ -1,0 +1,564 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-040                                         ║
+║  LA GRILLE CRISTALLINE                                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔷⬡
+
+DÉSIGNATION     : Cartographie Hexagonale des Sigils — Opération Cristal
+CODENAME        : GRILLE-CRISTALLINE
+PHASE           : [BETA]
+CLASSIFICATION  : Interface & Visualisation
+DÉPENDANCES     : MISSION-001 (@efficimo/observable), MISSION-019 (View Transitions)
+PRÉCÈDE         : —
+LIVRABLE        : apps/core-nexus/src/views/SigilsView/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Sigils ne sont pas de simples badges. Ce sont des cristaux de mémoire —
+chaque accomplissement d'un Architecte se solidifie en une structure
+géométrique précise, ancrée dans un espace infini appelé la Grille
+Cristalline. Personne ne connaît ses limites. On ne sait même pas si elle
+en a.
+
+La Grille Cristalline est une vue hexagonale infinie. Chaque Sigil occupe
+une cellule unique, repérée par des coordonnées cubiques (q, r, s) dans un
+espace centré sur (0, 0, 0). Les Sigils les plus fondamentaux (common)
+gravitent près du centre. Les Sigils légendaires dérivent loin à la
+périphérie — difficiles d'accès, difficiles à décrocher.
+
+Quand la vue s'ouvre, la grille se dessine. Les hexagones les plus proches
+du centre naissent en premier, leurs contours tracés ligne par ligne, puis
+leurs intérieurs s'illuminent selon la rareté du Sigil qu'ils contiennent.
+Quand un Architecte est sélectionné, la grille se teinte : les Sigils
+débloqués brillent, les autres s'effacent dans l'ombre.
+
+C'est à la fois un tableau de bord, un inventaire et une carte des
+accomplissements de l'équipe.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SYSTÈME DE COORDONNÉES CUBIQUES
+
+  La grille utilise le système cubique standard pour les grilles hexagonales.
+  Trois axes : q, r, s — avec la contrainte invariante q + r + s = 0.
+
+  Représentation des voisins immédiats de (0,0,0) :
+
+               (0,-1,+1)  (+1,-1, 0)
+          (-1, 0,+1)  [ 0, 0, 0]  (+1, 0,-1)
+               (-1,+1, 0)  ( 0,+1,-1)
+
+  Distance entre deux cellules A et B :
+    dist(A, B) = max(|A.q-B.q|, |A.r-B.r|, |A.s-B.s|)
+
+  Un cercle de rayon R autour de l'origine contient exactement :
+    1 + 3·R·(R+1) cellules
+
+  RÈGLE DE PLACEMENT DES SIGILS
+  ─────────────────────────────
+  Chaque Sigil a une coordonnée (q, r, s) définie dans les données JSON.
+  Cette coordonnée est unique — deux Sigils ne partagent jamais la même
+  cellule. Le Grand Architecte (ou l'éditeur de données) assigne les
+  coordonnées lors de la création d'un Sigil.
+
+  Convention recommandée (non contrainte par le code) :
+    Distance 0-2  : Sigils common
+    Distance 3-5  : Sigils rare
+    Distance 6-9  : Sigils epic
+    Distance 10+  : Sigils legendary
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  PROTOCOLE I — GRILLE VIRTUALISÉE (Canvas 2D)
+
+  1. Implémenter le rendu Canvas 2D avec caméra (offset x/y + zoom) :
+     - Seules les cellules visibles dans le viewport sont calculées et
+       dessinées (culling par boîte englobante en coordonnées cubiques)
+     - La grille est conceptuellement infinie : aucune limite n'est codée
+     - La caméra est initialisée centrée sur (0,0,0)
+     - Taille de cellule par défaut : 52px (rayon de sommet à centre)
+
+  2. Conversion coordonnées cubiques ↔ pixels (hexagones pointy-top) :
+     - cubeToPixel(q, r, size, camera) → {x, y} (centre du hex à l'écran)
+     - pixelToCube(x, y, size, camera) → {q, r, s} arrondi au hex le plus
+       proche (utiliser le cube_round standard)
+
+  3. Calcul des hexagones visibles :
+     - Convertir les quatre coins du viewport en coordonnées cubiques
+     - Itérer sur la boîte englobante cubique (q_min..q_max, r_min..r_max)
+     - Filtrer par s = -q - r pour rester dans le plan cubique valide
+     - Retourner uniquement les cellules dans la boîte du viewport
+       + une marge d'une cellule (évite le pop-in aux bords)
+
+  PROTOCOLE II — ANIMATION DE DESSIN
+
+  4. Au montage de la vue (et à chaque navigation vers la vue) :
+     - Calculer les hexagones visibles au chargement initial
+     - Trier par distance cubique au centre (0,0,0) : les plus proches
+       d'abord
+     - Lancer l'animation staggerée :
+         délai(cellule) = distance * 40ms     (max 600ms pour dist=15)
+         durée stroke    = 350ms  (ease-out)
+         durée fill-in   = 200ms  (ease-in, commence quand stroke=100%)
+     - L'animation stroke dessine le contour de l'hexagone segment par
+       segment (6 segments × progress, calculé en JS à chaque rAF)
+     - Les cellules qui entrent dans le viewport après le chargement
+       initial n'animent pas — elles apparaissent instantanément
+
+  5. Algorithme de stroke progressif (par hexagone, par frame) :
+       Les 6 sommets d'un hexagone pointy-top de rayon R au centre (cx,cy) :
+         sommet[i].x = cx + R * sin(i * π/3)
+         sommet[i].y = cy - R * cos(i * π/3)
+       Progression t ∈ [0, 1] → dessiner t*6 segments complets +
+       fraction du segment suivant. Chaque segment a la même longueur R.
+       Utiliser ctx.lineTo() avec beginPath() à chaque frame.
+
+  PROTOCOLE III — ÉTATS DES CELLULES
+
+  6. Quatre états visuels (dessinés sur Canvas) :
+
+     SIGIL PRÉSENT — Architecte non sélectionné (vue globale)
+     ─────────────────────────────────────────────────────────
+     → Stroke couleur rareté, pleine opacité
+     → Fill légère teinte rareté (10-15% opacité)
+     → Icône du Sigil centrée (emoji ou SVG-to-canvas)
+     → Glow externe (shadowBlur) selon rareté
+
+     SIGIL DÉBLOQUÉ — Architecte sélectionné + Sigil dans sa liste
+     ─────────────────────────────────────────────────────────────
+     → Identique à l'état global
+     → Badge "✓" en coin haut-droit du hex (petit cercle)
+
+     SIGIL VERROUILLÉ — Architecte sélectionné + Sigil non débloqué
+     ─────────────────────────────────────────────────────────────
+     → Stroke : #1a2035 (très sombre)
+     → Fill : rgba(0,0,0, 0.5)
+     → Icône du Sigil à 15% opacité (silhouette visible mais effacée)
+     → Aucun glow
+
+     CELLULE VIDE — Coordonnées sans Sigil attribué
+     ─────────────────────────────────────────────────────────────
+     → Stroke : #0d1520 (quasi invisible, grille fantôme)
+     → Pas de fill, pas d'icône
+     → Rendu uniquement pour les cellules visibles proches (dist ≤ 8)
+       afin de matérialiser la grille sans surcharger le canvas
+
+  7. Système de rareté — couleurs et effets :
+
+     common    → stroke #4b5563  fill rgba(75,85,99,.10)   glow none
+     rare      → stroke #3b82f6  fill rgba(59,130,246,.12) glow 6px blue
+     epic      → stroke #a855f7  fill rgba(168,85,247,.14) glow 10px purple
+     legendary → stroke #f59e0b  fill rgba(245,158,11,.15) glow 14px amber
+                 + animation shimmer (rotation de gradient sur le fill,
+                   1 tour en 6s, CSS ou rAF canvas)
+
+  PROTOCOLE IV — INTERACTIONS
+
+  8. Navigation caméra :
+     - Drag souris / touch : pan (mettre à jour cameraX, cameraY)
+     - Scroll molette / pinch : zoom (clamp 0.4 → 3.0)
+     - Double-clic sur cellule vide : recentrer la caméra sur cette cellule
+     - Bouton "⌖ Centrer" dans les contrôles : réinitialise caméra à (0,0,0)
+     - Bouton "⊙ Trouver" : recentrer sur la cellule du Sigil sélectionné
+
+  9. Sélection d'un Architecte :
+     - Dropdown en topbar de la vue : liste des Architects du JSON
+     - Option "Tous les Architectes" (vue globale sans filtrage)
+     - Sélection → mise à jour de l'état React → le canvas redessine sans
+       ré-animer (transitions instantanées sur les états locked/unlocked)
+     - La sélection est persistée dans l'URL via TanStack Router
+       (?architect=architectId)
+
+  10. Clic sur un Sigil débloqué (ou en vue globale) :
+      - Identifier le hex cliqué via pixelToCube() + lookup dans la Map
+      - Si cellule vide : ne rien faire
+      - Si cellule avec Sigil : ouvrir le SigilDrawer
+      - Hover sur hex : curseur pointer + légère surbrillance (stroke +20%)
+
+  11. SigilDrawer (panel latéral 300px) :
+      - Nom du Sigil + icône (grande taille)
+      - Badge de rareté avec couleur
+      - Description et condition de déblocage
+      - Coordonnées cubiques (q, r, s) — détail technique fun
+      - Distance du centre
+      - Si Architecte sélectionné :
+          → Liste des Architects qui l'ont débloqué (avatars)
+          → Date de déblocage de l'Architecte sélectionné
+      - Si vue globale :
+          → Compteur "débloqué par X/N architectes"
+          → Barre de progression équipe
+
+  PROTOCOLE V — CONTRÔLES DE VUE
+
+  12. Barre de contrôles flottante (bas de l'écran, centrée) :
+      - Sélecteur de rareté (filtre visuel, pas de masquage — réduit
+        l'opacité des autres raretés à 30%)
+      - Toggle "Grille fantôme" (afficher/masquer les cellules vides)
+      - Indicateur de coordonnées de la cellule survolée
+      - Zoom in / Zoom out
+      - Bouton ⌖ Centrer
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ARCHITECTURE TECHNIQUE
+
+  useHexCamera — état de caméra + pan/zoom
+  ──────────────────────────────────────────────────────────────────────
+
+  const useHexCamera = (canvasRef: RefObject<HTMLCanvasElement>) => {
+    const camera = useRef({ x: 0, y: 0, zoom: 1 })
+
+    useEffect(() => {
+      const el = canvasRef.current
+      if (!el) return
+
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault()
+        const factor = e.deltaY < 0 ? 1.1 : 0.9
+        camera.current.zoom = Math.max(0.4, Math.min(3.0, camera.current.zoom * factor))
+        redraw()
+      }
+
+      let dragging = false, lastX = 0, lastY = 0
+      const onMouseDown = (e: MouseEvent) => { dragging = true; lastX = e.clientX; lastY = e.clientY }
+      const onMouseMove = (e: MouseEvent) => {
+        if (!dragging) return
+        camera.current.x += (e.clientX - lastX) / camera.current.zoom
+        camera.current.y += (e.clientY - lastY) / camera.current.zoom
+        lastX = e.clientX; lastY = e.clientY
+        redraw()
+      }
+      const onMouseUp = () => { dragging = false }
+
+      el.addEventListener('wheel', onWheel, { passive: false })
+      el.addEventListener('mousedown', onMouseDown)
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+      return () => { /* cleanup */ }
+    }, [])
+
+    return camera
+  }
+
+  ──────────────────────────────────────────────────────────────────────
+
+  Utilitaires cubiques (hex-utils.ts)
+  ──────────────────────────────────────────────────────────────────────
+
+  // Pointy-top hexagon
+  const SQRT3 = Math.sqrt(3)
+
+  function cubeToPixel(q: number, r: number, size: number, cam: Camera) {
+    const x = size * (SQRT3 * q + SQRT3/2 * r)
+    const y = size * (3/2 * r)
+    return {
+      x: x * cam.zoom + cam.x + viewportCenterX,
+      y: y * cam.zoom + cam.y + viewportCenterY
+    }
+  }
+
+  function pixelToCube(px: number, py: number, size: number, cam: Camera) {
+    const x = (px - cam.x - viewportCenterX) / (cam.zoom * size)
+    const y = (py - cam.y - viewportCenterY) / (cam.zoom * size)
+    const q = (SQRT3/3 * x - 1/3 * y)
+    const r = (2/3 * y)
+    return cubeRound(q, r, -q - r)
+  }
+
+  function cubeRound(q: number, r: number, s: number): HexCoord {
+    let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s)
+    const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s)
+    if (dq > dr && dq > ds) rq = -rr - rs
+    else if (dr > ds)        rr = -rq - rs
+    else                     rs = -rq - rr
+    return { q: rq, r: rr, s: rs }
+  }
+
+  function cubeDistance(a: HexCoord, b: HexCoord) {
+    return Math.max(Math.abs(a.q-b.q), Math.abs(a.r-b.r), Math.abs(a.s-b.s))
+  }
+
+  function getVisibleCubes(viewport: Rect, size: number, cam: Camera): HexCoord[] {
+    // Convert viewport corners to cube coords + 1 cell margin
+    const topLeft     = pixelToCube(viewport.left  - size, viewport.top    - size, size, cam)
+    const bottomRight = pixelToCube(viewport.right + size, viewport.bottom + size, size, cam)
+    const result: HexCoord[] = []
+    for (let q = topLeft.q - 1; q <= bottomRight.q + 1; q++) {
+      for (let r = topLeft.r - 1; r <= bottomRight.r + 1; r++) {
+        const s = -q - r
+        result.push({ q, r, s })
+      }
+    }
+    return result
+  }
+
+  ──────────────────────────────────────────────────────────────────────
+
+  drawHex — rendu d'une cellule sur Canvas
+  ──────────────────────────────────────────────────────────────────────
+
+  function hexVertices(cx: number, cy: number, size: number): [number, number][] {
+    return Array.from({ length: 6 }, (_, i) => [
+      cx + size * Math.sin(i * Math.PI / 3),
+      cy - size * Math.cos(i * Math.PI / 3)
+    ])
+  }
+
+  function drawHexStroke(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number, size: number,
+    progress: number,  // 0 → 1
+    color: string, lineWidth = 1.5
+  ) {
+    const verts = hexVertices(cx, cy, size)
+    const totalSegments = 6
+    const drawn = progress * totalSegments
+    const fullSides = Math.floor(drawn)
+    const partial = drawn - fullSides
+
+    ctx.strokeStyle = color
+    ctx.lineWidth = lineWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    ctx.moveTo(verts[0][0], verts[0][1])
+    for (let i = 1; i <= fullSides && i <= 5; i++) {
+      ctx.lineTo(verts[i][0], verts[i][1])
+    }
+    if (fullSides < 6 && partial > 0) {
+      const from = verts[fullSides % 6]
+      const to   = verts[(fullSides + 1) % 6]
+      ctx.lineTo(
+        from[0] + (to[0] - from[0]) * partial,
+        from[1] + (to[1] - from[1]) * partial
+      )
+    }
+    if (fullSides >= 5) ctx.closePath()
+    ctx.stroke()
+  }
+
+  function drawHexFill(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number, size: number,
+    fillColor: string, glowColor: string, glowSize: number
+  ) {
+    const verts = hexVertices(cx, cy, size)
+    ctx.beginPath()
+    ctx.moveTo(verts[0][0], verts[0][1])
+    verts.forEach(([x, y]) => ctx.lineTo(x, y))
+    ctx.closePath()
+    if (glowSize > 0) {
+      ctx.shadowColor = glowColor
+      ctx.shadowBlur  = glowSize
+    }
+    ctx.fillStyle = fillColor
+    ctx.fill()
+    ctx.shadowBlur = 0
+  }
+
+  ──────────────────────────────────────────────────────────────────────
+
+  Animation staggerée au montage
+  ──────────────────────────────────────────────────────────────────────
+
+  // Dans le composant HexGrid, au montage :
+  useEffect(() => {
+    const visibleAtMount = getVisibleCubes(viewport, HEX_SIZE, camera.current)
+    const animMap = new Map<string, { startTime: number; phase: 'stroke'|'fill'|'done' }>()
+
+    for (const coord of visibleAtMount) {
+      const dist = cubeDistance(coord, ORIGIN)
+      const delay = dist * 40  // ms
+      animMap.set(coordKey(coord), {
+        startTime: performance.now() + delay,
+        phase: 'stroke'
+      })
+    }
+
+    animatingCells.current = animMap
+    // La boucle rAF existante lit animatingCells pour moduler le progress
+  }, [])
+
+  // Dans la boucle rAF :
+  const now = performance.now()
+  for (const [key, anim] of animatingCells.current) {
+    const elapsed = now - anim.startTime
+    if (elapsed < 0) continue  // délai pas encore écoulé
+
+    if (anim.phase === 'stroke') {
+      const t = Math.min(1, elapsed / 350)  // 350ms
+      strokeProgress.set(key, easeOut(t))
+      if (t >= 1) { anim.phase = 'fill'; anim.startTime = now }
+    } else if (anim.phase === 'fill') {
+      const t = Math.min(1, elapsed / 200)  // 200ms
+      fillOpacity.set(key, easeIn(t))
+      if (t >= 1) { anim.phase = 'done'; animatingCells.current.delete(key) }
+    }
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SCHÉMA DE DONNÉES
+
+  Sigil (dans public/data/sigils.json) — champ coord ajouté
+  ──────────────────────────────────────────────────────────────────────
+
+  {
+    "id":          "sigil-first-commit",
+    "name":        "Premier Commit",
+    "icon":        "⚡",
+    "rarity":      "common",
+    "description": "A poussé son premier commit dans le monorepo.",
+    "condition":   "Merger une PR dans efficimo/core.",
+    "coord":       { "q": 1, "r": 0, "s": -1 }
+  }
+
+  Architect (existant) — champ sigils ajouté
+  ──────────────────────────────────────────────────────────────────────
+
+  {
+    "id":     "architect-kaito",
+    "pseudo": "Kaito",
+    "sigils": [
+      { "sigilId": "sigil-first-commit", "unlockedAt": "2025-11-12T14:23:00Z" },
+      { "sigilId": "sigil-mesh-weaver",  "unlockedAt": "2026-01-08T09:15:00Z" }
+    ]
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Canvas 2D — rendu du graphe (pas de SVG : performances de la grille
+    infinie virtualisée avec rAF, zoom et pan fluide)
+  - requestAnimationFrame — boucle de rendu continue pendant les animations,
+    puis idle (redraw uniquement sur événement caméra ou changement d'état)
+  - ResizeObserver — adapter la taille du canvas au conteneur
+  - TanStack Router — paramètre URL ?architect=id persisté
+  - TanStack Query — chargement des Sigils + Architects (stale 10min)
+  - Zod v4 — validation des données Sigil (coord cubique + rareté)
+  - @efficimo/observable — si l'état d'un Architect change en direct
+    (Session multi-onglets via MISSION-016 BroadcastChannel)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DES FICHIERS
+
+  apps/core-nexus/src/views/SigilsView/
+  ├── SigilsView.tsx              ← Vue principale + layout
+  ├── HexGrid.tsx                 ← Composant Canvas avec caméra
+  ├── SigilDrawer.tsx             ← Panel détail latéral
+  ├── ArchitectSelector.tsx       ← Dropdown sélection d'Architecte
+  ├── HexControls.tsx             ← Barre de contrôles flottante
+  ├── hex-utils.ts                ← cubeToPixel, pixelToCube, cubeRound,
+  │                                  getVisibleCubes, cubeDistance, hexVertices
+  ├── draw-hex.ts                 ← drawHexStroke, drawHexFill
+  ├── use-hex-camera.ts           ← pan, zoom, resize
+  ├── use-hex-animation.ts        ← stagger au montage, strokeProgress, fillOpacity
+  ├── use-sigil-grid.ts           ← Map<coordKey, Sigil>, lookup, hover, click
+  └── sigil-colors.ts             ← Couleurs et glows par rareté
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen-élevé             │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Core
+  [ ] hex-utils.ts          : cubeToPixel, pixelToCube, cubeRound,
+                               getVisibleCubes, cubeDistance, hexVertices
+  [ ] draw-hex.ts           : drawHexStroke (progressive), drawHexFill
+  [ ] use-hex-camera.ts     : pan + zoom + ResizeObserver
+  [ ] use-hex-animation.ts  : stagger au montage + boucle rAF
+  [ ] use-sigil-grid.ts     : Map<key, Sigil>, hover, click, état architecte
+
+  Composants
+  [ ] HexGrid.tsx           : Canvas + caméra + appel drawHex par cellule
+  [ ] SigilDrawer.tsx       : Détail Sigil + unlocked-by + date
+  [ ] ArchitectSelector.tsx : Dropdown + option "Tous"
+  [ ] HexControls.tsx       : Filtres rareté + toggle grille + ⌖ centrer
+  [ ] SigilsView.tsx        : Assemblage + route TanStack
+
+  Données
+  [ ] sigils.json           : Tous les Sigils avec champ coord cubique
+  [ ] architects.json       : Ajout du tableau sigils[] dans chaque Architect
+
+  Tests
+  [ ] hex-utils.test.ts     : cubeRound (cas limites), cubeDistance,
+                               pixelToCube(cubeToPixel(x)) = x (round-trip)
+  [ ] use-sigil-grid.test.ts: lookup par coord, filtre architecte
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  La grille hexagonale cubique est l'un des systèmes de coordonnées les
+  plus élégants qui existent — zéro ambiguïté, distance triviale, voisins
+  symétriques. L'appliquer à une collection de Sigils lui donne une
+  spatialité narrative : les accomplissements ne sont pas une liste,
+  ce sont des territoires à explorer.
+
+  Le Canvas 2D est le bon outil ici. SVG générerait trop de nœuds DOM
+  pour une grille infinie virtualisée avec zoom. Canvas + rAF idle (on
+  ne redessine que quand nécessaire) maintient les performances même
+  sur des centaines de cellules visibles.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  PIXEL RATIO (HiDPI)
+    Sur écrans Retina, canvas.width doit être multiplié par
+    window.devicePixelRatio, et le contexte scalé en conséquence
+    (ctx.scale(dpr, dpr)). Sinon la grille sera floue.
+
+  PICKING PRÉCIS
+    pixelToCube retourne la cellule la plus proche du curseur, pas
+    forcément celle sous le curseur. Pour un picking correct, vérifier
+    que le point (px, py) est bien à l'intérieur du polygone hexagonal
+    retourné (point-in-polygon sur les 6 sommets). En pratique, la
+    légère imprécision de cubeRound est acceptable sur des hex de 52px.
+
+  BOUCLE RAF IDLE
+    Lancer rAF continuellement est inutile une fois les animations
+    terminées et la caméra stabilisée. Utiliser un flag `dirty` :
+    setDirty() à chaque événement caméra ou changement d'état,
+    la boucle ne tourne qu'une frame si dirty = false.
+
+  LEGENDARY SHIMMER
+    L'effet shimmer (gradient tournant) sur les Sigils légendaires ne
+    peut pas être CSS sur un Canvas. L'implémenter avec un CanvasGradient
+    rotatif mis à jour à chaque frame. Limiter aux cellules visibles et
+    au zoom ≥ 0.6 pour ne pas recalculer pour rien à faible zoom.
+
+  CLIPPING DES ICÔNES
+    Les icônes emoji centrées sur un hex doivent être clipées au
+    hexagone pour les cellules en bord de viewport. Utiliser
+    ctx.save() / ctx.clip() (avec le path hexagonal) avant drawImage
+    ou fillText, puis ctx.restore().
+
+  ✦ RECOMMANDATION
+    Commencer par hex-utils.ts et ses tests — c'est la fondation. Valider
+    cubeRound sur des cas limites (frontière entre deux cellules) avant
+    de toucher au Canvas. Ensuite : rendu statique d'un snapshot de
+    sigils, puis animation, puis caméra, puis interactions.
+
+    Ordre suggéré :
+      hex-utils.ts → tests → grille statique → animation stroke → fill
+      → caméra pan/zoom → picking click → SigilDrawer → ArchitectSelector
+      → filtres rareté → legendary shimmer.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FIN — MISSION-040 // GRILLE CRISTALLINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

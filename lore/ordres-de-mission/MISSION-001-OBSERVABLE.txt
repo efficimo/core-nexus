@@ -1,0 +1,289 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-001                                         ║
+║  @efficimo/observable                                                    ║
+╚══════════════════════════════════════════════════════════════════════════╝
+👁️⚡
+
+DÉSIGNATION     : Extraction et Publication du Système Réactif — Opération Signal
+CODENAME        : OBSERVABLE
+PHASE           : [ALPHA]
+CLASSIFICATION  : Fondation & Infrastructure
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo — workspace pnpm)
+PRÉCÈDE         : MISSION-002 (Storage), MISSION-008 (Plexus)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Au cœur du Terminal de Combat pulsent des observables — des flux de valeurs
+auxquels les composants s'abonnent pour réagir en temps réel. Cette
+infrastructure réactive n'appartient pas à Core Nexus : elle est
+universelle, réutilisable, publiable.
+
+@efficimo/observable est un système de programmation réactive minimaliste,
+sans aucune dépendance obligatoire. Il expose des primitives composables :
+Observable (événements), ObservableValue (état réactif avec historique),
+DerivedObservableValue (valeur dérivée bidirectionnelle). Chaque abonnement
+retourne une Subscription pour se désabonner proprement.
+
+La lib existe déjà dans core-nexus sous src/observable/ — cette mission
+l'extrait, la nettoie, la teste et la publie sur npm.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÉTAT DU CODE EXISTANT (src/observable/ dans core-nexus)
+
+  Observable.ts              — émetteur d'événements, zéro dépendance
+  ObservableValue.ts         — état réactif avec getValue() + déduplication
+  DerivedObservableValue.ts  — valeur dérivée bidirectionnelle (from/to)
+  JsonSerializeObservableValue.ts  — adaptateur Zod pour la sérialisation JSON
+  Subscription.ts            — handle de désabonnement
+  isEqual.ts                 — égalité profonde récursive (objects + primitives)
+  isSetFunction.ts           — discriminant (valeur | fonction de mise à jour)
+  useObservableState.ts      — hook React useObservableValueState()
+
+  Code de production, déjà utilisé. Extraction = nettoyage + empaquetage.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  PRIMITIVES CORE (zéro dépendance)
+  ──────────────────────────────────
+
+  // Émetteur d'événements
+  class Observable<T> {
+    subscribe(fn: (value: T) => void): Subscription
+    next(value: T): void
+  }
+
+  // État réactif — émet la valeur courante immédiatement à l'abonnement
+  class ObservableValue<T> extends Observable<T> {
+    constructor(initialValue: T)
+    getValue(): T
+    next(value: T | SetFunction<T>): Promise<void>   // déduplique via isEqual()
+    subscribe(fn: (value: T) => void): Subscription  // reçoit la valeur courante d'emblée
+  }
+
+  // Valeur dérivée bidirectionnelle — synchronise deux ObservableValue
+  class DerivedObservableValue<T, U> extends ObservableValue<T> {
+    constructor(
+      source: ObservableValueInterface<U>,
+      from: (u: U) => T,         // source → dérivé
+      to:   (t: T) => U,         // dérivé → source (write-back)
+      defaultValue?: T
+    )
+  }
+
+  // Abonnement — retourné par subscribe()
+  class Subscription implements SubscriptionInterface {
+    unsubscribe(): void
+  }
+
+  // Utilities internes, exportées pour les consommateurs
+  function isEqual(a: unknown, b: unknown): boolean
+  type SetFunction<T> = (current: T) => T | Promise<T>
+
+  ADAPTATEUR ZOD (peerDependency: zod ≥ 3)
+  ──────────────────────────────────────────
+  Importé via '@efficimo/observable/zod'
+
+  // Observe une valeur string | null, l'interprète comme JSON via un schéma Zod
+  class JsonSerializeObservableValue<T> extends DerivedObservableValue<T | null, string | null> {
+    constructor(
+      source: ObservableValueInterface<string | null>,
+      schema: ZodType<T>,
+      defaultValue?: T
+    )
+  }
+
+  HOOK REACT (peerDependency: react ≥ 18)
+  ─────────────────────────────────────────
+  Importé via '@efficimo/observable/react'
+
+  // Lie un ObservableValue à l'état React — retourne [valeur, setter]
+  function useObservableValueState<T>(
+    observable: ObservableValueInterface<T>
+  ): [T, (value: T | SetFunction<T>) => Promise<void>]
+
+  INTERFACES (pour les consommateurs TypeScript)
+  ───────────────────────────────────────────────
+  interface SubscriptionInterface { unsubscribe(): void }
+  interface ObservableInterface<T> { subscribe(...): Subscription; next(value: T): void }
+  interface ObservableValueInterface<T> extends ObservableInterface<T> { getValue(): T }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. DÉPLACER le code dans packages/observable/src/ :
+     - Copier les 8 fichiers existants
+     - Supprimer useObservableState.ts du répertoire core — il migre vers
+       le package (il est importé uniquement via @efficimo/observable/react)
+     - Supprimer JsonSerializeObservableValue.ts du répertoire core — il
+       migre vers le package (importé via @efficimo/observable/zod)
+
+  2. CONFIGURER package.json :
+     {
+       "name": "@efficimo/observable",
+       "version": "0.1.0",
+       "type": "module",
+       "exports": {
+         ".":     "./src/index.ts",
+         "./zod": "./src/zod.ts",
+         "./react": "./src/react.ts"
+       },
+       "peerDependencies": {
+         "zod":   ">=3.0.0",
+         "react": ">=18.0.0"
+       },
+       "peerDependenciesMeta": {
+         "zod":   { "optional": true },
+         "react": { "optional": true }
+       },
+       "license": "MIT"
+     }
+
+  3. CRÉER les points d'entrée :
+     src/index.ts  — export core sans dépendance (Observable, ObservableValue,
+                     DerivedObservableValue, Subscription, isEqual, SetFunction,
+                     *Interface types)
+     src/zod.ts    — export JsonSerializeObservableValue (importe zod)
+     src/react.ts  — export useObservableValueState (importe react)
+
+  4. ÉCRIRE les tests Vitest (src/__tests__/) :
+     - observable.test.ts    : subscribe, next, unsubscribe, ordre des appels
+     - observableValue.test.ts : getValue, déduplication isEqual, SetFunction async
+     - derived.test.ts       : sync bidirectionnelle, prévention cycle infini
+     - isEqual.test.ts       : cas limites (null, undefined, nested objects, arrays)
+     - json.test.ts          : parse JSON valide, JSON invalide → null, defaultValue
+
+  5. METTRE À JOUR les imports dans apps/core-nexus :
+     - Remplacer @/observable/* → @efficimo/observable
+     - Remplacer @/observable/JsonSerializeObservableValue → @efficimo/observable/zod
+     - Remplacer @/observable/useObservableState → @efficimo/observable/react
+
+  6. VÉRIFIER que core-nexus compile après migration (pnpm turbo build)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/observable/
+  ├── src/
+  │   ├── index.ts                      ← export core
+  │   ├── react.ts                      ← export hook React
+  │   ├── zod.ts                        ← export adaptateur Zod
+  │   ├── Observable.ts
+  │   ├── ObservableValue.ts
+  │   ├── DerivedObservableValue.ts
+  │   ├── JsonSerializeObservableValue.ts
+  │   ├── Subscription.ts
+  │   ├── useObservableValueState.ts
+  │   ├── isEqual.ts
+  │   ├── isSetFunction.ts
+  │   └── __tests__/
+  │       ├── observable.test.ts
+  │       ├── observableValue.test.ts
+  │       ├── derived.test.ts
+  │       ├── isEqual.test.ts
+  │       └── json.test.ts
+  ├── package.json
+  ├── tsconfig.json                     ← extends ../../tsconfig.base.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - TypeScript strict (extends tsconfig.base.json)
+  - Vitest — runner de tests (pas de jsdom requis pour les tests core)
+  - pnpm workspaces — résolution des chemins monorepo
+  - Turborepo — pipeline build/test
+  - Changesets — versioning sémantique + CHANGELOG
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : demi-journée            │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package
+  [ ] packages/observable/src/index.ts           : export core (aucune dépendance)
+  [ ] packages/observable/src/react.ts           : export useObservableValueState
+  [ ] packages/observable/src/zod.ts             : export JsonSerializeObservableValue
+  [ ] packages/observable/src/Observable.ts      : copié/nettoyé
+  [ ] packages/observable/src/ObservableValue.ts : copié/nettoyé
+  [ ] packages/observable/src/DerivedObservableValue.ts
+  [ ] packages/observable/src/JsonSerializeObservableValue.ts
+  [ ] packages/observable/src/Subscription.ts
+  [ ] packages/observable/src/isEqual.ts
+  [ ] packages/observable/src/isSetFunction.ts
+  [ ] packages/observable/src/useObservableValueState.ts
+  [ ] packages/observable/package.json
+  [ ] packages/observable/tsconfig.json
+  [ ] packages/observable/README.md
+  [ ] packages/observable/CHANGELOG.md
+
+  Tests
+  [ ] packages/observable/src/__tests__/observable.test.ts
+  [ ] packages/observable/src/__tests__/observableValue.test.ts
+  [ ] packages/observable/src/__tests__/derived.test.ts
+  [ ] packages/observable/src/__tests__/isEqual.test.ts
+  [ ] packages/observable/src/__tests__/json.test.ts
+
+  Migration core-nexus
+  [ ] apps/core-nexus/src/* : imports @/observable/* → @efficimo/observable[/react|/zod]
+  [ ] Suppression de apps/core-nexus/src/observable/ (après migration complète)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  Code déjà mature — la migration est principalement mécanique. Le design
+  est solide : Observable sans état, ObservableValue avec déduplication,
+  DerivedObservableValue bidirectionnel. La séparation en trois points
+  d'entrée (core / react / zod) permet d'utiliser @efficimo/observable
+  dans des contextes non-React (Node.js, tests, Plexus côté Worker) sans
+  embarquer React inutilement.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  OPTIONAL PEER DEPS
+    peerDependenciesMeta.optional = true indique au gestionnaire de paquets
+    que zod et react ne sont pas requis. Sans cette déclaration, pnpm et
+    npm afficheront des avertissements chez les consommateurs qui n'utilisent
+    pas l'adaptateur Zod ou le hook React.
+
+  IMPORTS CONDITIONNELS
+    src/zod.ts et src/react.ts ne s'importent que si le consommateur les
+    utilise explicitement. Les bundlers modernes (Vite, esbuild) ne
+    transpileront pas ces fichiers si l'entrée "./zod" n'est jamais
+    importée. Pas de tree-shaking à gérer manuellement.
+
+  TESTS SANS DOM
+    Les tests du core (Observable, ObservableValue, isEqual) ne nécessitent
+    pas jsdom — Vitest peut tourner en environnement node pur. Le test du
+    hook React nécessite @testing-library/react avec jsdom.
+
+  DÉDUPLICATION isEqual
+    ObservableValue.next() ne notifie pas les abonnés si la nouvelle valeur
+    est égale à l'ancienne (via isEqual). Ce comportement est intentionnel
+    mais peut surprendre : un objet re-créé avec les mêmes valeurs ne
+    déclenchera pas de mise à jour.
+
+  ✦ RECOMMANDATION
+    Commencer par écrire les tests avant de migrer — ils servent de filet
+    de sécurité pour vérifier que le comportement est intact après le
+    déplacement. Ordre suggéré : tests isEqual → Observable → ObservableValue
+    → Derived → migration des imports core-nexus → vérification build.

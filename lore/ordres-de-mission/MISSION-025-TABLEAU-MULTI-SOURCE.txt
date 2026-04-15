@@ -1,0 +1,113 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-025                                         ║
+║  LE TABLEAU MULTI-SOURCE                                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+📊🔌
+
+DÉSIGNATION     : Dashboard Unifié Multi-Outils — Opération Convergence des Flux
+CODENAME        : TABLEAU-MULTI-SOURCE
+PHASE           : [BETA]
+CLASSIFICATION  : Tableau de Bord & Visualisation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+L'escouade utilise plusieurs canaux de rapport : GitHub Issues pour les
+corrections de code, des JSON locaux pour les Anomalies internes, et
+potentiellement d'autres outils selon les projets. Ce protocole unifie
+toutes ces sources dans un seul Tableau de Commandement.
+
+Le Design Pattern Adaptateur est la clé : chaque source de données externe
+est encapsulée dans un Connecteur qui traduit les données brutes au format
+standard du Nexus. Ajouter une nouvelle source revient à écrire un nouveau
+Connecteur — le reste du Terminal ne change pas.
+
+Les Connecteurs s'exécutent en Web Workers parallèles pour ne jamais bloquer
+l'interface pendant la collecte des données depuis plusieurs sources simultanément.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Définir l'interface TypeScript DataConnector<T> (fetch(), transform())
+     que chaque adaptateur source doit implémenter
+  2. Implémenter GitHubIssuesConnector (GitHub API → format Anomalie Nexus)
+     - Auth : passer le token via postMessage depuis le thread principal
+       (les Workers n'ont pas accès au localStorage/sessionStorage)
+     - Rate limit : 5000 req/h authentifié, 60 req/h non authentifié
+     - Pagination : paramètre ?per_page=100&page=N jusqu'à épuisement
+  3. Implémenter LocalJsonConnector (JSON chiffrés existants → Anomalie Nexus)
+  4. Tableau de Commandement unifié avec badge d'origine par Anomalie
+  5. Exécution parallèle des connecteurs dans des Web Workers
+  6. Configuration des sources actives dans les paramètres
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Design Pattern Adaptateur (interface DataConnector<T> typée)
+  - GitHub REST API v3 (GET /repos/{owner}/{repo}/issues — avec pagination)
+  - Web Workers (fetch parallèle hors thread principal)
+    ⚠ Les Workers n'ont pas accès aux cookies, localStorage, sessionStorage
+      du thread principal. Le token GitHub doit être transmis via postMessage.
+  - Zod v4 (validation du format unifié des Anomalies)
+  - TanStack Query (cache par source + invalidation sélective)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2-3 jours               │
+  │ Effort        : Moyen-Élevé             │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Interface TypeScript DataConnector<T> + type AnomalieUnifiee
+  [ ] GitHubIssuesConnector.ts (avec gestion token + pagination)
+  [ ] LocalJsonConnector.ts (adaptation du système existant)
+  [ ] Tableau de Commandement unifié avec filtrage par source
+  [ ] Page de configuration des sources dans /settings
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION UTILE ET BIEN CONÇUE, DEUX POINTS D'ATTENTION
+
+  ★ APPRÉCIATION
+  Le Pattern Adaptateur est parfaitement placé ici — c'est son cas d'usage
+  d'école. L'interface DataConnector<T> est une abstraction propre qui rend
+  le système extensible sans modification du core. La valeur pratique est
+  immédiate : avoir les GitHub Issues et les Anomalies locales dans la même
+  vue est une feature que l'équipe utilisera au quotidien.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - TOKEN DANS LES WORKERS : Un Web Worker n'a pas accès au localStorage,
+    sessionStorage, ni aux cookies du thread principal. Pour passer le token
+    GitHub au Worker GitHubIssuesConnector, le transmettre via postMessage
+    lors de l'initialisation du Worker :
+      worker.postMessage({ type: 'INIT', token: githubToken });
+    Le Worker stocke le token en mémoire locale (variable de module).
+    Ne jamais hardcoder le token dans le source — stocker côté thread principal
+    (mémoire React state ou localStorage chiffré).
+  - RATE LIMITING GITHUB API : 60 req/h non authentifié, 5000 req/h authentifié.
+    La pagination sur un dépôt avec 500+ issues consomme plusieurs requêtes.
+    Utiliser le header Link: <url>; rel="next" pour la pagination automatique.
+    TanStack Query avec staleTime élevé (10-30min) pour limiter les appels.
+  - PAGINATION OBLIGATOIRE : L'endpoint /issues retourne 30 items par page
+    (max 100 avec per_page=100). Sur un projet actif, ne pas oublier de
+    paginer jusqu'au dernier lot.
+  - ZOD V4 : Core Nexus utilise Zod v4. L'interface AnomalieUnifiee doit
+    avoir un schéma Zod correspondant pour valider les données de chaque source
+    avant de les exposer au thread principal.
+
+  ✦ RECOMMANDATION
+  Commencer avec les deux Connecteurs sans Worker (version synchrone simple),
+  valider le format AnomalieUnifiee et l'affichage unifié. Ensuite, déplacer
+  chaque Connecteur dans son Worker. Cette approche permet de valider l'API
+  avant d'ajouter la complexité du multithreading. Envisager un troisième
+  Connecteur "mock" pour les tests et les démos sans token GitHub.

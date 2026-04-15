@@ -1,0 +1,118 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-010                                         ║
+║  LA CITADELLE ZÉRO                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔐🏰
+
+DÉSIGNATION     : Chiffrement Souverain à Connaissance Nulle — Opération Coffre-Fort
+CODENAME        : CITADELLE-ZERO
+PHASE           : [ALPHA]
+CLASSIFICATION  : Sécurité & Chiffrement
+DÉPENDANCES     : MISSION-003 (@efficimo/crypto — CryptoVault, BiometricAuth, fonctions AES)
+                  MISSION-004 (@efficimo/workers — ReactiveWorker, createWorkerHandler)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Les Archives du Nexus contiennent des informations sensibles sur chaque Architecte.
+Ce protocole renforce le mécanisme de sécurité en deux axes :
+
+AXE 1 — WEB WORKER CRYPTO (Fluidité)
+  L'opération de chiffrement AES-256-GCM, exécutée sur le thread principal,
+  bloque l'interface pendant plusieurs secondes sur de gros Codex. La déléguer
+  à un Web Worker dédié maintient l'interface à 60fps en permanence.
+  Note : SubtleCrypto est déjà hardware-accelerated (AES-NI) dans les navigateurs
+  modernes — le gain d'un module WASM sur SubtleCrypto est marginal. L'essentiel
+  est l'isolation dans un Worker, pas le WASM lui-même.
+
+AXE 2 — WEBAUTHN (Authentification sans mot de passe)
+  L'API WebAuthn remplace la saisie du mot de passe par un facteur biométrique
+  (TouchID, FaceID, Windows Hello) ou une clé physique (YubiKey).
+
+  IMPORTANT — Fonctionnement réel de WebAuthn avec la dataKey :
+  WebAuthn ne stocke pas de données arbitraires — il crée une paire de clés
+  asymétriques et stocke la clé privée dans l'authenticateur matériel.
+  Flux correct : le mot de passe initial dérive la dataKey (PBKDF2 existant),
+  la dataKey est chiffrée avec une clé AES issue d'une assertion WebAuthn,
+  et stockée en localStorage. WebAuthn devient un second facteur — le mot de
+  passe initial reste le seul moyen de récupérer la dataKey en cas de perte
+  de l'authenticateur.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Instancier un CryptoVault (@efficimo/crypto, MISSION-003) comme singleton de session
+     isUnlocked: ObservableValue<boolean> pilote l'affichage du formulaire de déverrouillage
+  2. Créer crypto.worker.ts via createWorkerHandler<CryptoRequest, CryptoResult>
+     (@efficimo/workers) — importe encrypt/decrypt de @efficimo/crypto
+     Côté UI : ReactiveWorker<CryptoRequest, CryptoResult>.execute() → Promise<CryptoResult>
+     (isolation thread = interface à 60fps pendant les gros Codex, sans postMessage manuel)
+  3. Implémenter le flow de registration biométrique via BiometricAuth.register()
+     (@efficimo/crypto/webauthn) — enregistre le credential WebAuthn PRF
+  4. Implémenter le flow d'authentication via BiometricAuth.authenticate()
+     — dérive la CryptoKey depuis la réponse PRF → vault.unlock(cryptoKey)
+  5. Fallback mot de passe : deriveKey(password, salt) (@efficimo/crypto) reste le
+     chemin de récupération si l'authenticateur biométrique est perdu
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/crypto >= 0.1.0 — CryptoVault, deriveKey, encrypt, decrypt, generateSalt
+    (remplace l'implémentation manuelle SubtleCrypto — toute la crypto est dans la lib)
+  - @efficimo/crypto/webauthn — BiometricAuth.register() / .authenticate() via PRF extension
+    (remplace l'usage direct de navigator.credentials.create/get)
+  - @efficimo/workers >= 0.1.0 — ReactiveWorker + createWorkerHandler
+    (remplace le postMessage/Transferable Objects manuel)
+  - Fallback mot de passe obligatoire — deriveKey() (PBKDF2) en cas de perte authenticateur
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)      │
+  │ Durée estimée : 4-5 jours               │
+  │ Effort        : Élevé                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Singleton CryptoVault — @efficimo/crypto — isUnlocked pilote l'UI de déverrouillage
+  [ ] crypto.worker.ts — createWorkerHandler(@efficimo/workers) wrappant encrypt/decrypt de @efficimo/crypto
+  [ ] ReactiveWorker<CryptoRequest, CryptoResult> côté UI — remplace postMessage manuel
+  [ ] Flow registration biométrique — BiometricAuth.register() (@efficimo/crypto/webauthn)
+  [ ] Flow authentication biométrique — BiometricAuth.authenticate() → vault.unlock()
+  [ ] dataKey chiffrée en localStorage + déchiffrement post-assertion PRF
+  [ ] Page de configuration biométrique dans les paramètres Architecte
+  [ ] Fallback mot de passe — deriveKey(password, salt) → vault.unlock(key)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION IMPORTANTE, CORRECTION CONCEPTUELLE NÉCESSAIRE
+
+  ★ APPRÉCIATION
+  La partie Worker crypto est la plus immédiatement valable et la plus simple
+  à implémenter. WebAuthn est impressionnant en démo (toucher le capteur du
+  laptop pour déverrouiller les Archives — c'est du cinema). Excellent couple.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - SubtleCrypto est déjà hardware-accelerated par AES-NI dans les navigateurs
+    modernes. Un module WASM pour AES n'offre pas de gain significatif sur
+    SubtleCrypto. La valeur du Worker est l'isolation du thread, pas WASM.
+  - WebAuthn ne peut PAS stocker de données arbitraires. L'authenticateur
+    stocke une clé privée, rien d'autre. Le flux correct est décrit dans le
+    briefing — lire attentivement avant d'implémenter.
+  - Toujours conserver un fallback mot de passe. WebAuthn sans fallback =
+    lockout définitif si l'authenticateur est perdu ou cassé.
+
+  ✦ RECOMMANDATION
+  Implémenter MISSION-003 (@efficimo/crypto) et MISSION-004 (@efficimo/workers) en
+  premier. Ensuite, brancher CryptoVault + ReactiveWorker dans core-nexus — le
+  chiffrement Worker est la feature à plus fort impact immédiat. WebAuthn
+  (BiometricAuth) vient en second, comme feature additive. Documenter clairement
+  le flux de récupération en cas de perte d'authenticateur — c'est le vrai risque UX.

@@ -1,0 +1,134 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 10                                                ║
+║  REQUEST / RESPONSE — RPC OVER MESH                                     ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Pattern request/response au-dessus de Plexus. Un nœud envoie une requête
+et reçoit une Promise résolue par la réponse du destinataire, ou rejetée
+sur timeout ou erreur applicative.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CYCLE DE VIE D'UNE REQUÊTE
+
+```mermaid
+sequenceDiagram
+  participant APP as Application (A)
+  participant PA  as Plexus (A)
+  participant PB  as Plexus (B)
+  participant RES as Application (B)
+
+  APP->>PA: node.request({ to: B, type: "FETCH_ANOMALIE", body: { id: 42 } })
+  Note over PA: Génère requestId = uuid<br/>Enregistre dans pendingRequests<br/>Lance timer (10s)
+
+  PA->>PB: enveloppe { stamps: { to:B, type:"FETCH_ANOMALIE", requestId } }
+
+  PB->>RES: onRequest.subscribe → { stamps, body, reply }
+  Note over RES: Traite la requête<br/>Appelle reply({ anomalie })
+
+  RES->>PB: reply({ anomalie })
+  Note over PB: Construit réponse<br/>stamps: { to:A, type:"__RESPONSE__",<br/>  replyTo: requestId }
+
+  PB->>PA: enveloppe réponse
+
+  Note over PA: stamps.replyTo trouvé dans pendingRequests<br/>1. onResponse émis { requestId, stamps, body, latency }<br/>2. Promise.resolve(body)<br/>3. clearTimeout(timer)
+
+  PA-->>APP: onResponse.subscribe → { requestId, latency, ... }
+  PA->>APP: Promise résolue → { anomalie }
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CAS D'ERREUR — TIMEOUT ET ERREUR APPLICATIVE
+
+```mermaid
+flowchart TD
+  REQ["node.request(...)"] --> PEND["pendingRequests.set(requestId, ...)"]
+
+  PEND --> WAIT{"Réponse reçue\navant timeout ?"}
+
+  WAIT -->|"oui — stamps.replyTo trouvé"| NOTIFY["onResponse émis\n{ requestId, stamps, body, latency }"]
+  NOTIFY --> CHECK{"body.error\nprésent ?"}
+  CHECK -->|"non"| RESOLVE["Promise.resolve(body) ✓"]
+  CHECK -->|"oui"| REMOTE["Promise.reject\n(PlexusRemoteError) ✗\n→ erreur applicative"]
+
+  WAIT -->|"non"| TIMEOUT["Promise.reject\n(PlexusTimeoutError) ✗\n→ nœud injoignable\nou réponse perdue"]
+
+  RESOLVE --> CLEAN["pendingRequests.delete(requestId)\nclearTimeout(timer)"]
+  REMOTE --> CLEAN
+  TIMEOUT --> CLEAN
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INTERACTION AVEC LA FILE PENDANTE
+
+```mermaid
+sequenceDiagram
+  participant A
+  participant PA as Plexus (A)
+  participant B as B (hors ligne)
+
+  A->>PA: node.request({ to: B, type: "PING", timeout: 8000 })
+  Note over PA: requestId généré<br/>timer 8s lancé
+
+  PA->>PA: forward() → noRoute<br/>→ pendingQueues["B"].push(envelope)
+
+  Note over PA: 3s plus tard — B revient
+  PA->>PA: drain() → forward() → livré ✓
+
+  PA->>B: requête livrée (3s après émission)
+  B->>PA: réponse (3.1s)
+
+  Note over PA: timer restant : 4.9s<br/>→ stamps.replyTo trouvé<br/>→ Promise.resolve ✓
+
+  Note right of PA: Si B revient à 9s :<br/>timer déjà expiré (8s)<br/>→ PlexusTimeoutError<br/>même si requête livrée après
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REGISTRE PlexusRequests — TYPAGE BOUT EN BOUT
+
+```mermaid
+flowchart LR
+  subgraph Lib["Lib Plexus"]
+    REG["interface PlexusRequests\n{ }"]
+    RBOF["ReqBodyOf&lt;T&gt;\nResBodyOf&lt;T&gt;"]
+  end
+
+  subgraph App["Application"]
+    DECL["declare module 'plexus'\n  interface PlexusRequests\n    FETCH_ANOMALIE:\n      request: { id: number }\n      response: { anomalie: Anomalie }"]
+  end
+
+  subgraph Callsite["Utilisation"]
+    CALL["node.request\n  type: 'FETCH_ANOMALIE'\n  body: { id: 42 }"]
+    HANDLER["onRequest.subscribe\n  reply({ anomalie })"]
+    RESULT["const res =\nawait node.request(...)\nres.anomalie → Anomalie ✓"]
+  end
+
+  DECL -->|"declaration merging"| REG
+  REG --> RBOF
+  RBOF -->|"contraint body"| CALL
+  RBOF -->|"contraint reply()"| HANDLER
+  RBOF -->|"type réponse inféré"| RESULT
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DISTINCTION DES DEUX TYPES D'ERREUR
+
+  PlexusTimeoutError  →  aucune réponse dans le délai imparti
+                         cause : nœud injoignable, réponse perdue en transit,
+                         répondant trop lent
+                         → retry éventuel à la charge de l'application
+
+  PlexusRemoteError   →  réponse reçue mais contenant body.error
+                         cause : erreur applicative côté répondant
+                         (entité introuvable, accès refusé, validation échouée)
+                         → ne pas retenter sans corriger le body de la requête
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PARAMÈTRES PLEXUS ASSOCIÉS
+
+  requestTimeout : 10 000  — timeout par défaut (ms), surchargeable par appel

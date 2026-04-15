@@ -1,0 +1,360 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-003                                         ║
+║  @efficimo/cipher                                                        ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔐⚗️
+
+DÉSIGNATION     : Librairie Cryptographique Souveraine — Opération Citadelle
+CODENAME        : CRYPTOVAULT
+PHASE           : [ALPHA]
+CLASSIFICATION  : Sécurité & Chiffrement — Package Open Source
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo)
+                  MISSION-001 (@efficimo/observable — ObservableValue)
+PRÉCÈDE         : MISSION-010 (Citadelle Zéro — intégration dans core-nexus)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Web Crypto API est puissante mais verbieuse, piégeuse et non réactive.
+@efficimo/cipher offre deux couches : des fonctions pures pour le
+chiffrement/déchiffrement AES-256-GCM et la dérivation de clé PBKDF2,
+et une classe CipherVault qui gère l'état de déverrouillage comme un
+ObservableValue — les composants réagissent instantanément à l'unlock
+ou au lock sans polling ni event listener manuel.
+
+La lib couvre aussi WebAuthn avec l'extension PRF : la biométrie ne sert
+pas uniquement à s'authentifier, elle sert à dériver une clé
+cryptographique déterministe. Même empreinte = même clé, sans jamais
+stocker la clé en clair nulle part.
+
+Le rechiffrement (rotation de clé) est une opération de première classe :
+changer le mot de passe master ne nécessite pas de déchiffrer et
+rechiffrer toute la base — la lib fournit reEncrypt() pour migrer un
+payload d'une clé à une autre en une opération atomique.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONCEPTS FONDAMENTAUX
+
+  ENCRYPTED PAYLOAD
+  ─────────────────
+  Résultat sérialisable d'un chiffrement. Contient tout ce qu'il faut
+  pour déchiffrer, sans la clé.
+
+    type EncryptedPayload = {
+      ciphertext: string   // base64 — données chiffrées AES-256-GCM
+      iv        : string   // base64 — vecteur d'initialisation (96 bits)
+      salt     ?: string   // base64 — sel PBKDF2 (présent si clé dérivée)
+      version   : number   // numéro de format — permet la migration future
+    }
+
+  KEY DERIVATION OPTIONS
+  ──────────────────────
+  Options de dérivation PBKDF2 — paramètres OWASP 2024.
+
+    type KeyDerivationOptions = {
+      iterations?: number            // défaut : 600 000 (recommandation OWASP)
+      hash      ?: 'SHA-256' | 'SHA-512'  // défaut : 'SHA-256'
+    }
+
+  CREDENTIAL INFO
+  ───────────────
+  Métadonnées d'un credential WebAuthn enregistré.
+
+    type CredentialInfo = {
+      id         : string   // credential ID (base64url)
+      userName   : string
+      displayName: string
+      createdAt  : number   // timestamp
+    }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  CORE (fonctions pures + CipherVault)
+  ─────────────────────────────────────
+  Importé depuis '@efficimo/cipher'
+
+  // Génération de sel aléatoire (16 bytes)
+  function generateSalt(): Uint8Array
+
+  // Dérivation de clé PBKDF2 — password → CryptoKey AES-256-GCM
+  function deriveKey(
+    password: string,
+    salt    : Uint8Array,
+    options ?: KeyDerivationOptions
+  ): Promise<CryptoKey>
+
+  // Chiffrement AES-256-GCM — retourne un payload sérialisable
+  // Accepte tout contenu : texte, JSON, XML, binaire, image...
+  function encrypt(data: string | ArrayBuffer, key: CryptoKey): Promise<EncryptedPayload>
+
+  // Déchiffrement — retourne les bytes bruts (le consommateur décode si besoin)
+  function decrypt(payload: EncryptedPayload, key: CryptoKey): Promise<ArrayBuffer>
+
+  // Rotation de clé — rechiffre un payload sans passer par la chaîne déchiffrée
+  function reEncrypt(
+    payload: EncryptedPayload,
+    oldKey : CryptoKey,
+    newKey : CryptoKey
+  ): Promise<EncryptedPayload>
+
+  // CipherVault — état de déverrouillage observable
+  class CipherVault {
+    readonly isUnlocked: ObservableValue<boolean>
+
+    // Stocke la clé en mémoire — passe isUnlocked à true
+    unlock(key: CryptoKey): void
+
+    // Efface la clé — passe isUnlocked à false
+    lock(): void
+
+    // Chiffre avec la clé stockée — lance si non déverrouillé
+    encrypt(data: string | ArrayBuffer): Promise<EncryptedPayload>
+
+    // Déchiffre avec la clé stockée — lance si non déverrouillé
+    decrypt(payload: EncryptedPayload): Promise<ArrayBuffer>
+  }
+
+  WEBAUTHN — dérivation de clé biométrique
+  ──────────────────────────────────────────
+  Importé depuis '@efficimo/cipher/webauthn'
+
+  // Vérifie si WebAuthn + extension PRF sont disponibles
+  function isBiometricSupported(): Promise<boolean>
+
+  class BiometricAuth {
+    // Enregistre un nouveau credential WebAuthn avec extension PRF
+    // Le credential peut ensuite dériver une clé déterministe via authenticate()
+    register(options: {
+      userId      : string
+      userName    : string
+      displayName?: string
+      rpName     ?: string   // nom de l'app affiché par le browser
+    }): Promise<CredentialInfo>
+
+    // Authentifie et dérive une CryptoKey via l'extension PRF
+    // Même biométrie = même clé — déterministe, sans stocker la clé
+    authenticate(credentialId: string): Promise<CryptoKey>
+
+    // Liste les credentials enregistrés (stockés en localStorage)
+    listCredentials(): CredentialInfo[]
+
+    // Supprime un credential enregistré
+    removeCredential(credentialId: string): void
+  }
+
+  FLOW COMPLET (biométrie + vault)
+  ──────────────────────────────────
+  // Enregistrement initial
+  const auth = new BiometricAuth()
+  const credential = await auth.register({ userId: 'u1', userName: 'alice' })
+
+  // Unlock par biométrie
+  const vault = new CipherVault()
+  const key = await auth.authenticate(credential.id)
+  vault.unlock(key)
+
+  // vault.isUnlocked → true → les composants re-rendent
+  const payload = await vault.encrypt('données sensibles')
+
+  // Rotation de clé (changement de mot de passe)
+  const newKey = await deriveKey(newPassword, generateSalt())
+  const rotated = await reEncrypt(payload, key, newKey)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WEBAUTHN PRF — NOTE TECHNIQUE
+
+  L'extension PRF (Pseudo-Random Function) de WebAuthn permet à un
+  credential d'évaluer une fonction pseudo-aléatoire déterministe.
+  Le résultat (32 bytes) est utilisé comme key material via
+  SubtleCrypto.importKey() → CryptoKey AES-256-GCM.
+
+  Ce n'est PAS une authentification classique (assertion) — c'est
+  une dérivation de clé. La même empreinte sur le même appareil
+  produit toujours le même PRF output → toujours la même clé.
+
+  Support navigateur (2024) : Chrome 116+, Edge 116+, Safari 17.4+
+  Firefox : non supporté (pas de PRF extension)
+
+  Détection : PublicKeyCredential.getClientCapabilities() →
+  'prf' in capabilities — vérifier avant d'afficher l'option biométrique.
+
+  Fallback : si PRF non disponible → proposer dérivation par mot de passe
+  (PBKDF2) comme alternative. Les deux produisent une CryptoKey — le
+  reste du code ne change pas.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. FONCTIONS PURES (src/core.ts) :
+     - generateSalt() : crypto.getRandomValues() — 16 bytes
+     - deriveKey() : SubtleCrypto.deriveKey() avec PBKDF2
+       sel obligatoire, iterations 600 000 par défaut, extractable: false
+     - encrypt() : SubtleCrypto.encrypt() AES-GCM, IV aléatoire 12 bytes
+       résultat sérialisé en base64, version: 1
+     - decrypt() : SubtleCrypto.decrypt() AES-GCM
+       gestion explicite des erreurs (clé incorrecte → DOMException)
+     - reEncrypt() : decrypt() + encrypt() — atomique, pas d'état intermédiaire
+
+  2. CIPHER VAULT (src/CipherVault.ts) :
+     - #key : CryptoKey | null — jamais exposé publiquement
+     - isUnlocked : ObservableValue<boolean>
+     - unlock() : stocke la clé + isUnlocked.next(true)
+     - lock() : efface la clé (#key = null) + isUnlocked.next(false)
+     - encrypt/decrypt : délèguent aux fonctions pures, lèvent si !isUnlocked
+
+  3. BIOMETRIC AUTH (src/webauthn.ts) :
+     - isBiometricSupported() : vérifie WebAuthn + PRF via getClientCapabilities
+     - BiometricAuth.register() : navigator.credentials.create() avec
+       authenticatorSelection.userVerification = 'required'
+       extensions: { prf: { eval: { first: salt } } }
+       stocke CredentialInfo dans localStorage (pas la clé — jamais)
+     - BiometricAuth.authenticate() : navigator.credentials.get() avec
+       extensions PRF → extrait prf.results.first → importKey → CryptoKey
+     - Gestion des cas d'erreur : PRF absent, credential révoqué,
+       annulation utilisateur
+
+  4. POINTS D'ENTRÉE :
+     src/index.ts     → fonctions pures + CryptoVault + types
+     src/webauthn.ts  → isBiometricSupported + BiometricAuth
+
+  5. TESTS (src/__tests__/) :
+     - core.test.ts      : encrypt/decrypt round-trip, reEncrypt, mauvaise clé
+     - vault.test.ts     : isUnlocked observable, lock/unlock, erreur si locked
+     - webauthn.test.ts  : mock navigator.credentials, PRF flow
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/cipher/
+  ├── src/
+  │   ├── index.ts              ← export core (fonctions pures + CipherVault + types)
+  │   ├── webauthn.ts           ← export BiometricAuth + isBiometricSupported
+  │   ├── core.ts               ← generateSalt, deriveKey, encrypt, decrypt, reEncrypt
+  │   ├── CipherVault.ts        ← vault avec isUnlocked observable
+  │   ├── types.ts              ← EncryptedPayload, KeyDerivationOptions, CredentialInfo
+  │   └── __tests__/
+  │       ├── core.test.ts
+  │       ├── vault.test.ts
+  │       └── webauthn.test.ts
+  ├── package.json
+  ├── tsconfig.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PACKAGE.JSON
+
+  {
+    "name": "@efficimo/cipher",
+    "version": "0.1.0",
+    "type": "module",
+    "exports": {
+      ".":          "./src/index.ts",
+      "./webauthn": "./src/webauthn.ts"
+    },
+    "peerDependencies": {
+      "@efficimo/observable": ">=0.1.0"
+    },
+    "license": "MIT"
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web Crypto API (SubtleCrypto) — AES-256-GCM, PBKDF2, importKey
+  - WebAuthn API (navigator.credentials) — PRF extension
+  - @efficimo/observable ≥ 0.1.0 — ObservableValue pour isUnlocked
+  - TypeScript strict — extends tsconfig.base.json
+  - Vitest + jsdom — mock SubtleCrypto + navigator.credentials
+  - Turborepo — pipeline build/test
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)         │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen-Élevé             │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package core
+  [ ] packages/cipher/src/index.ts          : export public
+  [ ] packages/cipher/src/types.ts          : EncryptedPayload, KeyDerivationOptions
+  [ ] packages/cipher/src/core.ts           : fonctions pures
+  [ ] packages/cipher/src/CipherVault.ts    : vault observable
+
+  WebAuthn
+  [ ] packages/cipher/src/webauthn.ts       : BiometricAuth + isBiometricSupported
+
+  Config
+  [ ] packages/cipher/package.json
+  [ ] packages/cipher/tsconfig.json
+  [ ] packages/cipher/README.md
+  [ ] packages/cipher/CHANGELOG.md
+
+  Tests
+  [ ] packages/cipher/src/__tests__/core.test.ts
+  [ ] packages/cipher/src/__tests__/vault.test.ts
+  [ ] packages/cipher/src/__tests__/webauthn.test.ts
+
+  Migration core-nexus
+  [ ] apps/core-nexus/src/crypto.ts → remplacer par @efficimo/cipher
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  La valeur principale est la séparation entre fonctions pures (testables,
+  composables) et état réactif (CipherVault). Un composant React peut
+  s'abonner à isUnlocked sans wrapper ni useEffect manuel — exactement
+  le pattern du projet. Le fallback PBKDF2/biométrie est transparent
+  pour le code consommateur : les deux produisent une CryptoKey.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  CLÉS NON EXTRACTABLES
+    deriveKey() crée une clé avec extractable: false. Elle ne peut pas
+    être exportée en bytes — seulement utilisée pour encrypt/decrypt.
+    C'est intentionnel : une clé qui ne quitte jamais SubtleCrypto
+    est bien plus difficile à exfiltrer.
+
+  IV JAMAIS RÉUTILISÉ
+    AES-GCM est catastrophique si l'IV est réutilisé avec la même clé.
+    encrypt() génère toujours un IV via crypto.getRandomValues() —
+    ne pas permettre d'injecter un IV externe.
+
+  MOCKING SUBTLECRYPTO DANS LES TESTS
+    jsdom ne fournit pas SubtleCrypto. Utiliser @peculiar/webcrypto
+    ou node:crypto.webcrypto comme polyfill dans vitest.config.ts
+    (globalSetup : global.crypto = require('node:crypto').webcrypto).
+
+  PRF SUPPORT PARTIEL
+    Firefox ne supporte pas l'extension PRF. isBiometricSupported()
+    doit être appelé AVANT d'afficher l'option biométrie.
+    Ne jamais supposer que PRF est disponible.
+
+  RECHIFFREMENT ATOMIQUE
+    reEncrypt() déchiffre puis rechiffre dans la même fonction.
+    Il n'y a pas de rollback si le rechiffrement échoue à mi-parcours
+    sur un lot. Pour un rechiffrement de masse, l'application doit
+    implémenter sa propre transaction (sauvegarder avant, valider après).
+
+  ✦ RECOMMANDATION
+    Commencer par core.ts (fonctions pures) — elles sont testables sans
+    mock et forment la base de tout le reste. Puis CryptoVault. WebAuthn
+    en dernier (nécessite un mock plus complexe de navigator.credentials).

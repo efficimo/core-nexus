@@ -1,0 +1,125 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-019                                         ║
+║  LA CHRONIQUE CINÉMATIQUE                                                ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🎬✨
+
+DÉSIGNATION     : Narration Visuelle Interactive — Opération Ligne du Temps Vivante
+CODENAME        : CHRONIQUE-CINEMATIQUE
+PHASE           : [BETA]
+CLASSIFICATION  : Interface & Expérience
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+L'histoire du Chapitre mérite mieux qu'une liste statique. Ce protocole crée
+une Chronique — une page narrative interactive dont chaque panel se révèle au
+défilement — et applique les View Transitions aux navigations liste→détail.
+
+VIEW TRANSITIONS API — Quand l'Architecte navigue vers le détail d'un Spark,
+la card cliquée ne disparaît pas : elle se transforme et "voyage" visuellement
+vers sa position dans la page de détail. Continuité totale de contexte.
+
+INTÉGRATION TANSTACK ROUTER : Document.startViewTransition() doit wrapper
+la navigation. Avec TanStack Router, utiliser le hook onNavigate ou le routeur
+subscribe pour déclencher la transition :
+  document.startViewTransition(() => navigate({ to: '/sparks/$id' }))
+Le fallback si l'API n'est pas disponible : navigation normale sans transition.
+
+SCROLL-DRIVEN ANIMATIONS — En faisant défiler la Chronique, les textes
+s'assemblent, les images pivotent, les connexions se tracent.
+animation-timeline: view() — animation d'un élément liée à son entrée dans
+le viewport. Distinct de scroll() (scroll de la page entière).
+
+requestAnimationFrame — Pour les animations personnalisées non couvertes par
+CSS (trajectoires procédurales, particules, effets interactifs au curseur),
+rAF synchronise les mises à jour JavaScript avec le cycle de repaint du
+navigateur — contrairement à setInterval qui ignore le rythme des frames.
+Le loop rAF est la fondation de toute animation fluide 60fps côté JS.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Wrapper les navigations TanStack Router dans document.startViewTransition()
+     avec feature detection (if (!document.startViewTransition) { navigate(); return; })
+  2. Assigner des view-transition-name uniques aux cards de liste et aux
+     headers de détail pour le morphing automatique
+  3. Créer la page /chronicle avec layout de bande dessinée
+  4. Animer l'apparition des panels via animation-timeline: view()
+     et animation-range: entry 0% entry 60% (entrée dans le viewport)
+  5. Transition 3D (rotateX + perspective + transform-style: preserve-3d) au clic
+  6. Effets de particules ou de tracé procédural via requestAnimationFrame :
+     function tick(timestamp) {
+       updateParticles(timestamp)
+       renderFrame()
+       requestAnimationFrame(tick)
+     }
+     requestAnimationFrame(tick)
+     → sync avec le cycle de repaint navigateur, jamais de setInterval pour des animations
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - View Transitions API (document.startViewTransition() + feature detection)
+  - CSS view-transition-name (nommage des éléments morphables — doit être unique)
+  - CSS Scroll-Driven Animations :
+    • animation-timeline: view() — per-element, lié au viewport
+    • animation-timeline: scroll() — page entière (moins adapté ici)
+  - CSS animation-range (entrée/sortie du viewport — entry / exit)
+  - CSS transform 3D (rotateX, perspective, transform-style: preserve-3d)
+  - requestAnimationFrame (loop d'animation JS — remplace setInterval pour toute animation)
+    cancelAnimationFrame(id) pour le cleanup dans useEffect
+  - TanStack Router (onNavigate hook ou subscribe pour intercepter la navigation)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2 jours                 │
+  │ Effort        : Moyen                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Wrapper de navigation TanStack Router → startViewTransition() avec fallback
+  [ ] view-transition-name sur les cards list et les headers de détail
+  [ ] Page /chronicle avec layout de bande dessinée en CSS Grid
+  [ ] Animation d'apparition des panels via animation-timeline: view()
+  [ ] Transition 3D optionnelle sur les cards au clic
+  [ ] Effets procéduraux (particules, tracés) via loop requestAnimationFrame
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION VISUELLEMENT SPECTACULAIRE
+
+  ★ APPRÉCIATION
+  View Transitions sur la navigation liste→détail est l'une des features qui
+  transforme instantanément la perception d'une SPA. La différence avant/après
+  est saisissante. La Chronique en bande dessinée est le cerise sur le gâteau
+  pour les présentations — les non-développeurs adorent.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - View Transitions avec TanStack Router nécessite de wrapper la navigation.
+    Le plus simple : une fonction navigate() personnalisée qui teste
+    document.startViewTransition avant d'appeler la navigation router.
+  - view-transition-name DOIT être unique sur la page au moment de la transition.
+    Si deux éléments partagent le même nom, la transition est ignorée.
+    Pour les listes dynamiques : utiliser view-transition-name: --spark-{id}
+    (CSS dynamique via style inline ou CSS-in-JS).
+  - animation-timeline: scroll() anime selon le scroll de la page entière.
+    animation-timeline: view() anime selon la position de l'élément dans le viewport.
+    Pour une Chronique avec des panels qui apparaissent au scroll, view() est le bon choix.
+  - Firefox a ajouté View Transitions en 2024. Scroll-Driven Animations toujours
+    en implémentation partielle sur Firefox — prévoir un fallback gracieux (pas d'animation).
+
+  ✦ RECOMMANDATION
+  Commencer par les View Transitions sur la navigation (impact immédiat en 2h),
+  puis construire la page /chronicle séparément. Les deux features sont indépendantes
+  et peuvent être livrées en deux PRs distinctes.

@@ -1,0 +1,109 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-034                                         ║
+║  L'INTERFACE HARMONIQUE                                                  ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🎹🎛️
+
+DÉSIGNATION     : Pilotage par Instrument Musical — Opération Launchpad du Nexus
+CODENAME        : INTERFACE-HARMONIQUE
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Arsenal Physique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Ce protocole transforme un contrôleur MIDI (Launchpad, pad de beatmaker,
+clavier musical) en panneau de contrôle tactile du Terminal de Combat.
+
+Chaque pad du Launchpad correspond à une action : clôturer une Anomalie,
+changer son statut, déclencher un déploiement via GitHub Actions. La couleur
+du pad change en retour pour confirmer l'action (MIDI output vers les LEDs).
+
+⚠ SYSEX POUR LES LEDs : Le contrôle des LEDs RGB du Novation Launchpad
+  (mk2, mini, X) utilise des messages SysEx, pas des messages Note On/Off
+  standard. navigator.requestMIDIAccess({sysex: true}) est requis.
+  Cette permission est plus restrictive (peut être bloquée par le navigateur
+  si l'origine n'est pas sécurisée ou en fonction des paramètres de l'OS).
+
+Bonus : sonification du Codex — chaque Architecte génère une note selon ses
+attributs (level → octave, classe → timbre). Une mélodie unique par équipe.
+À présenter comme une démonstration artistique, pas une feature de production.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. navigator.requestMIDIAccess({sysex: true}) — détecter et connecter
+     un contrôleur MIDI (input + output)
+  2. Parser les messages MIDI entrants :
+     - Note On : 0x90 + note + velocity → action Nexus
+     - Note Off : 0x80 + note + 0
+     - Control Change (CC) : 0xB0 + cc + value (pour faders/encodeurs)
+  3. Envoyer des messages MIDI sortants pour les LEDs des pads :
+     - Launchpad mk2 : SysEx F0 00 20 29 02 18 0B [pad] [r] [g] [b] F7
+  4. Interface de configuration du mapping (MIDI note → action Nexus)
+  5. Bonus : sonification (Web Audio API + OscillatorNode selon attributs)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web MIDI API (navigator.requestMIDIAccess({sysex: true}))
+  - MIDI Message Parsing : Note On/Off (canal, note, velocity), CC
+  - SysEx MIDI pour contrôle LED (format spécifique au modèle Novation)
+  - Web Audio API (OscillatorNode + GainNode pour la sonification)
+  - CSS Houdini @property (effets visuels synchronisés aux notes jouées)
+  - Design Pattern Commande (Command) pour la gestion des actions Nexus
+
+  MATÉRIEL SUGGÉRÉ
+  - Novation Launchpad Mini mk3 (abordable, LEDs RGB, bidirectionnel)
+  - Novation Launchpad X (plus grand, idéal pour le mapping)
+  - Akai MPC ou tout pad MIDI USB standard (sans LEDs = plus simple)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2 jours                 │
+  │ Effort        : Moyen                   │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module MidiController.ts (connexion + parsing messages Note On/Off + CC)
+  [ ] Module MidiMapper.ts (mapping bidirectionnel actions ↔ notes/pads)
+  [ ] Envoi SysEx pour contrôle LED (format Launchpad mk2/X documenté)
+  [ ] Page de configuration du mapping (MIDI learn : appuyer un pad → assigner action)
+  [ ] Retour visuel CSS synchronisé avec les notes jouées (@property)
+  [ ] POC sonification : liste d'Architectes → mélodie générée (Web Audio)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION TRÈS HAUT WOW FACTOR EN PRÉSENTATION
+
+  ★ APPRÉCIATION
+  "On pilote le tableau de bord avec un pad de beatmaker" — c'est la mission
+  qui provoque le plus de réactions dans une salle. Architecturalement propre
+  grâce au Command Pattern. La sonification est la cerise créative.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - Le contrôle des LEDs du Launchpad nécessite SysEx — permission plus restrictive
+    que le MIDI standard. Demander {sysex: true} dans requestMIDIAccess.
+    Sans SysEx, les LEDs ne répondent qu'aux notes MIDI standard (couleurs limitées).
+  - Chaque modèle Launchpad a un format SysEx différent (mk1 ≠ mk2 ≠ mini mk3).
+    La documentation Novation est disponible sur leur site.
+  - Si le contrôleur n'a pas de LEDs (clavier standard), la mission reste valide
+    en input only (mapping notes → actions). Plus accessible.
+  - La sonification "accord = déchiffrement" est une métaphore créative (pas
+    de la vraie crypto). Présenter comme une feature artistique/gamification.
+
+  ✦ RECOMMANDATION
+  Implémenter d'abord l'input MIDI → actions Nexus (un pad = fermer une anomalie).
+  Valider en 3h avec n'importe quel clavier MIDI. Ensuite ajouter le feedback
+  LED si le matériel le permet. La "MIDI Learn" (cliquer une action puis appuyer
+  le pad) est la feature UX la plus importante de la page de configuration.

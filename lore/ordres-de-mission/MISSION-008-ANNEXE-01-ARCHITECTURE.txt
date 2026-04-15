@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 01                                                ║
+║  ARCHITECTURE GLOBALE DE PLEXUS                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Vue d'ensemble des couches et responsabilités de la lib Plexus.
+Chaque couche est indépendante — BeaconProvider est interchangeable,
+le cœur Plexus ne connaît pas l'implémentation concrète du beacon.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+```mermaid
+graph TD
+  subgraph Application["Application (Core Nexus)"]
+    APP["Code applicatif\n(React components)"]
+    REG["PlexusMessages\n(declare module)"]
+  end
+
+  subgraph PlexusLib["Lib Plexus"]
+    CORE["Plexus\n(routeur central)"]
+    ROUTER["Router\n(forward / deliver)"]
+    SEEN["SeenMessages\n(déduplication FIFO)"]
+    NODES["nodes: Map NodeEntry\n(routing table unifiée)"]
+  end
+
+  subgraph Transport["Couche Transport"]
+    RTC["RTCDataChannel\n(connexions directes)"]
+    BC["BroadcastChannel\n(onglets — MISSION-016)"]
+    AUDIO["AudioContext\n(local/distant — MISSION-032)"]
+  end
+
+  subgraph Beacon["BeaconProvider (abstrait)"]
+    GIST["GistBeacon\n(GitHub Gist API)\n🔐 AES-GCM + PBKDF2"]
+    MEM["MemoryBeacon\n(Map en mémoire — tests)"]
+  end
+
+  APP -->|"send() / broadcast()"| CORE
+  APP -->|"subscribe()"| CORE
+  REG -.->|"typage body"| CORE
+
+  CORE --> ROUTER
+  CORE --> SEEN
+  CORE --> NODES
+
+  ROUTER -->|"connexion directe"| RTC
+  CORE -->|"Gateway / Satellite"| BC
+  CORE -->|"local=true/false"| AUDIO
+
+  CORE -->|"publish / read"| Beacon
+  Beacon --> GIST
+  Beacon --> MEM
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LECTURE DU SCHÉMA
+
+  Application  →  interagit uniquement avec l'API publique de Plexus (send,
+                  broadcast, subscribe aux observables, hooks).
+  Plexus core  →  orchestre le routage, la déduplication, l'état des nœuds.
+  Transport    →  couche bas niveau — RTC pour le P2P distant, BroadcastChannel
+                  pour les onglets du même navigateur.
+  Beacon       →  point d'entrée dans le réseau — publication des annonces et
+                  lecture des pairs disponibles. Swappable sans toucher au cœur.
+                  GistBeacon chiffre toutes les entrées (AES-GCM, clé PBKDF2)
+                  avant d'écrire sur le Gist — le Gist peut être public sans
+                  exposer les SDPs ni les nodeIds en clair.
+                  MemoryBeacon est une Map en mémoire pour les tests — elle ne
+                  simule pas la coordination inter-onglets (Gateway/Satellite),
+                  qui est une couche distincte gérée par BroadcastChannel.

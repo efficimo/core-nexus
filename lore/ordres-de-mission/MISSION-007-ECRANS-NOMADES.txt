@@ -1,0 +1,754 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-007                                         ║
+║  @efficimo/dock                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🪟⚓
+
+DÉSIGNATION     : Librairie Panels Détachables — Opération Fenêtres Souveraines
+CODENAME        : ECRANS-NOMADES
+PHASE           : [BETA]
+CLASSIFICATION  : Interface & Expérience — Package Open Source
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo — workspace pnpm)
+                  MISSION-001 (@efficimo/observable — ObservableValue, ObjectObservableValue)
+                  MISSION-002 (@efficimo/storage — persistance localStorage)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Un Architecte sur deux écrans ne veut pas choisir entre son dashboard et
+son chat. @efficimo/dock permet à n'importe quel composant React déclaré
+comme panel d'être éjecté en un clic dans sa propre fenêtre browser,
+de disparaître du layout principal, et de rester parfaitement synchronisé
+avec l'état global via des observables réactifs et BroadcastChannel.
+
+La lib est agnostique au routeur. Elle impose une seule contrainte :
+l'application déclare une route qui rend <DockOutlet /> — la lib gère
+le reste. Les panels détachés s'identifient via fragment URL (#id),
+ce qui garantit la compatibilité PWA desktop sans config Service Worker
+supplémentaire.
+
+L'état du registre est un JsonSerializeObservableValue de
+@efficimo/storage — il est à la fois persistant dans localStorage,
+réactif via observables, et synchronisé cross-contexte via l'événement
+'storage' natif du navigateur. BroadcastChannel est réservé au seul
+heartbeat de vivacité des fenêtres détachées.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONCEPTS FONDAMENTAUX
+
+  DOCK ID
+  ───────
+  Identifiant string unique d'un panel déclaré dans DockProvider.
+  Ex: 'chat', 'constellation', 'logs'
+
+    type DockId = string
+
+  DOCK STATE
+  ──────────
+  État courant d'un panel — deux statuts exclusifs.
+  Sérialisable en JSON — persiste dans localStorage via @efficimo/storage.
+
+    type DockState = {
+      id    : DockId
+      status: 'attached' | 'detached'
+    }
+
+  Note : windowRef (WindowProxy) n'est pas sérialisable. Il vit
+  uniquement en mémoire dans DockRegistry (#windowRefs: Map<DockId, WindowProxy>)
+  et n'est jamais inclus dans le state persisté.
+
+  DOCK PARAMS
+  ───────────
+  Variables optionnelles passées au moment du détachement.
+  Transportées dans le fragment URL — préservées au reload.
+  Accessibles via useDock(id).params dans la fenêtre détachée.
+
+    type DockParams = Record<string, string>
+
+  Format fragment : #<id>?<key>=<value>&<key>=<value>
+  Ex: /dock#chat?userId=123&mode=compact
+
+  Parsing : new URLSearchParams(hash.split('?')[1] ?? '')
+  Aucune dépendance externe — Web API standard.
+
+  DOCK CONFIG
+  ───────────
+  Déclaration statique d'un panel dans DockProvider.
+
+    type DockConfig = {
+      component   : ComponentType                        // composant principal
+      fallback   ?: ComponentType<{ id: DockId }>       // rendu si detached
+      title       : string                               // titre de la fenêtre browser
+      defaultSize?: { width: number; height: number }   // dimensions de la fenêtre
+    }
+
+  DOCK REGISTRY
+  ─────────────
+  Registre global des panels — cœur réactif de la lib.
+
+    state       : JsonSerializeObservableValue<Record<DockId, DockState>>
+    objectState : ObjectObservableValue<Record<DockId, DockState>>
+
+  Le state EST un observable storage : persisté dans localStorage,
+  réactif via @efficimo/observable, et synchronisé automatiquement
+  entre tous les contextes du même origin via l'événement 'storage'
+  natif — sans configuration supplémentaire.
+
+  ObjectObservableValue wrape le state et expose getPartObservable(id)
+  — un observable réactif bidirectionnel sur un panel précis, sans
+  écrire de fonctions from/to manuellement. Un changement sur un panel
+  remonte automatiquement au state global et vice versa.
+
+  Note : Record (plain object) est utilisé — pas Map. Map n'est pas
+  sérialisable via JSON.stringify. BaseStorage travaille avec des
+  strings JSON, donc le state persisté doit être un plain object.
+
+  DOCK BC MESSAGE
+  ───────────────
+  Type discriminé des messages BroadcastChannel du canal 'dock-registry'.
+
+    type DockBCMessage =
+      | { type: 'dock:alive';    id: DockId }                    // heartbeat
+      | { type: 'dock:reattach'; id: DockId }                    // fermeture propre
+      | { type: 'dock:message';  id: DockId; payload: unknown }  // messagerie user
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  CORE (zéro dépendance React)
+  ─────────────────────────────
+  Importé depuis '@efficimo/dock'
+
+  class DockRegistry {
+    // state — observable storage JSON, persistant + réactif + cross-contexte
+    readonly state      : JsonSerializeObservableValue<Record<DockId, DockState>>
+    // objectState — wrape state, expose getPartObservable par panel
+    readonly objectState: ObjectObservableValue<Record<DockId, DockState>>
+
+    // en mémoire uniquement, non sérialisé
+    #windowRefs: Map<DockId, WindowProxy>
+
+    constructor(storage: BaseStorage, url: string)
+
+    // Libère les ressources (BroadcastChannel + timers) — appeler au démontage
+    destroy(): void
+
+    // Observable réactif sur un panel précis — via objectState.getPartObservable(id)
+    // bidirectionnel : changement panel → state global, et inversement
+    getDockObservable(id: DockId): ObservableValueInterface<DockState>
+
+    // Observable de messages user pour un panel (main ↔ dock)
+    getMessageObservable(id: DockId): Observable<unknown>
+
+    // Actions — state.next() → storage écrit → 'storage' event → sync cross-contexte
+    register(id: DockId, config: DockConfig): void
+    detach(id: DockId, params?: DockParams): void  // ouvre /dock#id?params + state.next()
+    reattach(id: DockId): void                     // ferme la fenêtre + state.next()
+    focusWindow(id: DockId): void                  // windowRef?.focus()
+
+    // Messagerie user — émet { type: 'dock:message', id, payload } sur BC
+    sendMessage(id: DockId, payload: unknown): void
+
+    // Utilitaire
+    canDetach(): boolean          // false sur mobile standalone PWA
+  }
+
+  REACT (peerDependency: react ≥ 18)
+  ────────────────────────────────────
+  Importé depuis '@efficimo/dock/react'
+
+  // Provider — déclare les panels et initialise le DockRegistry
+  function DockProvider(props: {
+    url     : string                        // ex: '/dock'
+    panels  : Record<DockId, DockConfig>
+    children: ReactNode
+  }): JSX.Element
+
+  // Slot — rendu conditionnel dans le layout principal
+  function DockSlot(props: { id: DockId }): JSX.Element
+  // attached → <config.component />
+  // detached → <config.fallback id={id} /> | <DefaultFallback id={id} />
+
+  // Outlet — rendu dans la fenêtre détachée (route dédiée)
+  function DockOutlet(): JSX.Element
+  // Lit location.hash → ex: #chat → monte <ChatPanel />
+  // + heartbeat BC toutes les 2s
+  // + beforeunload → BC reattach
+
+  // Hook — contrôle d'un panel depuis n'importe quel composant
+  function useDock(id: DockId): {
+    isDetached  : boolean                               // réactif via ObjectObservableValue.getPartObservable
+    canDetach   : boolean                               // false si mobile standalone PWA
+    params      : DockParams                            // vide ({}) si attaché ou aucun param
+    messages    : Observable<unknown>                   // messages user reçus pour ce panel
+    detach      : (params?: DockParams) => void         // params → fragment URL
+    reattach    : () => void
+    focusWindow : () => void
+    send        : (payload: unknown) => void            // envoie vers l'autre côté via BC
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INTÉGRATION CÔTÉ APPLICATION
+
+  ÉTAPE 1 — Envelopper l'app avec DockProvider
+  ─────────────────────────────────────────────
+  import { DockProvider } from '@efficimo/dock/react'
+
+  <DockProvider
+    url="/dock"
+    panels={{
+      chat: {
+        component  : ChatPanel,
+        fallback   : ChatFallback,
+        title      : 'Chat',
+        defaultSize: { width: 480, height: 640 },
+      },
+      constellation: {
+        component  : ConstellationGraph,
+        title      : 'Constellation',
+        defaultSize: { width: 900, height: 700 },
+      },
+    }}
+  >
+    <App />
+  </DockProvider>
+
+  ÉTAPE 2 — Déclarer la route (router-agnostique)
+  ─────────────────────────────────────────────────
+  La lib impose une seule route : l'URL passée à DockProvider (ex: /dock).
+  DockOutlet lit location.hash pour identifier le panel à rendre.
+
+  // TanStack Router
+  <Route path="/dock" component={DockOutlet} />
+
+  // React Router
+  <Route path="/dock" element={<DockOutlet />} />
+
+  // Tout autre routeur — même principe
+
+  ⚠ GARDE D'AUTHENTIFICATION
+  Si l'app protège ses routes (ex: redirect vers /login si non authentifié),
+  s'assurer que la route /dock est accessible dans un contexte authentifié.
+  La fenêtre détachée ouvre /dock depuis le même origin — elle partage le
+  même localStorage, donc le même token/data-key. Le guard doit simplement
+  laisser passer si les credentials sont présents dans localStorage,
+  ce qui est le cas normal puisque l'utilisateur était déjà connecté.
+
+  ÉTAPE 3 — Placer les slots dans le layout
+  ──────────────────────────────────────────
+  import { DockSlot } from '@efficimo/dock/react'
+
+  <DockSlot id="chat" />
+  <DockSlot id="constellation" />
+
+  ÉTAPE 4 — Utiliser le hook dans les composants
+  ───────────────────────────────────────────────
+  import { useDock } from '@efficimo/dock/react'
+
+  const { detach, isDetached, canDetach, params, messages, send } = useDock('chat')
+
+  // Détachement simple
+  {canDetach && <button onClick={() => detach()}>⧉</button>}
+
+  // Détachement avec contexte
+  {canDetach && <button onClick={() => detach({ userId: '123', mode: 'compact' })}>⧉</button>}
+
+  // Dans le composant détaché — récupérer les params
+  // params.userId → '123', params.mode → 'compact', params = {} si aucun param
+
+  // Envoyer un message vers l'autre côté (main → dock ou dock → main)
+  send({ action: 'scroll-to', messageId: '456' })
+
+  // Recevoir des messages
+  useEffect(() => {
+    const sub = messages.subscribe((payload) => {
+      console.log(payload) // { action: 'scroll-to', messageId: '456' }
+    })
+    return () => sub.unsubscribe()
+  }, [messages])
+
+  FALLBACK — contrat minimal
+  ──────────────────────────
+  Le composant fallback reçoit uniquement { id: DockId }.
+  Il est libre d'utiliser useDock pour accéder aux actions.
+
+  const ChatFallback = ({ id }: { id: string }) => {
+    const { reattach, focusWindow } = useDock(id)
+    return (
+      <>
+        <button onClick={focusWindow}>Rejoindre la fenêtre</button>
+        <button onClick={reattach}>Réintégrer ici</button>
+      </>
+    )
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SYNCHRONISATION — TROIS COUCHES
+
+  COUCHE 1 — STORAGE OBSERVABLE (persistance + réactivité)
+  ──────────────────────────────────────────────────────────
+  DockRegistry.state est un JsonSerializeObservableValue<Record<DockId, DockState>>
+  fourni par @efficimo/storage. Chaque appel state.next() :
+    1. Sérialise le Record en JSON et l'écrit dans localStorage
+    2. Notifie les abonnés locaux via @efficimo/observable
+    3. Déclenche l'événement 'storage' natif du navigateur
+
+  DockRegistry.objectState est un ObjectObservableValue qui wrape
+  ce state. Il expose getPartObservable(id) — un ObservableValue
+  réactif sur un panel précis. Quand state change globalement,
+  objectState propage automatiquement aux observables de chaque
+  panel concerné (via lodash.get sur le path = id). Quand un panel
+  change via son observable, objectState remonte la modification
+  au state global via lodash.set — bidirectionnel sans code manuel.
+
+  COUCHE 2 — ÉVÉNEMENT 'STORAGE' (sync cross-contexte gratuite)
+  ──────────────────────────────────────────────────────────────
+  L'événement 'storage' est émis dans tous les contextes du même
+  origin (autres onglets, fenêtres détachées) dès qu'une clé
+  localStorage change — sauf dans le contexte qui a écrit.
+  @efficimo/storage écoute cet événement et appelle state.next()
+  dans les autres contextes → ObjectObservableValue propage
+  aux observables de panel concernés → useDock() re-render.
+  Aucun code supplémentaire requis.
+
+  COUCHE 3 — BROADCASTCHANNEL (heartbeat + fermeture propre + messagerie user)
+  ─────────────────────────────────────────────────────────────────────────────
+  Canal : 'dock-registry' — indépendant de MISSION-016 (canal séparé,
+  aucune interférence avec la sync inter-onglets de Plexus).
+
+  Types de messages (cf. DockBCMessage dans CONCEPTS FONDAMENTAUX) :
+    dock:alive    → heartbeat watcher mis à jour
+    dock:reattach → reattach(id) déclenché dans la main window
+    dock:message  → getMessageObservable(id).next(payload)
+
+  POURQUOI dock:reattach PASSE PAR BC ET NON PAR LE 'storage' EVENT
+  ──────────────────────────────────────────────────────────────────
+  Quand l'utilisateur ferme la fenêtre détachée, beforeunload appelle
+  state.next() ce qui écrit dans localStorage de façon synchrone. Mais
+  l'événement 'storage' est asynchrone — il n'est pas garanti d'arriver
+  dans la main window avant que la fenêtre ne se ferme totalement.
+  BroadcastChannel est synchrone dans le même origin : la main window
+  reçoit dock:reattach avant que la connexion BC ne soit coupée.
+  Le heartbeat (5s) reste le filet de sécurité pour les fermetures
+  forcées (crash, kill process) où beforeunload n'est pas déclenché.
+
+  MESSAGERIE USER (main ↔ dock)
+  ──────────────────────────────
+  DockRegistry expose un Observable<unknown> par panel. Les deux côtés
+  utilisent la même API send/messages — le canal est bidirectionnel.
+  BC ne livre pas les messages à l'émetteur (comportement natif) —
+  send() ne notifie jamais le contexte qui envoie, uniquement l'autre.
+
+  FLUX COMPLET (détachement)
+  ──────────────────────────
+  user clique ⧉
+    → detach(id, { userId: '123' })
+      → construit le fragment : '#chat?userId=123'
+      → window.open('/dock#chat?userId=123', 'dock-chat', 'width=480,height=640')
+      → windowRef vérifié (null si popup bloqué → toast avertissement)
+      → state.next(map.set(id, { status: 'detached', windowRef }))
+          → localStorage écrit
+          → observable notifie → DockSlot rend le fallback
+          → événement 'storage' → fenêtre détachée reçoit
+              → state.next() → DockOutlet rend le composant
+              → DockOutlet parse location.hash → params = { userId: '123' }
+              → useDock('chat').params disponible dans le composant
+
+  HEARTBEAT & RÉCUPÉRATION SUR CRASH
+  ────────────────────────────────────
+  La fenêtre détachée émet { type: 'dock:alive', id } via BC toutes les 2s.
+  Si le registre principal ne reçoit plus de heartbeat pour un panel
+  'detached' pendant plus de 5s → state.next(map.set(id, { status: 'attached' }))
+  Le panel réapparaît dans le layout automatiquement.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMPATIBILITÉ PWA
+
+  DESKTOP PWA (Chrome/Edge installé)              ✅ CAS IDÉAL
+  ────────────────────────────────────────────────
+  window.open() ouvre une fenêtre dans le même contexte PWA.
+  Même origin, même Service Worker, même localStorage.
+  BroadcastChannel fonctionne. Les panels détachés ressemblent
+  à des fenêtres d'application native.
+
+  MOBILE PWA STANDALONE                           ❌ DÉSACTIVÉ
+  ────────────────────────────────────────────────
+  window.open() sort de la PWA et ouvre dans le navigateur système.
+  Contexte différent — BroadcastChannel coupé, providers perdus.
+  canDetach() retourne false automatiquement.
+  Détection :
+    window.matchMedia('(display-mode: standalone)').matches && isMobile
+
+  SERVICE WORKER — fragment URL                   ✅ AUCUNE CONFIG
+  ────────────────────────────────────────────────
+  L'URL /dock#chat : le SW ne voit que /dock sur le réseau.
+  Le fragment #chat ne transite jamais côté serveur.
+  navigateFallback standard de vite-plugin-pwa suffit.
+  Aucune règle SW supplémentaire requise.
+
+  POPUP BLOCKER
+  ─────────────
+  window.open() doit être appelé dans un handler onClick synchrone.
+  Si null retourné → canDetach() reste true mais un toast avertit
+  l'utilisateur d'autoriser les popups pour le site.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ADAPTATION VISUELLE — MODE PLEIN ÉCRAN
+
+  Quand un panel passe de DockSlot (embedded dans le layout principal) à
+  DockOutlet (plein écran dans sa propre fenêtre), le composant dispose
+  soudain de beaucoup plus d'espace. Sans mécanisme d'adaptation, le panel
+  affiche exactement le même layout que dans sa version contrainte — une
+  occasion manquée.
+
+  La lib expose ce contexte via un attribut data-dock-state posé sur le
+  container direct du composant panel :
+    DockSlot   → data-dock-state="attached"    (espace contraint par le layout)
+    DockOutlet → data-dock-state="detached"    (plein écran, fenêtre propre)
+
+  CSS @property EST LA SOLUTION RECOMMANDÉE pour adapter le rendu en
+  réponse à ce changement de contexte. Contrairement aux custom properties
+  classiques (var(--x)), une propriété déclarée avec @property est typée :
+  le navigateur connaît son type (length, integer, color…) et peut
+  l'interpoler. Cela ouvre deux bénéfices majeurs :
+
+  1. TRANSITION ANIMÉE ENTRE MODES
+     Les custom properties classiques ne sont pas animables — le navigateur
+     ne sait pas interpoler entre 0.75rem et 1.5rem sur une chaîne de
+     caractères. Avec @property, la transition devient fluide.
+
+  2. HÉRITAGE CONTRÔLÉ
+     inherits: true → tous les descendants accèdent au contexte dock sans
+     prop drilling ni Context React supplémentaire.
+     inherits: false → isolation d'un panel par rapport aux autres si
+     plusieurs DockSlot coexistent dans le layout.
+
+  EXEMPLE D'IMPLÉMENTATION (côté consommateur)
+
+    @property --dock-padding {
+      syntax        : '<length>';
+      inherits      : true;
+      initial-value : 0.75rem;
+    }
+
+    @property --dock-columns {
+      syntax        : '<integer>';
+      inherits      : true;
+      initial-value : 1;
+    }
+
+    [data-dock-state="attached"] {
+      --dock-padding : 0.75rem;
+      --dock-columns : 1;
+    }
+
+    [data-dock-state="detached"] {
+      --dock-padding : 1.5rem;
+      --dock-columns : 2;
+    }
+
+    .panel-surface {
+      padding               : var(--dock-padding);
+      grid-template-columns : repeat(var(--dock-columns), 1fr);
+      transition            : --dock-padding 200ms ease;  /* ✅ animable */
+    }
+
+  Le panel Constellation est le cas d'usage le plus évident : en mode
+  attached, il affiche une miniature du graphe ; en mode detached, il
+  étend le SVG force-directed à toute la fenêtre avec une densité
+  d'information plus riche. Le tout piloté par deux lignes de CSS.
+
+  CONTAINER QUERIES — ADAPTATION PAR L'ESPACE RÉEL
+
+  @property répond à la question "dans quel mode suis-je ?" (attached vs
+  detached). Container queries répondent à la question "combien d'espace
+  ai-je vraiment ?" — et les deux questions ne donnent pas toujours la
+  même réponse.
+
+  Un panel detached dans une petite fenêtre a peu d'espace. Un panel
+  attached dans un layout à deux colonnes larges en a beaucoup.
+  Media queries seraient inutilisables ici — elles voient la taille du
+  viewport, pas celle du panel. Container queries voient le container
+  réel du composant.
+
+  Le wrapper posé par DockSlot et DockOutlet déclare un container :
+
+    [data-dock-state] {
+      container-type: inline-size;
+      container-name: dock-panel;
+    }
+
+  Le composant panel utilise @container sans dépendre du contexte dock :
+
+    @container dock-panel (min-width: 480px) {
+      .panel-grid { grid-template-columns: 1fr 1fr; }
+      .panel-aside { display: block; }
+    }
+
+    @container dock-panel (min-width: 800px) {
+      .panel-grid { grid-template-columns: 1fr 1fr 1fr; }
+      .panel-toolbar { flex-direction: row; }
+    }
+
+  SYNERGIE @property + CONTAINER QUERIES
+
+  Les deux mécanismes sont complémentaires et non redondants :
+
+    @property (data-dock-state)  → décisions intentionnelles de design
+                                   "en plein écran, afficher le panneau latéral"
+                                   "detached, utiliser une densité plus élevée"
+                                   transitions animées entre états
+
+    container queries            → adaptation à l'espace disponible
+                                   "si > 600px, passer en 2 colonnes"
+                                   indépendant du contexte dock
+                                   réutilisable partout dans l'app
+
+  Un composant panel bien conçu utilise les deux : @container pour le
+  layout responsive, @property pour les choix éditoriaux liés au mode.
+
+  PORTABILITÉ DU COMPOSANT
+  Un panel défini avec container queries fonctionne n'importe où dans
+  l'app — dans le dock, dans une sidebar, dans une modale — sans
+  modification. Le composant ne sait pas où il est monté. C'est l'objectif.
+
+  CONTRAT DE LA LIB
+  Le wrapper posé par DockSlot et DockOutlet expose deux hooks CSS :
+    data-dock-state="attached|detached"  → contexte sémantique
+    container-type: inline-size          → contexte spatial (container queries)
+  La lib ne dicte aucune convention CSS au-delà de ces deux points.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. DOCK REGISTRY (src/DockRegistry.ts) :
+     - state : JsonSerializeObservableValue<Record<DockId, DockState>>
+       instancié via BaseStorage.getSerializedObservable('dock-registry', schema)
+       schema Zod : z.record(z.object({ id: z.string(), status: z.enum(['attached','detached']) }))
+     - objectState : ObjectObservableValue<Record<DockId, DockState>>
+       instancié en wrappant state → new ObjectObservableValue(state)
+     - #windowRefs : Map<DockId, WindowProxy> — en mémoire, non sérialisé
+     - #heartbeatTimers : Map<DockId, Timer> — timers de surveillance
+     - getDockObservable(id) : retourne objectState.getPartObservable(id)
+       → ObservableValueInterface<DockState>, bidirectionnel, zéro code manuel
+     - getMessageObservable(id) : Observable<unknown> — messages user par panel
+     - register(), detach(), reattach(), focusWindow(), canDetach(), destroy()
+     - sendMessage(id, payload) : émet dock:message sur BC (sans notifier l'émetteur local)
+     - BroadcastChannel 'dock-registry' :
+         dock:alive    → reset du timer heartbeat du panel
+         dock:reattach → reattach(id) — fermeture propre de la fenêtre détachée
+         dock:message  → getMessageObservable(id).next(payload)
+     - destroy() : bc.close() + clearTimeout sur tous les #heartbeatTimers
+
+  2. HOOK useDock(id) (src/useDock.ts) :
+     - useObservableValueState sur getDockObservable(id) → isDetached réactif
+     - params : parsé depuis location.hash (URLSearchParams) — {} si aucun
+     - messages : registry.getMessageObservable(id)
+     - isDetached, canDetach, params, messages, detach, reattach, focusWindow, send
+
+  3. DOCK PROVIDER (src/DockProvider.tsx) :
+     - Instancie DockRegistry une seule fois (useRef — stable en StrictMode)
+     - Crée un BaseStorage<'dock-registry'> dédié (ne pas réutiliser le singleton
+       applicatif — évite la pollution des clés typées de l'application)
+     - Enregistre tous les panels au montage via registry.register()
+     - Appelle registry.destroy() au démontage (useEffect cleanup)
+     - Expose registry + panels config via Context React
+
+  4. DOCK SLOT (src/DockSlot.tsx) :
+     - Rendu conditionnel via useDock(id)
+     - attached → config.component dans un wrapper <div data-dock-state="attached">
+     - detached → config.fallback ?? DefaultFallback
+     - DefaultFallback : boutons focusWindow + reattach génériques
+
+  5. DOCK OUTLET (src/DockOutlet.tsx) :
+     - Parse location.hash → id + params
+       const [id, qs] = hash.slice(1).split('?')
+       const params = Object.fromEntries(new URLSearchParams(qs ?? ''))
+     - Expose params via Context local → useDock(id).params les lit
+     - Rend config.component dans un wrapper <div data-dock-state="detached">
+       (API CSS publique de la lib — voir section ADAPTATION VISUELLE)
+     - Rend config.component (les panels Plexus fonctionnent naturellement
+       car DockOutlet est à l'intérieur de DockProvider qui est à l'intérieur
+       de l'arbre de providers de l'app — même contexte Plexus, même thème)
+     - Heartbeat : setInterval 2s → bc.postMessage({ type: 'dock:alive', id })
+     - beforeunload → bc.postMessage({ type: 'dock:reattach', id })
+       (BC synchrone garantit la réception avant fermeture — contrairement
+       au 'storage' event qui est asynchrone et peut arriver trop tard)
+     - document.title = config.title
+
+  6. POINTS D'ENTRÉE :
+     src/index.ts       → DockRegistry + types (zéro React)
+     src/react.ts       → DockProvider, DockSlot, DockOutlet, useDock
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/dock/
+  ├── src/
+  │   ├── index.ts                    ← export core (DockRegistry, types)
+  │   ├── react.ts                    ← export React (DockProvider, DockSlot, DockOutlet, useDock)
+  │   ├── DockRegistry.ts             ← registre réactif + BC + heartbeat
+  │   ├── DockProvider.tsx            ← context React + initialisation
+  │   ├── DockSlot.tsx                ← rendu conditionnel attached/detached
+  │   ├── DockOutlet.tsx              ← rendu fenêtre détachée (heartbeat + unload)
+  │   ├── DefaultFallback.tsx         ← fallback générique (focusWindow + reattach)
+  │   ├── useDock.ts                  ← hook réactif
+  │   ├── types.ts                    ← DockId, DockState, DockConfig
+  │   └── __tests__/
+  │       ├── dockRegistry.test.ts    ← state, detach, reattach, getDockObservable
+  │       ├── heartbeat.test.ts       ← watcher timeout + auto-reattach
+  │       └── broadcastChannel.test.ts← émission + réception BC simulée
+  ├── package.json
+  ├── tsconfig.json                   ← extends ../../tsconfig.base.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PACKAGE.JSON
+
+  {
+    "name": "@efficimo/dock",
+    "version": "0.1.0",
+    "type": "module",
+    "exports": {
+      ".":       "./src/index.ts",
+      "./react": "./src/react.ts"
+    },
+    "peerDependencies": {
+      "@efficimo/observable": ">=0.1.0",
+      "@efficimo/storage":    ">=0.1.0",
+      "react":                ">=18.0.0"
+    },
+    "peerDependenciesMeta": {
+      "react": { "optional": true }
+    },
+    "license": "MIT"
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/observable ≥ 0.1.0 — ObservableValue, ObjectObservableValue, Observable
+                                    (ObjectObservableValue dépend de lodash.get/lodash.set
+                                     — transitivement inclus via @efficimo/observable)
+  - @efficimo/storage ≥ 0.1.0    — BaseStorage, JsonSerializeObservableValue
+  - BroadcastChannel API          — sync cross-fenêtres (browser natif)
+  - window.open()                 — ouverture des fenêtres détachées
+  - window.beforeunload           — réattachement propre à la fermeture
+  - location.hash                 — identification du panel dans DockOutlet
+  - TypeScript strict             — extends tsconfig.base.json
+  - Vitest + jsdom                — environnement de test browser simulé
+  - Turborepo                     — pipeline build/test (dépend de observable + storage)
+  - Changesets                    — versioning sémantique indépendant
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)         │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen-Élevé             │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package core
+  [ ] packages/dock/src/index.ts              : export DockRegistry + types
+  [ ] packages/dock/src/types.ts              : DockId, DockState, DockConfig, DockParams
+  [ ] packages/dock/src/DockRegistry.ts       : registre réactif + BC + heartbeat
+
+  Package React
+  [ ] packages/dock/src/react.ts              : export React (DockProvider, DockSlot, DockOutlet, useDock)
+  [ ] packages/dock/src/DockProvider.tsx      : context + initialisation registry
+  [ ] packages/dock/src/DockSlot.tsx          : rendu conditionnel attached/detached
+  [ ] packages/dock/src/DockOutlet.tsx        : fenêtre détachée — heartbeat + unload + hash
+  [ ] packages/dock/src/DefaultFallback.tsx   : fallback générique
+  [ ] packages/dock/src/useDock.ts            : hook réactif via DerivedObservableValue
+
+  Config
+  [ ] packages/dock/package.json
+  [ ] packages/dock/tsconfig.json
+  [ ] packages/dock/README.md
+  [ ] packages/dock/CHANGELOG.md
+
+  Tests
+  [ ] packages/dock/src/__tests__/dockRegistry.test.ts
+  [ ] packages/dock/src/__tests__/heartbeat.test.ts
+  [ ] packages/dock/src/__tests__/broadcastChannel.test.ts   ← heartbeat + messagerie user
+
+  Intégration core-nexus
+  [ ] apps/core-nexus : DockProvider à la racine de l'app
+  [ ] apps/core-nexus : route /dock → <DockOutlet />
+  [ ] apps/core-nexus : Chat — premier panel rendu détachable (validation end-to-end)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  Design élégant et minimaliste. La séparation core/react permet
+  d'utiliser DockRegistry dans un contexte non-React (tests, scripts).
+  L'approche fragment URL (#id) est la décision architecturale la plus
+  importante : elle rend la lib agnostique au routeur, simplifie la
+  configuration Service Worker, et reste lisible pour le développeur.
+
+  Les trois couches ont des responsabilités parfaitement séparées :
+  @efficimo/storage gère persistance + réactivité + sync cross-contexte
+  via l'événement 'storage' natif. ObjectObservableValue découpe le state
+  global en observables par panel — chaque composant ne re-rend que sur
+  le changement de son panel précis, sans écrire de logique from/to
+  manuelle. BroadcastChannel gère heartbeat, messagerie applicative et
+  signal de fermeture propre — trois cas que le 'storage' event ne couvre
+  pas de façon fiable.
+
+  Le contrat du fallback ({ id }) est intentionnellement minimal —
+  le consommateur choisit ses actions via useDock(id). La lib ne
+  décide pas de l'UX du placeholder.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  WINDOW.OPEN ET POPUP BLOCKER
+    Doit être appelé de manière synchrone dans un onClick.
+    Toujours vérifier le retour (null = bloqué). Informer
+    l'utilisateur via un toast si null.
+
+  DOCKREGISTRY ET DOCKOUTLET DANS LA MÊME INSTANCE
+    La fenêtre détachée charge l'app complète avec son propre
+    DockProvider. DockRegistry lit le localStorage pour retrouver
+    l'état — le panel est déjà 'detached' donc DockOutlet s'affiche
+    correctement. La cohérence est garantie par la persistance Storage.
+
+  BROADCASTCHANNEL DANS LES TESTS
+    BroadcastChannel n'est pas simulé par jsdom. Il faut soit mocker
+    l'API, soit utiliser vitest avec un environnement custom. Prévoir
+    un mock simple dans un fichier __mocks__/BroadcastChannel.ts.
+
+  PLUSIEURS PANELS DÉTACHÉS SIMULTANÉMENT
+    Pleinement supporté — la state est une Map, chaque panel a son
+    propre DerivedObservableValue. Aucune limitation architecturale.
+
+  RELOAD DE LA FENÊTRE DÉTACHÉE
+    Si l'utilisateur recharge /dock#chat, le DockProvider se réinitialise,
+    lit le localStorage ('detached'), DockOutlet remonte proprement,
+    le heartbeat reprend. Comportement stable et prévisible.
+
+  ✦ RECOMMANDATION
+    Valider d'abord avec un panel statique sans réactivité (ex: panel
+    "À propos") pour tester le cycle attach/detach/reattach en isolation.
+    Puis brancher un panel observable (Chat) pour valider la réactivité
+    cross-fenêtre. La Constellation vient en dernier — cas le plus
+    impressionnant visuellement, idéal pour la démo end-to-end.

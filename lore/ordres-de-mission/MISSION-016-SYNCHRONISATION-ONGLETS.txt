@@ -1,0 +1,104 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-016                                         ║
+║  LA SYNCHRONISATION DES ONGLETS                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔄📑
+
+DÉSIGNATION     : Cohérence Multi-Instance du Terminal — Opération Conscience Unifiée
+CODENAME        : SYNCHRONISATION-ONGLETS
+PHASE           : [ALPHA]
+CLASSIFICATION  : Communications & Réseau
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Un Architecte peut ouvrir plusieurs instances de son Terminal de Combat
+simultanément. Sans coordination, ces instances divergent et causent des
+corruptions de données.
+
+Ce protocole instaure une conscience partagée entre tous les onglets via
+deux mécanismes complémentaires :
+
+  BROADCAST CHANNEL : Canal de diffusion instantané permettant à chaque
+  onglet d'annoncer ses modifications aux autres. Changer un filtre sur
+  l'onglet A met à jour le graphique sur l'onglet B en temps réel.
+  Support : tous les navigateurs modernes (Chrome, Firefox, Safari).
+
+  WEB LOCKS API : Verrou distribué garantissant qu'un seul onglet à la fois
+  peut écrire dans les Archives partagées — un mutex client-side.
+  navigator.locks.request('nexus-write', async lock => { ... })
+  Support : Chrome 69+, Firefox 96+, Safari 15.4+ (bien couvert en 2025).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Mettre en place un BroadcastChannel "nexus-sync" pour diffuser les
+     événements de modification (type: 'anomalie-updated' | 'spark-created' | ...)
+  2. Invalider automatiquement le cache TanStack Query dans tous les onglets
+     récepteurs via queryClient.invalidateQueries() sur réception du message
+  3. Utiliser Web Locks API autour de toute opération d'écriture sur les
+     Archives partagées (IndexedDB / localStorage)
+  4. Compter les onglets actifs via un protocole register/heartbeat/unregister
+     sur BroadcastChannel
+  5. Fallback : écouter l'événement storage sur window (localStorage) pour
+     la compatibilité avec les navigateurs sans BroadcastChannel
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - BroadcastChannel API (communication inter-onglets même origine)
+    Messages typés : { type: NexusSyncEvent, payload: ... }
+  - Web Locks API (navigator.locks.request — exclusion mutuelle)
+  - TanStack Query (queryClient.invalidateQueries sur réception broadcast)
+  - window storage event (fallback cross-tab via localStorage)
+  - Custom Hook useTabSync()
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : 1 jour                  │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Module TabSync.ts (BroadcastChannel + types de messages NexusSyncEvent)
+  [ ] Protocol register/heartbeat/unregister pour comptage d'onglets actifs
+  [ ] Hook useTabSync() intégré au QueryClient (invalidation automatique)
+  [ ] Wrapping de toutes les opérations d'écriture avec Web Locks
+  [ ] Fallback window.addEventListener('storage', ...) pour compatibilité
+  [ ] Compteur d'onglets actifs dans le Footer
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION PROPRE ET IMMÉDIATEMENT UTILE
+
+  ★ APPRÉCIATION
+  C'est la mission avec le meilleur rapport effort/valeur du projet. Un jour
+  de travail pour une fonctionnalité qu'on utilise quotidiennement. Le compteur
+  d'onglets actifs est un détail sympathique qui donne vie à l'interface.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - BroadcastChannel ne fonctionne que pour les onglets de la même origine —
+    parfait pour ce cas d'usage.
+  - Web Locks est bien supporté partout depuis 2022. Pas de polyfill nécessaire.
+  - Le comptage d'onglets actifs via BroadcastChannel requiert un protocole
+    explicite : à l'ouverture, envoyer "register" ; à la fermeture (beforeunload),
+    envoyer "unregister" ; implémenter un heartbeat car beforeunload n'est pas
+    toujours fiable (crash, kill process).
+  - Pour l'invalidation TanStack Query : utiliser queryClient.invalidateQueries()
+    et non queryClient.resetQueries() pour conserver les données en attendant
+    le refetch (meilleure UX).
+
+  ✦ RECOMMANDATION
+  Mission parfaite pour un début de sprint ou un vendredi après-midi. Démarrer
+  par BroadcastChannel + TanStack Query invalidation (2h), puis ajouter Web Locks
+  (1h), puis le compteur d'onglets (1h). MVP en demi-journée.

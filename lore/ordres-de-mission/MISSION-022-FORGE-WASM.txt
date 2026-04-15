@@ -1,0 +1,114 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-022                                         ║
+║  LA FORGE WASM                                                           ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⚙️🗄️
+
+DÉSIGNATION     : Moteur SQL Embarqué haute performance — Opération Codex Infini
+CODENAME        : FORGE-WASM
+PHASE           : [BETA]
+CLASSIFICATION  : Moteur & Performance
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Codex JSON du Nexus est efficace pour des volumes modestes. Mais quand
+une escouade enregistre des milliers d'Anomalies sur plusieurs cycles
+de combat, les recherches et les agrégations deviennent lentes et imprécises.
+
+Ce protocole embarque un moteur SQL complet dans le Terminal de Combat :
+SQLite compilé en WebAssembly. Les Codex sont chargés une fois en mémoire
+dans une base relationnelle, et toutes les requêtes — filtres complexes,
+jointures entre Architectes et Sparks, agrégations de vélocité — s'exécutent
+en quelques millisecondes, sans aucun serveur.
+
+Les Streams API assurent que les gros Codex chiffrés sont déchiffrés et
+ingérés en flux continu — l'Architecte voit les premières Anomalies pendant
+que le reste du fichier est encore en transit depuis le Dépôt Immuable.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Intégrer @sqlite.org/sqlite-wasm dans un Web Worker dédié
+     (préférable à sql.js : package officiel SQLite, actively maintained)
+  2. Schéma SQL pour les 5 entités (Architect, Skill, Spark, Implant, Sigil)
+  3. Loader qui ingère les Codex JSON/JSON.enc dans la base WASM au démarrage
+  4. API de requête exposée au thread principal (messages Worker)
+  5. Déchiffrement en "streaming par blocs" des Codex chiffrés :
+     chaque bloc est chiffré/déchiffré indépendamment avec son propre IV
+     (AES-GCM requiert tout le ciphertext pour vérifier l'auth tag — le vrai
+     streaming nécessite un découpage en blocs de taille fixe à l'écriture)
+  6. Requêtes complexes : recherche full-text FTS5, stats de vélocité, top Architectes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @sqlite.org/sqlite-wasm (package officiel SQLite → WebAssembly, ~1.5Mo)
+    ⚠ Nécessite les en-têtes COOP/COEP pour SharedArrayBuffer :
+      Cross-Origin-Opener-Policy: same-origin
+      Cross-Origin-Embedder-Policy: require-corp
+      (GitHub Pages ne les ajoute pas par défaut — configurer via _headers ou
+      serveur de déploiement, ou utiliser le mode "no-SAB" sans SharedArrayBuffer)
+  - Web Workers (thread isolé pour le moteur SQL)
+  - Streams API (ReadableStream + TransformStream pour déchiffrement flux)
+  - Chiffrement par blocs (chaque chunk ~64Ko chiffré séparément avec IV unique)
+  - TanStack Query (adaptation des queryFn pour passer par le Worker SQL)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★☆  (Champion)      │
+  │ Durée estimée : 4-5 jours               │
+  │ Effort        : Élevé                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] database.worker.ts (SQLite WASM + API de requêtes)
+  [ ] Schéma SQL et migrations (create tables + FTS5 virtual table)
+  [ ] Loader d'ingestion des 5 entités depuis JSON
+  [ ] StreamDecryptor (ReadableStream de blocs chiffrés → JSON objet par objet)
+  [ ] Adaptation des queryFn TanStack Query vers le Worker SQL
+  [ ] Benchmark : temps de requête JSON pur vs WASM SQLite
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION SOLIDE, DEUX POINTS TECHNIQUES CRITIQUES
+
+  ★ APPRÉCIATION
+  SQLite en WASM dans le navigateur est l'une des démonstrations les plus
+  impressionnantes de la puissance moderne du web. FTS5 dans le terminal,
+  des jointures multi-entités en millisecondes, sans serveur — c'est concret
+  et mesurable. La mission est bien structurée.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - PACKAGE : Utiliser @sqlite.org/sqlite-wasm (package officiel SQLite
+    Foundation, maintenu activement) plutôt que sql.js (package tiers plus
+    ancien). Les deux compilent SQLite en WASM, mais le package officiel
+    supporte mieux SharedArrayBuffer et les builds récents.
+  - COEP/COOP HEADERS : @sqlite.org/sqlite-wasm avec SharedArrayBuffer
+    (mode performant) exige les en-têtes Cross-Origin-Isolation. GitHub Pages
+    ne les ajoute pas nativement. Solution : mode "no-SharedArrayBuffer" (légère
+    pénalité de perf, mais simplifie le déploiement) ou un serveur proxy qui
+    injecte les en-têtes (Cloudflare Worker, Netlify _headers).
+  - STREAMING AES-GCM : C'est le piège le plus sournois de cette mission.
+    AES-GCM calcule un auth tag sur l'intégralité du ciphertext à la fin —
+    il est donc impossible de déchiffrer "au fil de l'eau" un seul gros bloc.
+    La vraie approche streaming : découper en blocs de 64Ko à l'écriture,
+    chaque bloc chiffré séparément avec son propre IV (ex: IV = baseIV XOR
+    numéro_bloc). Le déchiffreur reconstruit le flux bloc par bloc.
+  - FTS5 : Activé par défaut dans @sqlite.org/sqlite-wasm. Créer une virtual
+    table FTS5 et garder les données en sync avec les INSERT/UPDATE/DELETE.
+
+  ✦ RECOMMANDATION
+  Commencer par intégrer SQLite WASM sans SharedArrayBuffer (plus simple pour
+  GitHub Pages). Valider les requêtes FTS5 sur le Codex existant. Ensuite,
+  implémenter le StreamDecryptor par blocs. C'est la partie la plus délicate —
+  définir le format de fichier (taille de bloc + structure des IV) avant de coder.

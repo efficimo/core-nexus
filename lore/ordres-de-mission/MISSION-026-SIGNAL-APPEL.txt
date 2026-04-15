@@ -1,0 +1,119 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-026                                         ║
+║  LE SIGNAL D'APPEL                                                      ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🔔📳
+
+DÉSIGNATION     : Surveillance Permanente par Notifications Natives — Opération Sentinelle
+CODENAME        : SIGNAL-APPEL
+PHASE           : [BETA]
+CLASSIFICATION  : Communications & Réseau
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Terminal de Combat ne peut pas toujours rester ouvert. Mais les Anomalies,
+elles, n'attendent pas. Un Architecte en déplacement, terminal fermé, doit
+pouvoir recevoir l'alerte d'une intrusion critique directement depuis l'OS.
+
+La Web Push API permet au Terminal d'envoyer des notifications natives même
+quand l'onglet est fermé — via un Service Worker en veille. La Notification
+API enrichit ces alertes : titre, icône, priorité, actions rapides. La Badge
+API affiche le compteur d'anomalies actives directement sur l'icône PWA du
+bureau ou de la taskbar.
+
+Ce protocole transforme le Terminal en outil de surveillance permanente,
+indispensable pendant les sprints actifs ou les nuits de déploiement.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Demander la permission Notification au premier lancement (prompt unique)
+     → stocker le consentement, ne jamais re-demander sans action utilisateur
+
+  2. Enregistrer un abonnement Web Push via serviceWorkerRegistration.pushManager
+     → générer une paire de clés VAPID (serveur) pour signer les messages
+     → sauvegarder l'endpoint d'abonnement dans le datastore chiffré
+
+  3. Déclencher une notification native depuis le Service Worker :
+     self.registration.showNotification('Anomalie Critique', {
+       body: 'NullKrab détecté — Secteur 7',
+       icon: '/icons/anomalie-critique.png',
+       badge: '/icons/badge.png',
+       tag: 'anomalie-active',
+       actions: [{ action: 'voir', title: 'Inspecter' }]
+     })
+
+  4. Implémenter la Badge API pour le compteur d'anomalies actives :
+     navigator.setAppBadge(nbAnomalie)  // affiche le chiffre sur l'icône PWA
+     navigator.clearAppBadge()          // réinitialise quand tout est résolu
+
+  5. Gérer le clic sur notification → focus ou ouverture du Terminal
+     sur la fiche de l'anomalie concernée (clients.openWindow)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Notification API : Notification.requestPermission() + options (body, icon,
+    badge, tag, actions, requireInteraction)
+  - Web Push API : PushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+    → PushSubscription.endpoint / keys (p256dh, auth)
+  - VAPID : génération de clés (web-push lib côté serveur ou workaround GitHub Actions)
+  - Service Worker : self.addEventListener('push', ...) + self.addEventListener('notificationclick', ...)
+  - Badge API : navigator.setAppBadge(count) / navigator.clearAppBadge()
+    (Chrome/Edge/Samsung — pas Firefox, pas Safari iOS)
+  - clients.matchAll({ type: 'window' }) → focus ou openWindow
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen                   │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Configuration VAPID (clés publique/privée, endpoint de push)
+  [ ] Service Worker : handlers push + notificationclick
+  [ ] Module NotificationController.ts (permission, subscribe, unsubscribe)
+  [ ] Intégration Badge API (mise à jour au changement du compteur d'anomalies)
+  [ ] UI : toggle d'activation des notifications dans les Paramètres du Terminal
+  [ ] Test de bout en bout : push → notification → clic → ouverture fiche anomalie
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — SURVEILLANCE 24/7, ARCHITECTURE SERVICE WORKER CRITIQUE
+
+  ★ APPRÉCIATION
+  Mission à fort impact opérationnel. En sprint actif, recevoir une alerte
+  native sur l'OS quand une anomalie passe en Critique — sans avoir le Terminal
+  ouvert — est un gain réel. La Badge API sur l'icône PWA est un signal visuel
+  permanent, discret et puissant.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CONTEXTE SERVERLESS : Web Push requiert un serveur pour envoyer les messages
+    push (le push vient du serveur, pas du client). Sur une architecture GitHub
+    Pages sans backend, deux stratégies :
+    • GitHub Actions comme pseudo-serveur de push (déclenché par webhook)
+    • Simulation locale avec un petit script Node.js web-push pour les tests,
+      les vraies alertes restant déclenchées depuis le même appareil (self-push)
+  - VAPID OBLIGATOIRE : Sans clés VAPID, les navigateurs modernes refusent
+    les abonnements push. Générer une fois et stocker dans les secrets GitHub.
+  - BADGE API SUPPORT : navigator.setAppBadge disponible Chrome 81+, Edge 81+.
+    Pas Firefox desktop, pas Safari iOS. Vérifier avec 'setAppBadge' in navigator.
+  - PERMISSION UNIQUE : Ne jamais re-demander la permission après un refus.
+    Guider l'utilisateur vers les paramètres du navigateur si nécessaire.
+
+  ✦ RECOMMANDATION
+  Commencer par la Notification API simple (sans push, juste notification locale
+  déclenchée depuis le client) pour valider l'UX. Ajouter la Badge API en même
+  temps (5 min). Le Web Push avec VAPID est la partie complexe — la traiter
+  séparément une fois le reste validé.

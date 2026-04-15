@@ -1,0 +1,45 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 02                                                ║
+║  CYCLE DE VIE D'UNE CONNEXION DIRECTE                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+États possibles d'un DirectConnection et transitions entre eux.
+Un nœud indirect n'a pas de cycle de vie propre — il est simplement
+présent ou absent de la routing table selon les gossips reçus.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+```mermaid
+stateDiagram-v2
+  [*] --> connecting : SDP offer envoyé\nou reçu
+
+  connecting --> connected : DataChannel open\n(latence mesurée)
+
+  connecting --> failed : timeout SDP\nou ICE failure
+
+  connected --> suspected : N envois sans ACK\n(failCount ≥ failThreshold)
+
+  suspected --> connected : envoi réussi\n(failCount reset à 0)
+
+  suspected --> failed : failCount ≥ maxRetries\nou DataChannel error
+
+  failed --> connecting : nextRetry atteint\n(backoff exponentiel)
+
+  failed --> [*] : maxRetries dépassé\n→ suppression de nodes\n(onPeerLost émis)
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CHAMPS ASSOCIÉS (DirectConnection)
+
+  state       → état courant (connecting | connected | suspected | failed)
+  failCount   → incrémenté à chaque échec, reset à 0 sur succès
+  nextRetry   → timestamp de la prochaine tentative (défini si state=failed)
+  retryDelay  → délai backoff courant (retryDelayInit × 2^n, cap retryDelayMax)
+
+PARAMÈTRES PLEXUS ASSOCIÉS
+
+  failThreshold   : 3       — échecs consécutifs avant passage à suspected
+  maxRetries      : 5       — tentatives avant suppression définitive
+  retryDelayInit  : 30 000  — délai initial backoff (ms)
+  retryDelayMax   : 600 000 — délai maximum backoff (ms)

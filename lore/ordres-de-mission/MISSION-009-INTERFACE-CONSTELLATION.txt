@@ -1,0 +1,308 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-009                                         ║
+║  L'INTERFACE CONSTELLATION                                               ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🌌🕸️
+
+DÉSIGNATION     : Visualisation Temps Réel du Mesh Plexus — Opération Cartographie
+CODENAME        : INTERFACE-CONSTELLATION
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Interface & Tableau de Bord
+DÉPENDANCES     : MISSION-008 (Réseau Mesh Fantôme — lib Plexus), MISSION-001 (@efficimo/observable)
+LIVRABLE LIB    : packages/plexus-ui/ → npm package 'plexus-ui'
+                  Peer deps : plexus, @efficimo/observable, react ≥ 18
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Un réseau invisible n'est qu'une abstraction. L'Interface Constellation
+rend visible la Plexus : chaque nœud devient une étoile sur une carte
+orbitale, chaque connexion directe un fil lumineux, chaque message une
+impulsion qui se propage d'étoile en étoile.
+
+L'Architecte peut ainsi observer son réseau en temps réel — détecter les
+nœuds surchargés, suivre la propagation d'une mise à jour d'Anomalie à
+travers le mesh, identifier les goulots d'étranglement et les connexions
+fantômes. C'est le poste de commandement de la Constellation.
+
+La visualisation s'appuie sur les événements Observable de Plexus
+(onPeerConnected, onPeerStateChanged, onMessageReceived, onMessageForwarded,
+onMessageDropped) pour mettre à jour le graphe en temps réel, sans polling.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  PROTOCOLE I — GRAPHE DE NŒUDS (SVG)
+
+  1. Représenter chaque nœud comme un cercle positionné par force-directed layout :
+     - Nœud local : cercle blanc lumineux, plus grand
+     - Nœuds directs : cercle cyan (connected), orange (suspected), rouge (failed)
+     - Nœuds indirects : cercle gris atténué, taille proportionnelle à distance
+     - Badge freeSlots visible au survol
+
+  2. Représenter les connexions :
+     - Connexion directe : trait plein, épaisseur proportionnelle à la fréquence d'échanges
+     - Connexion indirecte (route connue) : trait pointillé fin
+     - Connexion Gateway Tab : trait bleu pulsé
+     - Latence affichée sur le trait au survol (en ms)
+
+  3. Force-directed layout :
+     - Nœuds proches (même LAN, local=true) se regroupent
+     - Nœuds distants repoussés
+     - Animation spring sur arrivée/départ de nœud
+     - Repositionnement progressif (pas de saut brutal)
+
+  PROTOCOLE II — FLUX DE MESSAGES
+
+  4. Visualiser la propagation d'un message :
+     - Impulsion lumineuse animée le long du chemin (hops)
+     - Couleur selon le type de body : UPDATE = bleu, ALERT = rouge, SYNC = vert
+     - Message DROP : flash rouge sur le nœud qui a rejeté (avec raison : loop, maxHops, etc.)
+     - Durée de l'animation proportionnelle à la latence réelle
+
+  5. File des derniers messages reçus/forwardés (panel latéral) :
+     - timestamp, msgId (tronqué), from → to, type, hops count
+     - Filtre par type, par nœud, par statut (delivered, dropped, forwarded)
+     - Clic sur une ligne → highlight du chemin sur le graphe
+
+  PROTOCOLE III — MÉTRIQUES ET ÉTAT DU MESH
+
+  6. Panel d'état global :
+     - Nombre de nœuds connus / directs / indirects
+     - Nœuds locaux (même machine, local=true) vs distants
+     - Diamètre estimé du réseau (distance max dans la routing table)
+     - Taux de messages droppés (dernières 5 minutes)
+
+  7. Panel d'état du nœud local :
+     - nodeId (copiable au clic)
+     - userId associé
+     - Rôle actuel : Gateway Tab ou Satellite
+     - freeSlots disponibles
+     - Statut de publication Beacon (gist publié ? timestamp ?)
+     - Connexions directes actives (liste cliquable → zoom nœud)
+
+  8. Indicateurs temps réel (via observables Plexus) :
+     - Messages/seconde entrants et sortants (sparkline)
+     - Latence moyenne vers les nœuds directs (sparkline)
+     - Événements réseau récents : connexion, déconnexion, reroute
+
+  PROTOCOLE IV — INTERACTIONS
+
+  9. Clic sur un nœud → drawer latéral avec :
+     - nodeId, userId, distance, latence, freeSlots, local, lastSeen
+     - Type de connexion (direct/indirect via X)
+     - Historique de connexion (timestamps des changements d'état)
+     - Bouton "Proposer connexion directe" (DIRECT_PROPOSAL) si freeSlots > 0
+
+  10. Mode Debug :
+      - Afficher les messages bruts (envelope JSON) au survol d'une impulsion
+      - Afficher les routes connues pour un nœud sélectionné
+      - Simuler un DROP forcé (test de rerouting)
+      - Export de la routing table en JSON
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - SVG — rendu du graphe : éléments DOM natifs, interactions (onClick, onMouseOver) sans
+    hit-testing manuel, animations CSS (transition, stroke-dashoffset pour les impulsions)
+  - requestAnimationFrame — boucle de simulation force-directed (calcul de positions uniquement,
+    le rendu est délégué au DOM SVG via state React)
+  - Force-directed graph — algorithme spring/repulsion (implémentation custom ~50 lignes,
+    pas de dépendance D3 — le réseau Plexus reste sous ~50 nœuds, pas besoin de perf Canvas)
+  - Observable<T> (lib projet) — subscription aux événements Plexus sans polling
+  - Plexus API :
+    • plexus.nodes — Map<nodeId, NodeEntry> (état courant)
+    • plexus.onPeerConnected.subscribe(...)
+    • plexus.onPeerStateChanged.subscribe(...)
+    • plexus.onMessageReceived.subscribe(...)
+    • plexus.onMessageForwarded.subscribe(...)
+    • plexus.onMessageDropped.subscribe(...)
+    • plexus.onBeaconUpdated.subscribe(...)
+  - Cleanup : Subscription.unsubscribe() dans useEffect cleanup
+  - CSS custom properties — thème cohérent avec le Terminal de Combat
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen                   │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Composants — packages/plexus-ui/src/
+  [ ] ConstellationGraph — composant SVG avec force-directed layout
+  [ ] NodeSprite — représentation visuelle d'un nœud avec états colorés
+  [ ] EdgeRenderer — connexions directes/indirectes/gateway avec épaisseurs
+  [ ] MessagePulse — animation d'impulsion le long des hops d'un message
+  [ ] MessageLog — panel latéral des messages récents avec filtres
+  [ ] MeshStats — panel métriques globales (nœuds, diamètre, drop rate)
+  [ ] LocalNodePanel — état détaillé du nœud local (rôle, slots, beacon)
+  [ ] NodeDrawer — détail d'un nœud au clic avec DIRECT_PROPOSAL
+  [ ] DebugOverlay — mode debug : routes, enveloppes JSON, export table
+  [ ] Hook usePlexusGraph — abonnements Observable → état React du graphe
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ARCHITECTURE TECHNIQUE
+
+  usePlexusGraph — abonnement aux événements Plexus → state React
+  ──────────────────────────────────────────────────────────────────────
+
+  const usePlexusGraph = (plexus: Plexus) => {
+    const [nodes, setNodes] = useState<Map<string, NodeEntry>>(new Map())
+    const [edges, setEdges] = useState<Edge[]>([])
+    const [pulses, setPulses] = useState<MessagePulse[]>([])
+
+    useEffect(() => {
+      const subs = [
+        plexus.onPeerConnected.subscribe(({ nodeId }) => {
+          setNodes(prev => new Map(prev).set(nodeId, plexus.nodes.get(nodeId)!))
+          rebuildEdges()
+        }),
+        plexus.onPeerStateChanged.subscribe(({ nodeId, state }) => {
+          setNodes(prev => {
+            const next = new Map(prev)
+            const entry = next.get(nodeId)
+            if (entry?.connection.type === 'direct') {
+              next.set(nodeId, { ...entry, connection: { ...entry.connection, state } })
+            }
+            return next
+          })
+        }),
+        plexus.onMessageForwarded.subscribe(({ envelope }) => {
+          // Créer une impulsion animée le long des hops
+          const pulse: MessagePulse = {
+            id: envelope.msgId,
+            hops: envelope.hops,
+            type: envelope.body.type,
+            startAt: Date.now()
+          }
+          setPulses(prev => [...prev.slice(-50), pulse])
+        }),
+        plexus.onMessageDropped.subscribe(({ envelope, reason }) => {
+          // Flash rouge sur le nœud local
+          triggerDropFlash(reason)
+        })
+      ]
+      return () => subs.forEach(s => s.unsubscribe())
+    }, [plexus])
+
+    return { nodes, edges, pulses }
+  }
+
+  Force-directed layout + rendu SVG via state React
+  ──────────────────────────────────────────────────────────────────────
+
+  // Les positions sont calculées en JS, le rendu est du SVG React normal
+  type GraphNode = { id: string, x: number, y: number, vx: number, vy: number }
+
+  function tick(graphNodes: GraphNode[], edges: Edge[]) {
+    // Répulsion entre tous les nœuds (Coulomb)
+    for (const a of graphNodes) {
+      for (const b of graphNodes) {
+        if (a.id === b.id) continue
+        const dx = a.x - b.x, dy = a.y - b.y
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1
+        const force = 5000 / (dist * dist)
+        a.vx += (dx / dist) * force
+        a.vy += (dy / dist) * force
+      }
+    }
+    // Attraction sur les arêtes (Hooke)
+    for (const edge of edges) {
+      const a = graphNodes.find(n => n.id === edge.from)!
+      const b = graphNodes.find(n => n.id === edge.to)!
+      const dx = b.x - a.x, dy = b.y - a.y
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1
+      const restLength = edge.type === 'direct' ? 120 : 220
+      const force = (dist - restLength) * 0.05
+      a.vx += (dx / dist) * force ; a.vy += (dy / dist) * force
+      b.vx -= (dx / dist) * force ; b.vy -= (dy / dist) * force
+    }
+    // Amortissement + intégration
+    for (const node of graphNodes) {
+      node.vx *= 0.85 ; node.vy *= 0.85
+      node.x += node.vx ; node.y += node.vy
+    }
+  }
+
+  // Boucle rAF — calcule les positions, setState → React re-render SVG
+  useEffect(() => {
+    let rafId: number
+    const loop = () => {
+      tick(simNodes, edges)
+      setPositions(simNodes.map(n => ({ id: n.id, x: n.x, y: n.y })))
+      rafId = requestAnimationFrame(loop)
+    }
+    rafId = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(rafId)
+  }, [edges])
+
+  // Rendu SVG — éléments DOM normaux, interactions natives
+  <svg width={800} height={600}>
+    {edges.map(edge => (
+      <line key={edge.id}
+        x1={pos[edge.from].x} y1={pos[edge.from].y}
+        x2={pos[edge.to].x}   y2={pos[edge.to].y}
+        strokeWidth={edge.type === 'direct' ? 2 : 1}
+        strokeDasharray={edge.type === 'indirect' ? '4 4' : undefined}
+        stroke={edge.type === 'gateway' ? '#3b82f6' : '#4b5563'}
+      />
+    ))}
+    {pulses.map(pulse => (
+      // Impulsion : cercle animé via CSS stroke-dashoffset le long du chemin
+      <PulseAnimation key={pulse.id} pulse={pulse} positions={pos} />
+    ))}
+    {nodes.map(node => (
+      <circle key={node.id}
+        cx={pos[node.id].x} cy={pos[node.id].y}
+        r={node.id === localNodeId ? 12 : 8}
+        fill={nodeColor(node)}
+        onClick={() => setSelectedNode(node.id)}
+        onMouseOver={() => setHoveredNode(node.id)}
+        style={{ cursor: 'pointer', transition: 'fill 0.3s' }}
+      />
+    ))}
+  </svg>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — VITRINE TECHNIQUE ET OUTIL DE DIAGNOSTIC
+
+  ★ APPRÉCIATION
+  Cette interface est à la fois la vitrine la plus spectaculaire du Terminal
+  et son outil de diagnostic le plus précieux. La visualisation d'un réseau
+  P2P auto-organisé en temps réel — avec des impulsions qui suivent les hops
+  réels des messages — est un démonstratif immédiat de la puissance de Plexus.
+  Pour l'Architecte, c'est aussi un outil de débogage indispensable : voir
+  un message boucler, un nœud suspect, ou un rerouting en direct vaut mieux
+  que tous les logs.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - RAF + setState : La boucle rAF appelle setState à chaque frame pendant la
+    simulation. Dès que le layout converge (vitesses < seuil), stopper la boucle
+    et ne relancer que lors d'un changement de topologie (nœud ajouté/supprimé).
+  - ABONNEMENTS OBSERVABLE : Chaque subscription doit être nettoyée dans le
+    cleanup du useEffect. Une fuite de subscription = logs infinis dans un
+    composant démonté.
+  - PULSES FIFO : Limiter le tableau des impulsions actives (max 50) pour
+    éviter l'accumulation sur un réseau verbeux.
+  - NŒUDS INDIRECTS : Beaucoup de nœuds indirects peuvent surcharger le graphe.
+    Prévoir un toggle "afficher seulement les connexions directes" par défaut.
+  - SVG viewBox : Utiliser viewBox + preserveAspectRatio pour que le graphe
+    s'adapte au conteneur sans recalcul de positions.
+
+  ✦ RECOMMANDATION
+  Commencer par le graphe statique (snapshot de plexus.nodes à l'instant T)
+  avec le layout force-directed et les couleurs d'état. Valider l'esthétique.
+  Ajouter ensuite les abonnements Observable pour la mise à jour en temps réel.
+  Les impulsions de messages en dernier — c'est la cerise, pas le gâteau.

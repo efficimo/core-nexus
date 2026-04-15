@@ -1,0 +1,213 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-000                                         ║
+║  ARCHITECTURE MULTI-REPO OPEN SOURCE                                    ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🏗️📦
+
+DÉSIGNATION     : Fondation Multi-Package Open Source — Opération Socle
+CODENAME        : ARCHITECTURE-MULTI-REPO
+PHASE           : [ALPHA]
+CLASSIFICATION  : Fondation & Infrastructure
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Terminal de Combat n'est pas un monolithe. Ses composants fondamentaux —
+système réactif, couche de stockage, protocole réseau, interface de
+visualisation — ont vocation à vivre en dehors du Terminal, dans la
+communauté open source.
+
+Chaque librairie réside dans son propre dépôt GitHub indépendant.
+Pas de monorepo. Pas de Turborepo. Pas de Changesets.
+Chaque package évolue, se versionne et se publie de façon autonome.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DÉPÔTS CIBLES
+
+  efficimo/deferred-promise   ✅  @efficimo/deferred-promise  (complété)
+  efficimo/observable             @efficimo/observable
+  efficimo/storage                @efficimo/storage
+  efficimo/cipher                 @efficimo/cipher
+  efficimo/workers                @efficimo/workers
+  efficimo/memento                @efficimo/memento
+  efficimo/monitor                @efficimo/monitor
+  efficimo/dock                   @efficimo/dock
+  efficimo/plexus                 plexus
+  efficimo/plexus-ui              plexus-ui
+
+  efficimo/core-nexus         ✅  application (dépôt existant)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GRAPHE DE DÉPENDANCES (ordre de publication obligatoire)
+
+  @efficimo/deferred-promise  (zéro dépendance)          ✅ publié
+  @efficimo/observable        (zéro dépendance externe)
+         ↑
+  @efficimo/storage           (peer: @efficimo/observable)
+  @efficimo/cipher            (peer: @efficimo/observable)
+  @efficimo/workers           (peer: @efficimo/observable)
+  @efficimo/memento           (peer: @efficimo/observable)
+  @efficimo/monitor           (peer: @efficimo/observable)
+         ↑
+  @efficimo/dock              (peer: @efficimo/observable, @efficimo/storage, react)
+  plexus                      (peer: @efficimo/observable)
+         ↑
+  plexus-ui                   (peer: plexus, @efficimo/observable, react)
+         ↑
+  core-nexus                  (consomme tous les packages via npm)
+
+  ⚠ Règle : publier un package sur npm avant de commencer
+    le développement de ceux qui en dépendent.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE TYPE D'UN DÉPÔT
+
+  Deux variantes selon que le package expose ou non des bindings React.
+
+  ── VARIANTE A : package pur (zéro dépendance framework) ──────────────
+
+  efficimo/<package>/
+  ├── src/
+  │   ├── index.ts
+  │   └── *.ts
+  ├── test/
+  │   └── *.test.ts
+  ├── scripts/
+  │   └── postbuild.mjs
+  ├── .github/
+  │   └── workflows/
+  │       ├── ci.yml          ← typecheck + tests sur push/PR main
+  │       └── publish.yml     ← publish npm sur tag v*
+  ├── package.json            ← name: "@efficimo/<package>"
+  ├── tsconfig.json           ← base (types: [])
+  ├── tsconfig.esm.json       ← build ESM → dist/esm/
+  ├── tsconfig.cjs.json       ← build CJS → dist/cjs/
+  ├── tsconfig.test.json      ← tests CJS → .test-out/
+  ├── .gitignore
+  └── README.md
+
+  Packages concernés : deferred-promise, observable, storage, cipher,
+                       workers, memento, monitor, plexus
+
+  ── VARIANTE B : package core + bindings React ────────────────────────
+
+  efficimo/<package>/
+  ├── core/                   ← @efficimo/<package>
+  │   ├── src/
+  │   │   ├── index.ts
+  │   │   └── *.ts
+  │   ├── test/
+  │   │   └── *.test.ts
+  │   ├── scripts/
+  │   │   └── postbuild.mjs
+  │   ├── package.json        ← name: "@efficimo/<package>"
+  │   ├── tsconfig.json
+  │   ├── tsconfig.esm.json
+  │   ├── tsconfig.cjs.json
+  │   └── tsconfig.test.json
+  ├── react/                  ← @efficimo/<package>-react
+  │   ├── src/
+  │   │   ├── index.ts
+  │   │   └── use*.ts         ← hooks React
+  │   ├── test/
+  │   │   └── *.test.ts
+  │   ├── scripts/
+  │   │   └── postbuild.mjs
+  │   ├── package.json        ← name: "@efficimo/<package>-react"
+  │   │                          peerDeps: react, @efficimo/<package>
+  │   ├── tsconfig.json
+  │   ├── tsconfig.esm.json
+  │   ├── tsconfig.cjs.json
+  │   └── tsconfig.test.json
+  ├── .github/
+  │   └── workflows/
+  │       ├── ci.yml          ← typecheck + tests core + react sur push/PR main
+  │       ├── publish-core.yml   ← publish sur tag v*
+  │       └── publish-react.yml  ← publish sur tag react-v*
+  ├── .gitignore
+  └── README.md               ← documente les deux packages
+
+  Packages concernés : dock, plexus-ui
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONVENTIONS ÉTABLIES (issues de deferred-promise)
+
+  BUILD
+  - Dual ESM + CJS via deux tsc + postbuild.mjs (aucune dépendance externe)
+  - dist/esm/package.json → { "type": "module" }
+  - dist/cjs/package.json → { "type": "commonjs" }
+  - Zéro bundler tiers (pas de tsup, rollup, vite lib mode)
+
+  TESTS
+  - node:test + node:assert/strict (natif Node 18+)
+  - tsconfig.test.json compile vers .test-out/ en CJS
+  - Fake timers via t.mock.timers pour les tests temporels
+  - devDependencies : typescript + @types/node + undici-types
+
+  CI/CD
+  - actions/checkout@v6 + actions/setup-node@v6
+  - Node 24
+  - Trusted publishing OIDC npm (pas de NPM_TOKEN stocké)
+  - Tag v* → publish / push main ou PR → CI
+
+  PACKAGE.JSON
+  - publishConfig.registry + publishConfig.access
+  - prepublishOnly : build + typecheck
+  - engines.node >= 18
+
+  QUALITÉ
+  - Symbol.species → return Promise sur toute extension de Promise
+  - Pas de dépendances runtime
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ORDRE DE DÉPLOIEMENT
+
+  [x] MISSION-000  Architecture définie
+  [ ] MISSION-001  @efficimo/observable     → publier avant MISSION-002 à 006
+  [ ] MISSION-002  @efficimo/storage        → publier avant MISSION-007
+  [ ] MISSION-003  @efficimo/cipher
+  [ ] MISSION-004  @efficimo/workers
+  [ ] MISSION-005  @efficimo/memento
+  [ ] MISSION-006  @efficimo/monitor
+  [ ] MISSION-007  @efficimo/dock           → publier avant MISSION-009
+  [ ] MISSION-008  plexus                   → publier avant MISSION-009
+  [ ] MISSION-009  plexus-ui
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★☆☆☆  (Architecte)    │
+  │ Durée estimée : demi-journée            │
+  │ Effort        : Moyen                   │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DÉCISIONS ARCHITECTURALES
+
+  ✦ MULTI-REPO plutôt que MONOREPO
+    Chaque librairie vit dans son propre dépôt git indépendant.
+    Raison : autonomie complète de chaque package, pas de couplage
+    outillage (Turborepo, Changesets, pnpm workspaces inutiles).
+    Contrepartie : les dépendances inter-packages passent par npm —
+    publier avant de développer les dépendants.
+
+  ✦ BUILD NATIF tsc uniquement
+    Aucun bundler tiers. Dual ESM/CJS via deux tsconfig + postbuild.mjs.
+    Validé sur deferred-promise.
+
+  ✦ TESTS NATIFS node:test
+    Aucune dépendance de test externe (pas de Vitest, Jest, etc.).
+    Validé sur deferred-promise (31/31 tests).
+
+  ✦ TRUSTED PUBLISHING OIDC
+    Pas de NPM_TOKEN stocké en secret GitHub.
+    Flux : tag git → GitHub Actions → OIDC → npm.

@@ -1,0 +1,120 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 07                                                ║
+║  SYSTÈME DE TYPES ET REGISTRE DES MESSAGES                              ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Relations entre les types TypeScript de Plexus et le mécanisme
+de declaration merging qui permet à l'application de typer ses messages
+sans modifier la lib.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HIÉRARCHIE DES TYPES PRINCIPAUX
+
+```mermaid
+classDiagram
+  class PlexusEnvelope~T~ {
+    +msgId : string
+    +maxHops : number
+    +hops : string[]
+    +emitAt : number
+    +stamps : Stamps~T~
+    +body : BodyOf~T~
+  }
+
+  class Stamps~T~ {
+    +from : string
+    +to : string
+    +type : T
+  }
+
+  class NodeEntry {
+    +userId : string
+    +distance : number
+    +latency : number
+    +freeSlots : number
+    +local : boolean
+    +lastSeen : number
+    +status : active | stale | expired
+    +connection : DirectConnection | IndirectConnection
+  }
+
+  class DirectConnection {
+    +type : direct
+    +channel : RTCDataChannel
+    +state : ConnectionState
+    +connectedAt : number
+    +failCount : number
+    +nextRetry? : number
+    +retryDelay? : number
+  }
+
+  class IndirectConnection {
+    +type : indirect
+    +via : string
+  }
+
+  class PlexusMessages {
+    <<interface>>
+    Vide dans la lib
+    Étendue par declare module
+  }
+
+  PlexusEnvelope --> Stamps
+  PlexusEnvelope --> PlexusMessages : BodyOf résout via
+  NodeEntry --> DirectConnection
+  NodeEntry --> IndirectConnection
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DECLARATION MERGING — FLUX DE RÉSOLUTION DU TYPE
+
+```mermaid
+flowchart TD
+  DECL["declare module 'plexus'\ninterface PlexusMessages\n  ANOMALIE_UPDATE: AnomalieBody\n  SYNC_REQUEST: SyncBody"]
+
+  SEND["node.send\nto: 'nodeId'\ntype: 'ANOMALIE_UPDATE'\nbody: ???"]
+
+  RESOLVE{"T = 'ANOMALIE_UPDATE'\nest dans PlexusMessages ?"}
+
+  KNOWN["body : AnomalieBody\n✓ Erreur si body incorrect"]
+  UNKNOWN["body : StructuredCloneable\n(fallback — type inconnu)"]
+
+  DECL -->|"fusionné par TypeScript"| RESOLVE
+  SEND --> RESOLVE
+  RESOLVE -->|"oui"| KNOWN
+  RESOLVE -->|"non"| UNKNOWN
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONTRAINTE STRUCTUREDCLONEABLE — CE QUI PASSE / NE PASSE PAS
+
+```mermaid
+flowchart LR
+  subgraph OK["✓ Autorisé"]
+    P1["string, number\nboolean, null\nundefined, bigint"]
+    P2["Date, RegExp\nArrayBuffer, DataView\nTypedArrays"]
+    P3["Array, plain object\nMap, Set"]
+  end
+
+  subgraph NOK["✗ Interdit"]
+    N1["Function\n() => void"]
+    N2["Class instance\nnew MyClass()"]
+    N3["DOM Node\ndocument.body"]
+    N4["Symbol\nWeakMap, Proxy"]
+  end
+
+  OK -->|"sérialisable via\nstructured clone"| BC["BroadcastChannel\nRTCDataChannel"]
+  NOK -->|"erreur runtime\nDataCloneError"| BC
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NOTE
+
+  La contrainte StructuredCloneable est vérifiée par TypeScript à la
+  compilation (via les types du registre) mais aussi à l'exécution par
+  le navigateur — une valeur non-clonable lève une DataCloneError native.
+  Le typage statique évite cette erreur avant même d'atteindre le runtime.

@@ -1,0 +1,65 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  MISSION-008 — ANNEXE 04                                                ║
+║  ALGORITHME DE FORWARDING                                                ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Décision prise par chaque nœud à la réception d'un message.
+Les DROP sont silencieux — aucun message d'erreur n'est renvoyé
+à l'émetteur (évite les boucles de réponse).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+```mermaid
+flowchart TD
+  RECV(["Message reçu"])
+
+  RECV --> LOOP{"hops inclut\nmyNodeId ?"}
+  LOOP -->|oui| DROP_LOOP["DROP\nraison: loop"]
+  LOOP -->|non| DEDUP
+
+  DEDUP{"msgId dans\nseenMessages ?"}
+  DEDUP -->|oui| DROP_DUP["DROP\nraison: duplicate"]
+  DEDUP -->|non| MARK
+
+  MARK["markSeen(msgId)\nFIFO 500 entrées"]
+  MARK --> DEST
+
+  DEST{"stamps.to\n=== myNodeId ?"}
+  DEST -->|oui| DELIVER["deliver(stamps.type, body)\nonMessageReceived émis"]
+  DEST -->|non| BCAST
+
+  BCAST{"stamps.to\n=== 'broadcast' ?"}
+  BCAST -->|oui| DELIVER_BCAST["deliver(stamps.type, body)\n+ retransmettre à tous\nsauf source hops.at(-1)"]
+  BCAST -->|non| MAXHOPS
+
+  MAXHOPS{"hops.length\n≥ maxHops ?"}
+  MAXHOPS -->|oui| DROP_HOPS["DROP\nraison: maxHops"]
+  MAXHOPS -->|non| PREPARE
+
+  PREPARE["outgoing = { ...msg,\nhops: [...hops, myNodeId] }"]
+  PREPARE --> ROUTE
+
+  ROUTE{"nodes[stamps.to]\nexiste ?"}
+  ROUTE -->|non| FLOOD["Flood — envoyer à tous\nles pairs directs\nsauf source"]
+  ROUTE -->|oui| NEXTHOP
+
+  NEXTHOP{"connection.type\n=== 'direct' ?"}
+  NEXTHOP -->|oui| SEND_DIRECT["Envoyer directement\nà stamps.to"]
+  NEXTHOP -->|non| SEND_VIA["Envoyer à\nconnection.via"]
+
+  SEND_DIRECT --> PEER_OK{"Pair en état\nconnected ?"}
+  SEND_VIA --> PEER_OK
+
+  PEER_OK -->|non| DROP_PEER["DROP\nraison: peerFailed"]
+  PEER_OK -->|oui| DONE(["Transmis ✓"])
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RÉSUMÉ DES RAISONS DE DROP
+
+  loop        → ce nœud est déjà dans hops (cycle détecté)
+  duplicate   → msgId déjà vu (double livraison par chemin alternatif)
+  maxHops     → trop de sauts, message abandonné
+  noRoute     → destination inconnue et flood impossible (aucun pair direct)
+  peerFailed  → prochain saut en état failed, aucune alternative disponible

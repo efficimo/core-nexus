@@ -1,0 +1,125 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-021                                         ║
+║  LE FLUX DE TRAITEMENT                                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⚡🌊
+
+DÉSIGNATION     : Moteur Analytique Parallèle — Opération Calcul sans Friction
+CODENAME        : FLUX-DE-TRAITEMENT
+PHASE           : [BETA]
+CLASSIFICATION  : Moteur & Performance
+DÉPENDANCES     : MISSION-004 (@efficimo/workers — ReactiveWorker, WorkerPool, createWorkerHandler)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Terminal de Combat n'a qu'un seul fil d'exécution principal. Si une
+opération lourde — chiffrement d'un gros Codex, calcul de statistiques
+sur 1000 Anomalies, analyse de vélocité sur 6 mois — s'y exécute, l'interface
+se fige. L'Architecte attend. C'est inacceptable.
+
+Ce protocole déploie deux armes contre la latence :
+
+  WEB WORKERS — Les calculs lourds sont envoyés dans un processus parallèle
+  isolé. L'interface reste fluide à 60 fps pendant que le Worker analyse,
+  trie, et agrège les données. Un message de résultat arrive quand c'est
+  prêt — aucune attente visible.
+
+  STREAMS API — Les gros Codex ne sont pas attendus en entier avant
+  traitement. Ils sont traités chunk par chunk pendant leur téléchargement
+  depuis le Dépôt Immuable via ReadableStream + TransformStream. L'Architecte
+  voit les premières Anomalies s'afficher pendant que le reste arrive.
+  ⚠ Contrainte AES-GCM : le déchiffrement en streaming nécessite une
+  stratégie par blocs (voir POINTS DE VIGILANCE ci-dessous).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Créer analytics.worker.ts via createWorkerHandler<AnalyticsRequest, AnalyticsResult>
+     (@efficimo/workers, MISSION-004) — calcule vélocité par semaine, temps moyen de résolution
+     Le handler reçoit le Codex JSON et retourne les agrégations calculées hors thread principal
+  2. Instancier ReactiveWorker<AnalyticsRequest, AnalyticsResult> côté UI
+     useWorkerQuery() devient un thin wrapper : queryFn → worker.execute(params)
+     @efficimo/workers gère la lifecycle du Worker, le cancel et les Transferable Objects
+  3. Implémenter un StreamDecryptor par blocs :
+     - Format de fichier chiffré : [header 8o taille_bloc][bloc1][bloc2]...
+     - Chaque bloc = ArrayBuffer indépendant chiffré avec IV unique
+     - Le TransformStream déchiffre et émet les blocs validés un par un
+     (Contrainte AES-GCM : l'auth tag est en fin de ciphertext, impossible
+     de déchiffrer un flux continu non découpé — le découpage en blocs
+     fixes à l'écriture est la solution correcte)
+  4. Page de Dashboard Analytique affichant les métriques calculées en Worker
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - @efficimo/workers >= 0.1.0 — ReactiveWorker, WorkerPool, createWorkerHandler
+    (remplace le message-passing manuel Worker + Transferable Objects)
+  - Streams API (ReadableStream, WritableStream, TransformStream)
+  - AbortController (annulation — ReactiveWorker.terminate() encapsule l'usage)
+  - SubtleCrypto (AES-GCM avec IV par bloc pour le streaming — voir @efficimo/crypto)
+  - TanStack Query (intégration Worker via ReactiveWorker.execute() dans queryFn)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)        │
+  │ Durée estimée : 2-3 jours               │
+  │ Effort        : Moyen-Élevé             │
+  │ Phase         : BETA                    │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] analytics.worker.ts — createWorkerHandler(@efficimo/workers) pour statistiques de vélocité
+  [ ] ReactiveWorker<AnalyticsRequest, AnalyticsResult> instancié côté UI
+  [ ] Hook useWorkerQuery<T>() — thin wrapper autour de worker.execute() dans queryFn
+  [ ] StreamDecryptor (TransformStream de déchiffrement par blocs AES-256-GCM)
+  [ ] Spécification du format de fichier chiffré par blocs (taille, IV, header)
+  [ ] Page /dashboard/analytics avec graphiques de vélocité
+  [ ] Benchmark : temps avec et sans Worker (table comparative)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION ESSENTIELLE, MAIS UN PIÈGE CRYPTOGRAPHIQUE MAJEUR
+
+  ★ APPRÉCIATION
+  La partie Web Workers est la plus directement utile du projet — les
+  calculs analytiques sur le Codex JSON ont clairement leur place dans
+  un Worker. useWorkerQuery() est une abstraction propre qui peut servir
+  dans plusieurs missions (FORGE-WASM, ORACLE-LOCAL). La valeur est réelle.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - PIÈGE AES-GCM STREAMING (critique) : AES-GCM est un mode AEAD (Authenticated
+    Encryption). L'auth tag (16 octets) est calculé sur l'intégralité du
+    ciphertext et placé en fin du fichier. SubtleCrypto ne peut donc pas
+    déchiffrer "au fil de l'eau" un seul grand bloc — il faut attendre le
+    fichier entier pour vérifier l'authenticité.
+    ⚡ Solution : adopter un format de fichier chiffré par blocs :
+      - Lors de l'écriture : découper en blocs de 64Ko, chiffrer chaque bloc
+        séparément avec un IV distinct (baseIV + numéro_bloc)
+      - Lors de la lecture : chaque bloc est indépendant, déchiffrable
+        immédiatement. Le TransformStream émet les chunks validés au fil de l'eau.
+    Ce changement doit être coordonné avec MISSION-022 (FORGE-WASM) qui a
+    le même besoin — définir le format une fois, partager le StreamDecryptor.
+  - TRANSFERABLE OBJECTS : Passer des ArrayBuffer entre thread principal et
+    Worker via transfert (pas copie) pour les grandes données :
+    worker.postMessage({ buffer }, [buffer]). Après transfert, le buffer
+    original n'est plus utilisable dans le thread émetteur.
+  - USEWORKERQUERY : avec ReactiveWorker, la Promise est gérée nativement par
+    execute() — plus besoin de gérer addEventListener/removeEventListener manuellement.
+    TanStack Query annule via AbortController que ReactiveWorker expose nativement.
+
+  ✦ RECOMMANDATION
+  Implémenter MISSION-004 (@efficimo/workers) en premier. Ensuite, créer
+  analytics.worker.ts avec createWorkerHandler et instancier ReactiveWorker côté UI.
+  useWorkerQuery() est alors un thin wrapper de 5 lignes autour de worker.execute().
+  Concevoir le format de fichier chiffré par blocs en coordination avec MISSION-022
+  — c'est une décision d'architecture partagée. Le benchmark reste la meilleure
+  façon de démontrer la valeur en sprint review.

@@ -1,0 +1,404 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-004                                         ║
+║  @efficimo/workers                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+⚡🧵
+
+DÉSIGNATION     : Librairie Workers Réactifs — Opération Flux Parallèle
+CODENAME        : REACTIVE-WORKERS
+PHASE           : [ALPHA]
+CLASSIFICATION  : Moteur & Performance — Package Open Source
+DÉPENDANCES     : MISSION-000 (Architecture Monorepo)
+                  MISSION-001 (@efficimo/observable — Observable, ObservableValue)
+PRÉCÈDE         : MISSION-021 (Flux de Traitement — intégration dans core-nexus)
+                  MISSION-030 (Oracle Local — workers IA)
+                  MISSION-022 (Forge WASM — SQLite dans un worker)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Web Workers existent depuis longtemps mais leur API est archaïque :
+postMessage/onmessage manuels, pas de typage, pas de gestion d'erreur
+propre, pas de streaming, pas d'annulation native. Le résultat : la
+plupart des développeurs évitent les workers ou écrivent un boilerplate
+identique à chaque projet.
+
+@efficimo/workers expose deux niveaux d'abstraction :
+
+Option A — ReactiveWorker<Input, Output> : un worker dédié, une tâche
+à la fois. Résultat en Promise<Output> ou en Observable<Output> pour le
+streaming progressif. Annulation via AbortSignal. Même API pour les
+Shared Workers (partagés entre onglets).
+
+Option B — WorkerPool<Input, Output> : N workers en parallèle, file de
+tâches avec priorités, backpressure configurable, stats réactives.
+Idéal pour le traitement massif (chiffrement de batch, embeddings IA,
+compilation à la volée).
+
+Le pool dépend de ReactiveWorker — il orchestre plusieurs instances.
+
+La lib fournit aussi un helper côté worker (entry point /handler) pour
+structurer le worker de façon symétrique : une fonction qui reçoit
+l'input et peut émettre des valeurs intermédiaires ou retourner le
+résultat final.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONCEPTS FONDAMENTAUX
+
+  WORKER MESSAGE PROTOCOL
+  ───────────────────────
+  Protocole interne de communication entre thread principal et worker.
+  Opaque pour le consommateur — géré par la lib.
+
+    type WorkerRequest<Input> = {
+      id    : string         // identifiant unique de la tâche
+      input : Input
+      stream: boolean        // true si le consommateur attend un Observable
+    }
+
+    type WorkerResponse<Output> =
+      | { id: string; type: 'value';    value : Output }  // résultat ou chunk
+      | { id: string; type: 'complete'              }     // fin de stream
+      | { id: string; type: 'error';    error : string }  // erreur sérialisée
+
+  POOL STATS
+  ──────────
+  État réactif du pool — observable par les composants de monitoring.
+
+    type PoolStats = {
+      size     : number   // workers instanciés
+      active   : number   // workers en cours d'exécution
+      idle     : number   // workers disponibles
+      queued   : number   // tâches en attente dans la file
+      completed: number   // total tâches terminées depuis création
+      failed   : number   // total tâches en erreur
+    }
+
+  TASK PRIORITY
+  ─────────────
+    type TaskPriority = 'high' | 'normal' | 'low'
+
+  OVERFLOW STRATEGY
+  ─────────────────
+  Comportement quand la file d'attente est pleine.
+
+    type OverflowStrategy =
+      | 'error'  // rejette immédiatement avec une erreur
+      | 'drop'   // abandonne silencieusement la tâche
+      | 'wait'   // attend qu'une place se libère (backpressure)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API PUBLIQUE
+
+  OPTION A — REACTIVE WORKER (un worker dédié)
+  ──────────────────────────────────────────────
+  Importé depuis '@efficimo/workers'
+
+  class ReactiveWorker<Input, Output> {
+    constructor(url: URL | string)
+
+    // Résultat unique — Promise
+    execute(
+      input  : Input,
+      options?: { signal?: AbortSignal }
+    ): Promise<Output>
+
+    // Résultats multiples — Observable (streaming progressif)
+    stream(
+      input  : Input,
+      options?: { signal?: AbortSignal }
+    ): Observable<Output>
+
+    // Libère le worker
+    terminate(): void
+  }
+
+  SHARED WORKER (partagé entre onglets)
+  ──────────────────────────────────────
+  class ReactiveSharedWorker<Input, Output> {
+    constructor(name: string, url: URL | string)
+
+    execute(input: Input, options?: { signal?: AbortSignal }): Promise<Output>
+    stream (input: Input, options?: { signal?: AbortSignal }): Observable<Output>
+  }
+
+  OPTION B — WORKER POOL (N workers + file de tâches)
+  ─────────────────────────────────────────────────────
+  class WorkerPool<Input, Output> {
+    readonly stats: ObservableValue<PoolStats>
+
+    constructor(options: {
+      worker  : URL | string           // script du worker
+      size    : number                 // workers parallèles (ex: navigator.hardwareConcurrency)
+      queue  ?: 'fifo' | 'priority'   // stratégie de file (défaut: 'fifo')
+      overflow?: OverflowStrategy      // défaut: 'error'
+      maxQueue?: number                // taille max de la file (défaut: 100)
+      maxIdle ?: number                // ms avant recyclage d'un worker idle (défaut: 30 000)
+    })
+
+    // Soumettre une tâche — retourne Observable<Output>
+    // (compatible Promise via firstValueFrom() ou toPromise())
+    run(
+      input  : Input,
+      options?: { priority?: TaskPriority; signal?: AbortSignal }
+    ): Observable<Output>
+
+    // Annuler une tâche par ID (si elle est encore en queue)
+    cancel(taskId: string): boolean
+
+    // Attendre que toutes les tâches en cours terminent
+    drain(): Promise<void>
+
+    // Ajuster le nombre de workers à chaud
+    resize(size: number): void
+
+    // Libère tous les workers
+    destroy(): void
+  }
+
+  WORKER HANDLER (côté worker)
+  ──────────────────────────────
+  Importé depuis '@efficimo/workers/handler'
+  Pas de dépendance sur @efficimo/observable — tourne dans le worker.
+
+  // Cas 1 — résultat unique
+  createWorkerHandler<Input, Output>(
+    handler: (input: Input) => Output | Promise<Output>
+  ): void
+
+  // Cas 2 — streaming (résultats progressifs via emit)
+  createWorkerHandler<Input, Output>(
+    handler: (input: Input, emit: (value: Output) => void) => void | Promise<void>
+  ): void
+
+  // Note : si le handler appelle emit() → mode streaming automatique
+  // Si le handler retourne une valeur → mode résultat unique
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EXEMPLES D'USAGE
+
+  CAS 1 — Worker dédié, résultat unique
+  ──────────────────────────────────────
+  // crypto.worker.ts
+  import { createWorkerHandler } from '@efficimo/workers/handler'
+  createWorkerHandler<{ data: string; key: string }, string>(
+    async ({ data, key }) => encryptData(data, key)
+  )
+
+  // main thread
+  const worker = new ReactiveWorker<..., string>(
+    new URL('./crypto.worker.ts', import.meta.url)
+  )
+  const result = await worker.execute({ data, key })
+
+  CAS 2 — Pool + streaming IA
+  ────────────────────────────
+  // embeddings.worker.ts
+  createWorkerHandler<string[], number[][]>(
+    async (texts, emit) => {
+      for (const text of texts) {
+        emit(await computeEmbedding(text))  // résultat progressif
+      }
+    }
+  )
+
+  // main thread
+  const pool = new WorkerPool({
+    worker: new URL('./embeddings.worker.ts', import.meta.url),
+    size  : 4,
+    queue : 'priority',
+  })
+
+  pool.run(['texte 1', 'texte 2'], { priority: 'high' })
+    .subscribe(embedding => storeEmbedding(embedding))
+
+  // stats réactives sur le dashboard
+  pool.stats.subscribe(({ active, queued }) =>
+    console.log(`${active} actifs, ${queued} en attente`)
+  )
+
+  CAS 3 — Shared Worker (partagé entre onglets)
+  ───────────────────────────────────────────────
+  const shared = new ReactiveSharedWorker<Query, Result>(
+    'cache-worker',
+    new URL('./cache.worker.ts', import.meta.url)
+  )
+  const result = await shared.execute(query)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. PROTOCOL (src/protocol.ts) :
+     - Types WorkerRequest / WorkerResponse — sérialisables, versionnés
+     - generateTaskId() : nanoid ou crypto.randomUUID()
+
+  2. REACTIVE WORKER (src/ReactiveWorker.ts) :
+     - Instancie un Worker natif
+     - execute() : postMessage → attend WorkerResponse type='value' ou 'error'
+     - stream() : postMessage → collecte les 'value' jusqu'à 'complete'
+       retourne un Observable — se désabonner annule la tâche côté worker
+     - AbortSignal : si signal.aborted → postMessage({ type: 'abort', id })
+     - terminate() : worker.terminate()
+
+  3. REACTIVE SHARED WORKER (src/ReactiveSharedWorker.ts) :
+     - Instancie un SharedWorker natif, se connecte via port.start()
+     - Même API execute/stream que ReactiveWorker
+
+  4. WORKER POOL (src/WorkerPool.ts) :
+     - Instancie N ReactiveWorker<Input, Output>
+     - File de tâches : tableau trié par priorité (high < normal < low)
+     - Dispatcher : dès qu'un worker est idle → dépile la prochaine tâche
+     - overflow : 'error' → reject, 'drop' → ignorer, 'wait' → promesse en attente
+     - stats : ObservableValue<PoolStats> mis à jour à chaque événement
+     - resize() : spawn ou terminate des workers selon la nouvelle taille
+     - drain() : Promise qui résout quand stats.active === 0 && stats.queued === 0
+     - maxIdle : setTimeout → terminate worker si idle trop longtemps
+
+  5. WORKER HANDLER (src/handler.ts) :
+     - Écoute self.onmessage
+     - Exécute le handler avec input
+     - Si le handler appelle emit() → postMessage WorkerResponse 'value'
+     - Quand le handler termine → postMessage WorkerResponse 'complete'
+     - Try/catch → postMessage WorkerResponse 'error'
+     - Écoute les messages 'abort' → annulation via AbortController interne
+
+  6. POINTS D'ENTRÉE :
+     src/index.ts   → ReactiveWorker, ReactiveSharedWorker, WorkerPool, types
+     src/handler.ts → createWorkerHandler (zéro dépendance sur observable)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STRUCTURE DU PACKAGE
+
+  packages/workers/
+  ├── src/
+  │   ├── index.ts                  ← export main thread
+  │   ├── handler.ts                ← export worker side (zéro dep observable)
+  │   ├── protocol.ts               ← types protocole internes
+  │   ├── ReactiveWorker.ts
+  │   ├── ReactiveSharedWorker.ts
+  │   ├── WorkerPool.ts
+  │   ├── types.ts                  ← PoolStats, TaskPriority, OverflowStrategy
+  │   └── __tests__/
+  │       ├── reactiveWorker.test.ts
+  │       ├── workerPool.test.ts
+  │       └── handler.test.ts
+  ├── package.json
+  ├── tsconfig.json
+  ├── README.md
+  └── CHANGELOG.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PACKAGE.JSON
+
+  {
+    "name": "@efficimo/workers",
+    "version": "0.1.0",
+    "type": "module",
+    "exports": {
+      ".":         "./src/index.ts",
+      "./handler": "./src/handler.ts"
+    },
+    "peerDependencies": {
+      "@efficimo/observable": ">=0.1.0"
+    },
+    "license": "MIT"
+  }
+
+  Note : handler.ts N'IMPORTE PAS @efficimo/observable — il tourne dans
+  le contexte worker qui n'a pas accès au DOM ni aux observables React.
+  La peer dep n'est requise que pour le main thread (index.ts).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Web Workers API — Worker, SharedWorker, postMessage, onmessage
+  - @efficimo/observable ≥ 0.1.0 — Observable (stream), ObservableValue (stats)
+  - AbortController / AbortSignal — annulation de tâches
+  - crypto.randomUUID() — identifiants de tâches uniques
+  - TypeScript strict — extends tsconfig.base.json
+  - Vitest — tests avec mock Worker (fake-worker via MessageChannel)
+  - Turborepo — pipeline (dépend de @efficimo/observable)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★☆☆  (Maître)         │
+  │ Durée estimée : 1-2 jours               │
+  │ Effort        : Moyen-Élevé             │
+  │ Phase         : ALPHA                   │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  Package core
+  [ ] packages/workers/src/index.ts                  : export main thread
+  [ ] packages/workers/src/handler.ts                : export worker side
+  [ ] packages/workers/src/protocol.ts               : types internes
+  [ ] packages/workers/src/types.ts                  : PoolStats, TaskPriority, OverflowStrategy
+  [ ] packages/workers/src/ReactiveWorker.ts
+  [ ] packages/workers/src/ReactiveSharedWorker.ts
+  [ ] packages/workers/src/WorkerPool.ts
+
+  Config
+  [ ] packages/workers/package.json
+  [ ] packages/workers/tsconfig.json
+  [ ] packages/workers/README.md
+  [ ] packages/workers/CHANGELOG.md
+
+  Tests
+  [ ] packages/workers/src/__tests__/reactiveWorker.test.ts
+  [ ] packages/workers/src/__tests__/workerPool.test.ts
+  [ ] packages/workers/src/__tests__/handler.test.ts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE
+
+  ★ APPRÉCIATION
+  Le protocole request/response avec IDs est la clé de voûte — il permet
+  de multiplexer plusieurs tâches simultanées sur un même Worker. Sans ça,
+  deux execute() concurrents se mélangeraient les réponses. Le pool (Option B)
+  est élégant car il réutilise exactement ReactiveWorker : pas de duplication,
+  juste une couche d'orchestration au-dessus.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+
+  TRANSFERABLE OBJECTS
+    Pour les gros buffers (ArrayBuffer, ImageData), utiliser le deuxième
+    argument de postMessage : postMessage(msg, [buffer]) — transfert sans
+    copie. Sans ça, un buffer de 50Mo est copié deux fois (main → worker
+    et retour). La lib ne force pas les Transferables — le consommateur
+    doit les déclarer explicitement si ses données le permettent.
+
+  SHARED WORKER ET MULTIPLE CONNEXIONS
+    Un SharedWorker reçoit plusieurs connexions (une par onglet).
+    ReactiveSharedWorker doit taguer chaque message avec un port ID
+    pour ne router les réponses qu'au bon onglet. Le protocole
+    WorkerRequest doit inclure un portId en plus du taskId.
+
+  MOCK WORKER DANS LES TESTS
+    Worker n'est pas disponible dans jsdom. Simuler via deux
+    MessageChannel : un pour main → worker, un pour worker → main.
+    Vitest avec environment: 'node' + mock manuel du constructeur Worker.
+
+  TERMINATE ET TÂCHES EN COURS
+    WorkerPool.destroy() termine les workers immédiatement — les tâches
+    en cours sont perdues. drain() → destroy() est le pattern propre.
+    Documenter ce comportement explicitement.
+
+  ✦ RECOMMANDATION
+    Implémenter dans l'ordre : protocol.ts → handler.ts → ReactiveWorker
+    → tests ReactiveWorker → WorkerPool → ReactiveSharedWorker.
+    Valider ReactiveWorker sur un cas concret (chiffrement AES) avec
+    @efficimo/crypto avant de passer au pool.

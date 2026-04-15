@@ -1,0 +1,127 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ORDRE DE MISSION — MISSION-039                                         ║
+║  L'HOLOGRAMME XR                                                         ║
+╚══════════════════════════════════════════════════════════════════════════╝
+🥽🌐
+
+DÉSIGNATION     : Tableau de Bord Spatial en Réalité Augmentée — Opération Nexus Étendu
+CODENAME        : HOLOGRAMME-XR
+PHASE           : [NEXUS+]
+CLASSIFICATION  : Tableau de Bord & Visualisation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRIEFING OPÉRATIONNEL
+
+Le Tableau de Commandement cesse d'être plat. Dans ce protocole, les Anomalies
+du Nexus ne s'affichent plus sur un écran 2D — elles flottent dans l'espace.
+Chaque Anomalie est un cube tridimensionnel que l'Architecte peut saisir et
+déplacer physiquement pour changer sa colonne (Kanban spatial).
+
+En mode Réalité Augmentée sur tablette ou casque, les Anomalies se superposent
+à l'environnement réel de la salle de guerre. Le Daily stand-up se tient autour
+d'une table virtuelle commune via WebRTC.
+
+En mode 3D desktop, la scène Three.js tourne dans le navigateur sans
+aucun matériel spécial.
+
+⚠  Mode AR complet : nécessite casque WebXR compatible (Meta Quest) ou
+    Chrome Android avec ARCore (Android 8.0+ avec ARCore installé)
+⚠  Choisir Three.js OU A-Frame — les deux ensemble sont redondants
+    (A-Frame est construit sur Three.js)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OBJECTIFS PRIMAIRES
+
+  1. Créer une vue /hologram avec scène Three.js (ou A-Frame — choisir l'un)
+     affichant les Anomalies comme cubes 3D organisés par colonnes
+  2. Raycasting pour l'interaction desktop :
+     - Three.js desktop : THREE.Raycaster depuis caméra + coordonnées souris
+     - WebXR AR/VR : XRInputSource (controller ray) via XRFrame.getPose()
+       Le raycasting souris NE FONCTIONNE PAS en session immersive
+  3. Drag-and-drop 3D pour changer le statut d'une Anomalie (déplacer vers colonne)
+  4. Couleur et taille des cubes selon priorité et ancienneté
+  5. Basculement desktop → WebXR :
+     - 'inline' : rendu 3D dans la page (toujours disponible)
+     - 'immersive-ar' : AR plein écran (ARCore Android ou Meta Quest)
+     - 'immersive-vr' : VR plein écran (Meta Quest, autres casques)
+  6. Synchronisation multi-utilisateurs via WebRTC DataChannel (MISSION-008)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROTOCOLES REQUIS
+
+  - Three.js (rendu 3D WebGL — moteur recommandé)
+    OU A-Frame (couche déclarative WebXR — plus simple, moins flexible)
+    ⚠ Ne pas utiliser les deux simultanément : A-Frame utilise Three.js en
+      interne. Choisir selon la priorité : flexibilité (Three.js) ou rapidité
+      de prototypage (A-Frame).
+  - WebXR API :
+    - 'inline' : toujours disponible, 3D dans la page
+    - 'immersive-ar' : ARCore Android + Chrome, ou Meta Quest
+    - 'immersive-vr' : Meta Quest, autres casques WebXR
+    Détecter avec : navigator.xr.isSessionSupported('immersive-ar')
+  - WebRTC DataChannel (synchronisation de l'état spatial)
+  - THREE.Raycaster (desktop) / XRInputSource (mode immersif)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DONNÉES TACTIQUES
+  ┌─────────────────────────────────────────┐
+  │ Difficulté    : ★★★★★  (Grand Architecte)│
+  │ Durée estimée : 1-2 semaines            │
+  │ Effort        : Très élevé              │
+  │ Phase         : NEXUS+                  │
+  └─────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIVRABLES
+
+  [ ] Page /hologram avec scène Three.js + cubes d'Anomalies (mode 'inline')
+  [ ] Interaction drag-and-drop desktop (THREE.Raycaster + drag plane)
+  [ ] Mapping visuel : couleur par priorité, taille par ancienneté
+  [ ] Bouton "Mode AR" conditionnel (isSessionSupported check)
+  [ ] Interaction XR (XRInputSource raycasting en mode immersif)
+  [ ] Synchronisation via WebRTC DataChannel (état spatial partagé)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAPPORT D'ANALYSE — MISSION LA PLUS AMBITIEUSE, DEUX CORRECTIONS TECHNIQUES
+
+  ★ APPRÉCIATION
+  Le Kanban spatial en AR est la mission la plus "science-fiction" du projet —
+  celle qui fait dire "on est vraiment dans Cyberpunk". La version desktop 3D
+  (sans casque) est déjà impressionnante et accessible à tous. Le mode AR est
+  la cerise, mais nécessite du matériel spécifique. C'est la bonne progression :
+  d'abord le mode 'inline', ensuite AR/VR quand le desktop est validé.
+
+  ⚠ POINTS DE VIGILANCE TECHNIQUES
+  - CORRECTION THREE.JS vs A-FRAME : Les deux sont listés comme protocoles
+    requis — c'est contradictoire. A-Frame est une surcouche déclarative
+    construite SUR Three.js. Les utiliser ensemble dans la même scène crée
+    des conflits de rendu et de boucle d'animation.
+    Recommandation : Three.js seul pour flexibilité maximale (drag-and-drop
+    custom, intégration WebRTC). A-Frame si l'équipe préfère le déclaratif
+    et accepte ses contraintes.
+  - CORRECTION RAYCASTING EN XR : En mode immersif (AR/VR), il n'y a pas de
+    souris. Le raycasting se fait via XRInputSource (les controllers).
+    Dans la boucle XRSession.requestAnimationFrame(frame => ...) :
+    session.inputSources[0] → inputSource.targetRaySpace → frame.getPose()
+    Ce n'est PAS le même code que THREE.Raycaster + mouse.
+    La démo desktop et la démo XR nécessitent deux gestionnaires d'interaction.
+  - AR HIT TESTING : Pour placer des objets sur des surfaces réelles en AR,
+    utiliser XRHitTestSource (hit-test XR feature). Nécessite de demander
+    la feature lors de requestSession : { requiredFeatures: ['hit-test'] }.
+  - TYPES DE SESSION : 'immersive-ar' pour AR (pass-through ou overlay).
+    'immersive-vr' pour VR (casque opaque). 'inline' pour 3D dans la page.
+    Toujours vérifier avec isSessionSupported avant d'afficher le bouton.
+
+  ✦ RECOMMANDATION
+  Découper en trois phases indépendantes :
+  Phase 1 : Scène Three.js 'inline' + cubes + raycasting souris desktop.
+  Phase 2 : Drag-and-drop 3D + synchronisation WebRTC (valider le modèle de données).
+  Phase 3 : Mode immersif AR/VR + XRInputSource interaction.
+  La Phase 1 seule est une démonstration convaincante pour toute une salle.
+  Les Phases 2-3 sont des bonus pour qui dispose du matériel.
