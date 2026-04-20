@@ -1,13 +1,12 @@
+import { LocalStorage } from "@efficimo/storage";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet, redirect, useLocation } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { Footer } from "@/components/layout/Footer";
-import { Navbar } from "@/components/layout/Navbar";
-import { LocalStorage } from "@/storage/LocalStorage";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: ({ location }) => {
-    if (location.href !== "/login" && !LocalStorage.get("#core-nexus/data-key")) {
+    if (!location.pathname.startsWith("/login") && !LocalStorage.get("#core-nexus/data-key")) {
       throw redirect({ to: "/login" });
     }
   },
@@ -16,15 +15,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootComponent() {
   const location = useLocation();
-  const isLogin = location.href === "/login";
+  const isLogin = location.pathname.startsWith("/login");
+
+  if (isLogin) {
+    return (
+      <>
+        <Outlet />
+        <TanStackRouterDevtools />
+      </>
+    );
+  }
 
   return (
     <>
-      {!isLogin && <Navbar />}
-      <main>
+      <AppShell>
         <Outlet />
-      </main>
-      {!isLogin && <Footer />}
+      </AppShell>
       <TanStackRouterDevtools />
     </>
   );

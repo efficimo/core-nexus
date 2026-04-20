@@ -1,0 +1,62 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: var(--topbar-h) 1fr var(--footer-h);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  overflow-y: auto;
+}
+
+.scan {
+  position: fixed;
+  top: var(--topbar-h);
+  left: var(--sidebar-w);
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 30%,
+    var(--accent-2) 60%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px var(--accent);
+  animation: scan 1.3s ease both;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: 1.25rem;
+  animation: enter 1.3s ease both;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scan {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(calc(100vh - var(--topbar-h)));
+    opacity: 0;
+  }
+}

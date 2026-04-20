@@ -1,0 +1,49 @@
+:root {
+  /* Backgrounds */
+  --bg: #07090d;
+  --surface: #0c1018;
+  --surface-2: #111620;
+  --surface-3: #121a28;
+
+  /* Borders */
+  --border: #1a2035;
+  --border-hi: #253050;
+
+  /* Text */
+  --text: #c8d0e0;
+  --text-dim: #7890ae;
+  --text-faint: #4e6584;
+
+  /* Accent */
+  --accent: #2e6aff;
+  --accent-2: #3d80ff;
+  --accent-glow: rgba(46, 106, 255, 0.12);
+
+  /* Semantic */
+  --connected: #00e676;
+  --con-dim: rgba(0, 230, 118, 0.1);
+  --connected-glow: rgba(0, 230, 118, 0.25);
+  --error: #ff2055;
+  --err-dim: rgba(255, 32, 85, 0.1);
+  --warn: #ffab00;
+  --warn-dim: rgba(255, 171, 0, 0.1);
+  --purple: #a855f7;
+  --purple-dim: rgba(168, 85, 247, 0.1);
+
+  /* Layout */
+  --topbar-h: 48px;
+  --sidebar-w: 210px;
+  --footer-h: 36px;
+
+  /* Corner cut sizes */
+  --cut: 10px;
+  --cut-sm: 6px;
+  --cut-lg: 16px;
+
+  /* Easing */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography */
+  --font-mono: "Share Tech Mono", monospace;
+  --font-display: "Orbitron", sans-serif;
+}

@@ -72,7 +72,7 @@ export async function decryptUserEntry(
   const entry: UserEntry = JSON.parse(json);
 
   if (entry.email !== email) {
-    throw new Error("Email mismatch: decrypted data does not match the key");
+    throw new Error("Decryption integrity check failed");
   }
 
   return entry;

@@ -1,7 +1,7 @@
+import { LocalStorage } from "@efficimo/storage";
 import { queryOptions } from "@tanstack/react-query";
 import type { z } from "zod";
 import { decrypt } from "@/crypto";
-import { LocalStorage } from "@/storage/LocalStorage";
 import { type Architect, architectsRecordSchema } from "@/types/architect";
 import { type Implant, implantsRecordSchema } from "@/types/implant";
 import { type Sigil, sigilsRecordSchema } from "@/types/sigil";

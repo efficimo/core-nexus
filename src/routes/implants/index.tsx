@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { EmptyState, ImplantsIcon, ListRow, Panel } from "@/components/ui";
 import { implantsQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/implants/")({
@@ -9,19 +10,24 @@ export const Route = createFileRoute("/implants/")({
 
 function ImplantsIndex() {
   const { data: implants } = useSuspenseQuery(implantsQueryOptions());
+  const navigate = useNavigate();
 
   return (
-    <div>
-      <h1>Implants</h1>
+    <Panel title="IMPLANTS">
       {implants.length === 0 ? (
-        <p>Aucun Implant pour le moment.</p>
+        <EmptyState label="Aucun Implant pour le moment." icon={<ImplantsIcon />} />
       ) : (
-        <ul>
-          {implants.map((implant) => (
-            <li key={implant.id}>{implant.name}</li>
-          ))}
-        </ul>
+        implants.map((implant) => (
+          <ListRow
+            key={implant.id}
+            label={implant.name}
+            sub={implant.description}
+            onClick={() =>
+              navigate({ to: "/implants/$implantId", params: { implantId: implant.id } })
+            }
+          />
+        ))
       )}
-    </div>
+    </Panel>
   );
 }

@@ -18,6 +18,10 @@
     "install-hooks": "bash scripts/install-hooks.sh"
   },
   "dependencies": {
+    "@efficimo/observable": "^0.2.0",
+    "@efficimo/observable-react": "^0.2.0",
+    "@efficimo/storage": "^0.1.0",
+    "@efficimo/storage-react": "^0.1.0",
     "@tanstack/react-query": "^5.95.2",
     "@tanstack/react-router": "^1.168.1",
     "react": "^19.2.4",

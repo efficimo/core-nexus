@@ -1,0 +1,44 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.48rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  border: 1px solid var(--border-hi);
+  color: var(--text-dim);
+  background: transparent;
+  white-space: nowrap;
+}
+
+.accent {
+  border-color: rgba(46, 106, 255, 0.4);
+  color: var(--accent-2);
+  background: var(--accent-glow);
+}
+
+.connected {
+  border-color: rgba(0, 230, 118, 0.35);
+  color: var(--connected);
+  background: var(--con-dim);
+}
+
+.error {
+  border-color: rgba(255, 32, 85, 0.35);
+  color: var(--error);
+  background: var(--err-dim);
+}
+
+.warn {
+  border-color: rgba(255, 171, 0, 0.35);
+  color: var(--warn);
+  background: var(--warn-dim);
+}
+
+.purple {
+  border-color: rgba(168, 85, 247, 0.35);
+  color: var(--purple);
+  background: var(--purple-dim);
+}

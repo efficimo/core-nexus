@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ArchitectesIcon, Badge, EmptyState, ListRow, Panel } from "@/components/ui";
 import { architectsQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/architects/")({
@@ -9,19 +10,25 @@ export const Route = createFileRoute("/architects/")({
 
 function ArchitectsIndex() {
   const { data: architects } = useSuspenseQuery(architectsQueryOptions());
+  const navigate = useNavigate();
 
   return (
-    <div>
-      <h1>Pixel Architects</h1>
+    <Panel title="ARCHITECTES">
       {architects.length === 0 ? (
-        <p>Aucun Architecte enregistre.</p>
+        <EmptyState label="Aucun Architecte enregistré." icon={<ArchitectesIcon />} />
       ) : (
-        <ul>
-          {architects.map((architect) => (
-            <li key={architect.id}>{architect.name}</li>
-          ))}
-        </ul>
+        architects.map((architect) => (
+          <ListRow
+            key={architect.id}
+            label={architect.name}
+            sub={architect.title}
+            aside={<Badge variant="accent">{architect.class}</Badge>}
+            onClick={() =>
+              navigate({ to: "/architects/$architectId", params: { architectId: architect.id } })
+            }
+          />
+        ))
       )}
-    </div>
+    </Panel>
   );
 }

@@ -1,0 +1,59 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.label {
+  font-size: 0.5rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.input {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  outline: none;
+  transition:
+    border-color 0.15s var(--ease),
+    box-shadow 0.15s var(--ease);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut-sm)) 0,
+    100% var(--cut-sm),
+    100% 100%,
+    var(--cut-sm) 100%,
+    0 calc(100% - var(--cut-sm))
+  );
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px rgba(46, 106, 255, 0.2),
+    inset 0 0 12px rgba(46, 106, 255, 0.04);
+}
+
+.error .label {
+  color: var(--error);
+}
+
+.error .input {
+  border-color: rgba(255, 32, 85, 0.5);
+}
+
+.errorMsg {
+  font-size: 0.48rem;
+  color: var(--error);
+  letter-spacing: 0.05em;
+}

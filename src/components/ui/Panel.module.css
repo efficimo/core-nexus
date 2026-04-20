@@ -1,0 +1,100 @@
+.panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut))
+  );
+  animation: panel-in 0.35s var(--ease) both;
+}
+
+.panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: calc(var(--cut) * 2.4);
+  height: calc(var(--cut) * 2.4);
+  background: var(--border-hi);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  pointer-events: none;
+}
+
+.panelAccent {
+  border-color: var(--accent);
+}
+
+.panelAccent::after {
+  background: var(--accent);
+}
+
+.panelSuccess {
+  border-color: var(--connected);
+}
+
+.panelSuccess::after {
+  background: var(--connected);
+}
+
+.panelError {
+  border-color: var(--error);
+}
+
+.panelError::after {
+  background: var(--error);
+}
+
+.panelWarn {
+  border-color: var(--warn);
+}
+
+.panelWarn::after {
+  background: var(--warn);
+}
+
+.panelDisabled {
+  border-style: dashed;
+  border-color: var(--border-hi);
+  opacity: 0.5;
+}
+
+.panelDisabled::after {
+  display: none;
+}
+
+.header {
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.body {
+  padding: 0.9rem;
+}
+
+.body:empty {
+  height: 5rem;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    rgba(255, 255, 255, 0.025) 6px,
+    rgba(255, 255, 255, 0.025) 7px
+  );
+}

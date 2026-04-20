@@ -6,6 +6,9 @@ import { copyFileSync } from "fs";
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || "/",
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev"),
+  },
   plugins: [
     react(),
     tanstackRouter(),
