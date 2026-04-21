@@ -2,7 +2,7 @@ services:
   app:
     image: node:22-alpine
     working_dir: /app
-    command: sh -c "npm ci && npm run dev -- --host"
+    command: sh -c "npm ci --legacy-peer-deps && npm run dev -- --host"
     ports:
       - "5173:5173"
     volumes:

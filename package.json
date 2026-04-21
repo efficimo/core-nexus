@@ -15,7 +15,8 @@
     "data:decrypt": "tsx scripts/data-crypto.ts decrypt",
     "data:encrypt": "tsx scripts/data-crypto.ts encrypt",
     "data:verify": "tsx scripts/data-crypto.ts verify",
-    "install-hooks": "bash scripts/install-hooks.sh"
+    "install-hooks": "bash scripts/install-hooks.sh",
+    "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
     "@efficimo/observable": "^0.2.0",
@@ -35,9 +36,11 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^6.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "vite-plugin-pwa": "^1.2.0"
   }
 }
