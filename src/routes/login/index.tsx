@@ -18,25 +18,14 @@ const userEntrySchema = z.object({
 });
 const usersSchema = z.record(z.string(), userEntrySchema);
 
-const masterPubSchema = z.object({
-  kid: z.string(),
-  created: z.string(),
-});
-
 async function fetchLoginData(): Promise<{
   users: Record<string, UserEntry>;
-  masterKid: string;
 }> {
   const base = `${import.meta.env.BASE_URL}data`;
-  const [usersRes, pubRes] = await Promise.all([
-    fetch(`${base}/users.json`),
-    fetch(`${base}/master.pub.json`),
-  ]);
+  const usersRes = await fetch(`${base}/users.json`);
   if (!usersRes.ok) throw new Error("Failed to fetch users.json");
-  if (!pubRes.ok) throw new Error("Failed to fetch master.pub.json");
   const users = usersSchema.parse(await usersRes.json()) as Record<string, UserEntry>;
-  const { kid: masterKid } = masterPubSchema.parse(await pubRes.json());
-  return { users, masterKid };
+  return { users };
 }
 
 const LOGIN_TAGS = [{ label: "Portail d'Authentification" }];
@@ -61,7 +50,7 @@ function useClock(): string {
 }
 
 function Login() {
-  const { users, masterKid } = Route.useLoaderData();
+  const { users } = Route.useLoaderData();
   const navigate = useNavigate();
 
   const clock = useClock();
@@ -113,13 +102,6 @@ function Login() {
       if (!userEntry) {
         setTermState("error");
         setErrorMsg("Identifiant inconnu — accès refusé.");
-        setTimeout(() => setTermState("idle"), 600);
-        return;
-      }
-
-      if (userEntry.kid !== masterKid) {
-        setTermState("error");
-        setErrorMsg("Clé désynchronisée — contactez l'administrateur.");
         setTimeout(() => setTermState("idle"), 600);
         return;
       }

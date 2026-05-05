@@ -67,9 +67,13 @@ function getNexusKeys(): Record<string, NexusKeyEntry> {
     raw = process.env.NEXUS_KEYS;
   } else {
     try {
-      raw = execSync("gh variable get NEXUS_KEYS --json value -q .value", {
+      const repo = execSync("gh repo view --json nameWithOwner -q .nameWithOwner", {
         encoding: "utf-8",
       }).trim();
+      const result = execSync(`gh api repos/${repo}/actions/variables/NEXUS_KEYS`, {
+        encoding: "utf-8",
+      }).trim();
+      raw = (JSON.parse(result) as { value: string }).value;
     } catch {
       return {};
     }
