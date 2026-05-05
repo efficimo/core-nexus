@@ -12,6 +12,7 @@ export default defineConfig({
   base,
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev"),
+    __BUILD_ID__: JSON.stringify(Date.now().toString()),
   },
   plugins: [
     tailwindcss(),
