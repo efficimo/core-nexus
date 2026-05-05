@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -13,6 +14,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev"),
   },
   plugins: [
+    tailwindcss(),
     react(),
     tanstackRouter(),
     VitePWA({
@@ -68,7 +70,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@core-nexus": path.resolve(__dirname, "./src"),
     },
   },
 });

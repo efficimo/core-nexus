@@ -1,7 +1,7 @@
+import { Badge, EmptyState, ListRow, Panel, SparksIcon } from "@core-nexus/components/ui";
+import { sparksQueryOptions } from "@core-nexus/data/queries";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Badge, EmptyState, ListRow, Panel, SparksIcon } from "@/components/ui";
-import { sparksQueryOptions } from "@/data/queries";
 import { statusVariant } from "./variants";
 
 export const Route = createFileRoute("/sparks/")({

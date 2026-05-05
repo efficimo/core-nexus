@@ -1,8 +1,7 @@
+import { ArchitectesIcon, Badge, EmptyState, ListRow, Panel, Tag } from "@core-nexus/components/ui";
+import { architectQueryOptions, sigilsByArchitectQueryOptions } from "@core-nexus/data/queries";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArchitectesIcon, Badge, EmptyState, ListRow, Panel, Tag } from "@/components/ui";
-import { architectQueryOptions, sigilsByArchitectQueryOptions } from "@/data/queries";
-import styles from "../detail.module.css";
 
 export const Route = createFileRoute("/architects/$architectId")({
   loader: ({ context: { queryClient }, params: { architectId } }) =>
@@ -23,18 +22,20 @@ function ArchitectDetail() {
   }
 
   return (
-    <div className={styles.stack}>
+    <div className="flex flex-col gap-4">
       <Panel title={architect.name} variant="accent">
-        <div className={styles.body}>
-          <div className={styles.row}>
+        <div className="flex flex-col gap-[0.6rem]">
+          <div className="flex items-center gap-[0.5rem] flex-wrap">
             <Badge variant="accent">{architect.class}</Badge>
             <Badge>Niveau {architect.level}</Badge>
           </div>
-          <p className={styles.lore}>{architect.title}</p>
-          <p className={styles.description}>{architect.lore}</p>
-          {architect.quote && <p className={styles.quote}>« {architect.quote} »</p>}
+          <p className="text-text-dim italic leading-[1.6]">{architect.title}</p>
+          <p className="text-text-dim leading-[1.6]">{architect.lore}</p>
+          {architect.quote && (
+            <p className="text-text-faint text-[0.45rem] tracking-[0.1em]">« {architect.quote} »</p>
+          )}
           {architect.skills.length > 0 && (
-            <div className={styles.tags}>
+            <div className="flex gap-[0.4rem] flex-wrap">
               {architect.skills.map((s) => (
                 <Tag key={s.skillId}>
                   {s.skillId} {s.level}

@@ -34,6 +34,7 @@
   --topbar-h: 48px;
   --sidebar-w: 210px;
   --footer-h: 36px;
+  --content-p: 1.25rem;
 
   /* Corner cut sizes */
   --cut: 10px;
@@ -45,5 +46,5 @@
 
   /* Typography */
   --font-mono: "Share Tech Mono", monospace;
-  --font-display: "Orbitron", sans-serif;
+  --font-display: "Orbitron Variable", "Orbitron", sans-serif;
 }

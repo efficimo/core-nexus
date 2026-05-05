@@ -1,0 +1,57 @@
+name: Rotate Master Key
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  rotate:
+    name: Rotation de la master key
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Initialiser la master key actuelle
+        env:
+          NEXUS_KEYS: ${{ vars.NEXUS_KEYS }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run key:init
+
+      - name: Rotation vers un nouveau kid
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run key:rotate
+
+      - name: Commit et push des fichiers mis à jour
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/
+          git diff --cached --quiet || git commit -m "chore: rotate master key [skip ci]"
+          git push
+
+      - name: Publier la nouvelle clé dans NEXUS_KEYS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run key:publish
+
+      - name: Nettoyer les kids orphelins
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run key:clean

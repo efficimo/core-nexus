@@ -1,8 +1,8 @@
+import { AppShell } from "@core-nexus/components/layout/AppShell";
 import { LocalStorage } from "@efficimo/storage";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet, redirect, useLocation } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { AppShell } from "@/components/layout/AppShell";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: ({ location }) => {

@@ -15,19 +15,34 @@
     "data:decrypt": "tsx scripts/data-crypto.ts decrypt",
     "data:encrypt": "tsx scripts/data-crypto.ts encrypt",
     "data:verify": "tsx scripts/data-crypto.ts verify",
+    "key:init": "tsx scripts/rotate-key.ts init",
+    "key:rotate": "tsx scripts/rotate-key.ts rotate",
+    "key:publish": "tsx scripts/rotate-key.ts publish",
+    "key:clean": "tsx scripts/rotate-key.ts clean",
     "install-hooks": "bash scripts/install-hooks.sh",
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
+    "@efficimo/cipher": "^0.1.0",
     "@efficimo/observable": "^0.2.0",
     "@efficimo/observable-react": "^0.2.0",
     "@efficimo/storage": "^0.1.0",
     "@efficimo/storage-react": "^0.1.0",
+    "@fontsource-variable/orbitron": "^5.2.8",
+    "@fontsource/share-tech-mono": "^5.2.7",
+    "@tailwindcss/vite": "^4.2.4",
     "@tanstack/react-query": "^5.95.2",
     "@tanstack/react-router": "^1.168.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.4",
     "zod": "^4.3.6"
+  },
+  "overrides": {
+    "vite-plugin-pwa": {
+      "vite": "$vite"
+    },
+    "serialize-javascript": "^7.0.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",

@@ -1,4 +1,4 @@
-import type { Sigil } from "@/types/sigil";
+import type { Sigil } from "@core-nexus/types/sigil";
 
 export const rarityVariant = {
   common: "default",

@@ -1,8 +1,7 @@
+import { Badge, EmptyState, Panel, SparksIcon, Tag } from "@core-nexus/components/ui";
+import { sparkQueryOptions } from "@core-nexus/data/queries";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Badge, EmptyState, Panel, SparksIcon, Tag } from "@/components/ui";
-import { sparkQueryOptions } from "@/data/queries";
-import styles from "../detail.module.css";
 import { statusVariant } from "./variants";
 
 export const Route = createFileRoute("/sparks/$sparkId")({
@@ -21,13 +20,13 @@ function SparkDetail() {
 
   return (
     <Panel title={spark.name}>
-      <div className={styles.body}>
-        <div className={styles.row}>
+      <div className="flex flex-col gap-[0.6rem]">
+        <div className="flex items-center gap-[0.5rem] flex-wrap">
           <Badge variant={statusVariant[spark.status]}>{spark.status}</Badge>
         </div>
-        <p className={styles.description}>{spark.description}</p>
+        <p className="text-text-dim leading-[1.6]">{spark.description}</p>
         {spark.tags.length > 0 && (
-          <div className={styles.tags}>
+          <div className="flex gap-[0.4rem] flex-wrap">
             {spark.tags.map((tag) => (
               <Tag key={tag}>{tag}</Tag>
             ))}

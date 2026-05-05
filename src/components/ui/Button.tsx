@@ -1,8 +1,7 @@
+import { cx } from "@core-nexus/utils/cx";
 import type { ButtonHTMLAttributes, ReactElement, ReactNode } from "react";
-import { cx } from "@/utils/cx";
-import styles from "./Button.module.css";
 
-type ButtonVariant = "default" | "primary" | "danger";
+type ButtonVariant = "default" | "primary" | "danger" | "ghost";
 type ButtonSize = "sm" | "md";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -11,10 +10,14 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
 };
 
-const variantClass: Record<ButtonVariant, string | undefined> = {
-  default: undefined,
-  primary: styles.primary,
-  danger: styles.danger,
+const VARIANT: Record<ButtonVariant, string> = {
+  default: "border-border-hi text-text-dim hover:border-text-dim hover:text-text",
+  primary:
+    "border-accent text-accent-2 bg-accent-glow hover:border-accent-2 hover:bg-[rgba(46,106,255,0.2)] hover:text-white",
+  danger:
+    "border-[rgba(255,32,85,0.4)] text-error bg-err-dim hover:border-error hover:bg-[rgba(255,32,85,0.2)]",
+  ghost:
+    "border-transparent bg-transparent text-text-faint hover:text-error hover:border-transparent",
 };
 
 export function Button({
@@ -24,10 +27,20 @@ export function Button({
   className,
   ...rest
 }: Props): ReactElement {
+  const isGhost = variant === "ghost";
   return (
     <button
       type="button"
-      className={cx(styles.btn, variantClass[variant], size === "sm" && styles.sm, className)}
+      className={cx(
+        "inline-flex items-center gap-[0.4rem] font-mono tracking-[0.12em] uppercase border bg-transparent cursor-pointer transition-all duration-[0.15s] disabled:opacity-35 disabled:cursor-not-allowed",
+        isGhost
+          ? "py-[0.15rem] px-[0.3rem] text-[0.58rem]"
+          : size === "sm"
+            ? "px-[0.6rem] py-[0.25rem] text-[0.5rem] cut-sm"
+            : "px-[0.9rem] py-[0.45rem] text-[0.58rem] cut-sm",
+        VARIANT[variant],
+        className,
+      )}
       {...rest}
     >
       {children}

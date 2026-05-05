@@ -1,25 +1,48 @@
+import { TopBar } from "@core-nexus/components/layout/TopBar";
+import { HexBackground, OrbitalOrb, StatusDot } from "@core-nexus/components/ui";
+import { getVaultFromEntry, type UserEntry } from "@core-nexus/user-vault";
+import { cx } from "@core-nexus/utils/cx";
 import { LocalStorage } from "@efficimo/storage";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { TopBar } from "@/components/layout/TopBar";
-import { HexBackground, OrbitalOrb, StatusDot } from "@/components/ui";
-import { decryptUserEntry } from "@/crypto";
-import { cx } from "@/utils/cx";
 import styles from "./Login.module.css";
 
-const usersSchema = z.record(z.string(), z.string());
+const userEntrySchema = z.object({
+  kid: z.string(),
+  publicKey: z.record(z.string(), z.unknown()),
+  salt: z.string(),
+  iv: z.string(),
+  encryptedPrivateKey: z.string(),
+  wrappedMasterKey: z.string(),
+});
+const usersSchema = z.record(z.string(), userEntrySchema);
 
-async function fetchUsers(): Promise<Record<string, string>> {
-  const res = await fetch(`${import.meta.env.BASE_URL}data/users.json`);
-  if (!res.ok) throw new Error("Failed to fetch users.json");
-  return usersSchema.parse(await res.json());
+const masterPubSchema = z.object({
+  kid: z.string(),
+  created: z.string(),
+});
+
+async function fetchLoginData(): Promise<{
+  users: Record<string, UserEntry>;
+  masterKid: string;
+}> {
+  const base = `${import.meta.env.BASE_URL}data`;
+  const [usersRes, pubRes] = await Promise.all([
+    fetch(`${base}/users.json`),
+    fetch(`${base}/master.pub.json`),
+  ]);
+  if (!usersRes.ok) throw new Error("Failed to fetch users.json");
+  if (!pubRes.ok) throw new Error("Failed to fetch master.pub.json");
+  const users = usersSchema.parse(await usersRes.json()) as Record<string, UserEntry>;
+  const { kid: masterKid } = masterPubSchema.parse(await pubRes.json());
+  return { users, masterKid };
 }
 
 const LOGIN_TAGS = [{ label: "Portail d'Authentification" }];
 
 export const Route = createFileRoute("/login/")({
-  loader: fetchUsers,
+  loader: fetchLoginData,
   component: Login,
 });
 
@@ -38,7 +61,7 @@ function useClock(): string {
 }
 
 function Login() {
-  const users = Route.useLoaderData();
+  const { users, masterKid } = Route.useLoaderData();
   const navigate = useNavigate();
 
   const clock = useClock();
@@ -86,19 +109,26 @@ function Login() {
     setScanning(false);
 
     try {
-      const encrypted = users[email];
-      if (!encrypted) {
+      const userEntry = users[email];
+      if (!userEntry) {
         setTermState("error");
         setErrorMsg("Identifiant inconnu — accès refusé.");
         setTimeout(() => setTermState("idle"), 600);
         return;
       }
 
-      const entry = await decryptUserEntry(encrypted, email, password);
-      LocalStorage.set("#core-nexus/user-email", entry.email);
-      LocalStorage.set("#core-nexus/data-key", entry.dataKey);
+      if (userEntry.kid !== masterKid) {
+        setTermState("error");
+        setErrorMsg("Clé désynchronisée — contactez l'administrateur.");
+        setTimeout(() => setTermState("idle"), 600);
+        return;
+      }
 
-      setSuccessName(`Bienvenue, ${entry.email}`);
+      const vault = await getVaultFromEntry(userEntry as UserEntry, password);
+      LocalStorage.set("#core-nexus/user-email", email);
+      LocalStorage.set("#core-nexus/data-key", await vault.export());
+
+      setSuccessName(`Bienvenue, ${email}`);
       setTermState("success");
       setTimeout(() => navigate({ to: "/" }), 1200);
     } catch {

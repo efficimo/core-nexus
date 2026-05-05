@@ -1,3 +1,4 @@
+import { HexIconDefSchema } from "@core-nexus/components/ui/icons/HexIcon";
 import { z } from "zod";
 
 export const implantDataSchema = z.object({
@@ -5,6 +6,7 @@ export const implantDataSchema = z.object({
   description: z.string(),
   tags: z.array(z.string()),
   authors: z.array(z.string()),
+  icon: HexIconDefSchema.optional(),
 });
 
 export const implantSchema = implantDataSchema.extend({

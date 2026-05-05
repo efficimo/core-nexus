@@ -1,6 +1,6 @@
+import { Panel } from "@core-nexus/components/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
-import { Panel } from "@/components/ui";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,

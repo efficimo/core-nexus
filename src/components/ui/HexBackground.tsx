@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import styles from "./HexBackground.module.css";
 
 type Props = {
   vignette?: boolean;
@@ -82,8 +81,10 @@ export function HexBackground({ vignette = false }: Props): ReactElement {
 
   return (
     <>
-      <canvas ref={canvasRef} className={styles.canvas} />
-      {vignette && <div className={styles.vignette} />}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-0" />
+      {vignette && (
+        <div className="absolute inset-0 pointer-events-none z-[1] bg-[radial-gradient(ellipse_60%_80%_at_50%_50%,transparent_20%,rgba(5,7,11,0.8)_100%)]" />
+      )}
     </>
   );
 }

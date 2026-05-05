@@ -1,6 +1,3 @@
-import { useLocation } from "@tanstack/react-router";
-import type { ReactElement, ReactNode } from "react";
-import { useLayoutEffect, useRef } from "react";
 import {
   ArchitectesIcon,
   DashboardIcon,
@@ -8,8 +5,10 @@ import {
   ImplantsIcon,
   SigilsIcon,
   SparksIcon,
-} from "@/components/ui";
-import styles from "./AppShell.module.css";
+} from "@core-nexus/components/ui";
+import { useLocation } from "@tanstack/react-router";
+import type { ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Footer } from "./Footer";
 import { Sidebar } from "./Sidebar";
 import { TopBar, type TopBarTag } from "./TopBar";
@@ -53,13 +52,19 @@ export function AppShell({ children }: Props): ReactElement {
   }, [pathname]);
 
   return (
-    <div className={styles.shell}>
+    <div className="grid [grid-template-columns:var(--sidebar-w)_1fr] [grid-template-rows:var(--topbar-h)_1fr_var(--footer-h)] h-screen overflow-hidden">
       <TopBar tags={resolveTags(pathname)} />
       <Sidebar />
-      <main className={styles.main}>
+      <main className="[grid-column:2] [grid-row:2] relative overflow-hidden">
         <HexBackground />
-        <div ref={scanRef} className={styles.scan} />
-        <div ref={contentRef} className={styles.content}>
+        <div
+          ref={scanRef}
+          className="fixed top-[var(--topbar-h)] left-[var(--sidebar-w)] right-0 h-[2px] bg-[linear-gradient(90deg,transparent_0%,var(--accent)_30%,var(--accent-2)_60%,transparent_100%)] [box-shadow:0_0_8px_var(--accent)] animate-shell-scan pointer-events-none z-[100]"
+        />
+        <div
+          ref={contentRef}
+          className="absolute inset-0 overflow-y-auto z-[1] p-[var(--content-p)] animate-shell-enter"
+        >
           {children}
         </div>
       </main>

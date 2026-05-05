@@ -1,59 +1,329 @@
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap");
+@import "@fontsource-variable/orbitron";
+@import "@fontsource/share-tech-mono";
+@import "tailwindcss";
 @import "./tokens.css";
-@import "./animations.css";
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ── Thème Tailwind ──────────────────────────────────────────────────────── */
+
+@theme {
+  /* Couleurs — alias des tokens existants */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-border: var(--border);
+  --color-border-hi: var(--border-hi);
+
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-glow: var(--accent-glow);
+
+  --color-connected: var(--connected);
+  --color-connected-glow: var(--connected-glow);
+  --color-con-dim: var(--con-dim);
+  --color-error: var(--error);
+  --color-err-dim: var(--err-dim);
+  --color-warn: var(--warn);
+  --color-warn-dim: var(--warn-dim);
+  --color-purple: var(--purple);
+  --color-purple-dim: var(--purple-dim);
+
+  /* Typographie */
+  --font-mono: "Share Tech Mono", monospace;
+  --font-display: "Orbitron Variable", "Orbitron", sans-serif;
+
+  /* Animations */
+  --animate-panel-in: panel-in 0.35s var(--ease) both;
+  --animate-dot-pulse: dot-pulse 2s ease-in-out infinite;
+  --animate-dot-blink: dot-blink 0.6s ease-in-out infinite;
+  --animate-spin-cw: spin-cw 8s linear infinite;
+  --animate-spin-ccw: spin-ccw 12s linear infinite;
+  --animate-fade-in: fade-in 0.3s var(--ease) both;
+  --animate-page-enter: page-enter 0.35s var(--ease) both;
+  --animate-page-scan: page-scan 2.5s linear infinite;
+
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes dot-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(0.85);
+    }
+  }
+
+  @keyframes dot-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes spin-cw {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes spin-ccw {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(-360deg);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes page-scan {
+    from {
+      transform: translateY(0);
+      opacity: 0.9;
+    }
+    to {
+      transform: translateY(calc(100vh - var(--topbar-h)));
+      opacity: 0;
+    }
+  }
+
+  --animate-drag-float: drag-float 0.7s ease-in-out infinite alternate;
+  --animate-drop-pulse: drop-pulse 0.55s ease-in-out infinite alternate;
+  --animate-sel-pulse: sel-pulse 1.8s ease-in-out infinite;
+
+  @keyframes drag-float {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.15);
+    }
+  }
+
+  @keyframes drop-pulse {
+    from {
+      fill-opacity: 0.07;
+      stroke-opacity: 0.35;
+    }
+    to {
+      fill-opacity: 0.16;
+      stroke-opacity: 0.7;
+    }
+  }
+
+  @keyframes sel-pulse {
+    0%,
+    100% {
+      stroke-opacity: 0.3;
+    }
+    50% {
+      stroke-opacity: 0.85;
+    }
+  }
+
+  --animate-shell-enter: shell-enter 1.3s ease both;
+  --animate-shell-scan: shell-scan 1.3s ease both;
+
+  @keyframes shell-enter {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shell-scan {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(calc(100vh - var(--topbar-h)));
+      opacity: 0;
+    }
+  }
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 20px;
-  line-height: 1.5;
+/* ── Utility hauteur contenu ─────────────────────────────────────────────── */
+
+@utility h-content {
+  height: calc(100dvh - var(--topbar-h) - var(--footer-h) - 2 * var(--content-p));
 }
 
-a {
-  color: var(--accent);
-  text-decoration: none;
+/* ── Utilities clip-path ─────────────────────────────────────────────────── */
+
+@utility cut-sm {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut-sm)) 0,
+    100% var(--cut-sm),
+    100% 100%,
+    var(--cut-sm) 100%,
+    0 calc(100% - var(--cut-sm))
+  );
 }
 
-a:hover {
-  color: var(--accent-2);
+@utility cut {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut))
+  );
 }
 
-button {
-  font-family: var(--font-mono);
-  cursor: pointer;
+@utility cut-lg {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut-lg)) 0,
+    100% var(--cut-lg),
+    100% 100%,
+    var(--cut-lg) 100%,
+    0 calc(100% - var(--cut-lg))
+  );
 }
 
-input,
-textarea {
-  font-family: var(--font-mono);
+/* ── Reset & base ────────────────────────────────────────────────────────── */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 20px;
+    line-height: 1.5;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--accent-2);
+  }
+
+  button {
+    font-family: var(--font-mono);
+    cursor: pointer;
+  }
+
+  input,
+  textarea {
+    font-family: var(--font-mono);
+  }
+
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-hi);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+  }
 }
 
-::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
-}
+/* ── Panel — triangle corner & empty body ───────────────────────────────── */
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
+.panel-corner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: calc(var(--cut) * 2.4);
+  height: calc(var(--cut) * 2.4);
   background: var(--border-hi);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  pointer-events: none;
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-hi) transparent;
+.panel-accent::after {
+  background: var(--accent);
+}
+.panel-success::after {
+  background: var(--connected);
+}
+.panel-error::after {
+  background: var(--error);
+}
+.panel-warn::after {
+  background: var(--warn);
+}
+
+.panel-body:empty {
+  height: 5rem;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    rgba(255, 255, 255, 0.025) 6px,
+    rgba(255, 255, 255, 0.025) 7px
+  );
 }

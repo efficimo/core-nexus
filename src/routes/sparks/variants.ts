@@ -1,4 +1,4 @@
-import type { Spark } from "@/types/spark";
+import type { Spark } from "@core-nexus/types/spark";
 
 export const statusVariant = {
   idea: "default",

@@ -1,7 +1,7 @@
+import { Badge, EmptyState, ListRow, Panel, SigilsIcon } from "@core-nexus/components/ui";
+import { sigilsQueryOptions } from "@core-nexus/data/queries";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Badge, EmptyState, ListRow, Panel, SigilsIcon } from "@/components/ui";
-import { sigilsQueryOptions } from "@/data/queries";
 import { rarityVariant } from "./variants";
 
 export const Route = createFileRoute("/sigils/")({

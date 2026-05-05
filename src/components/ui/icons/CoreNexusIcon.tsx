@@ -1,26 +1,19 @@
-import type { ReactElement, SVGProps } from "react";
+import type { SVGProps } from "react";
+import { HexIcon, type HexIconDef } from "./HexIcon";
 
-export function CoreNexusIcon(props: SVGProps<SVGSVGElement>): ReactElement {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      {...props}
-    >
-      {/* Hexagon — le Nœud central */}
-      <polygon points="10,2.5 16.5,6.25 16.5,13.75 10,17.5 3.5,13.75 3.5,6.25" />
-      {/* 3 spokes vers les sommets alternés — réseau de connexions */}
-      <line x1="10" y1="10" x2="10" y2="2.5" strokeOpacity="0.4" />
-      <line x1="10" y1="10" x2="16.5" y2="13.75" strokeOpacity="0.4" />
-      <line x1="10" y1="10" x2="3.5" y2="13.75" strokeOpacity="0.4" />
-      {/* Nœud central */}
-      <circle cx="10" cy="10" r="2" />
-      <circle cx="10" cy="10" r="0.75" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
+const def: HexIconDef = {
+  shapes: [
+    { type: "polygon", pts: ["V0", "V1", "V2", "V3", "V4", "V5"] },
+    { type: "polygon", pts: ["I0", "I1", "I2", "I3", "I4", "I5"] },
+    { type: "line", pts: ["I0", "V0"] },
+    { type: "line", pts: ["I1", "V1"] },
+    { type: "line", pts: ["I2", "V2"] },
+    { type: "line", pts: ["I3", "V3"] },
+    { type: "line", pts: ["I4", "V4"] },
+    { type: "line", pts: ["I5", "V5"] },
+    { type: "circle", center: "C", r: 1.5 },
+    { type: "circle", center: "C", r: 0.6, fill: true },
+  ],
+};
+
+export const CoreNexusIcon = (props: SVGProps<SVGSVGElement>) => <HexIcon def={def} {...props} />;

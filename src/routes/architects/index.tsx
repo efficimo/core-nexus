@@ -1,7 +1,7 @@
+import { ArchitectesIcon, Badge, EmptyState, ListRow, Panel } from "@core-nexus/components/ui";
+import { architectsQueryOptions } from "@core-nexus/data/queries";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArchitectesIcon, Badge, EmptyState, ListRow, Panel } from "@/components/ui";
-import { architectsQueryOptions } from "@/data/queries";
 
 export const Route = createFileRoute("/architects/")({
   loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(architectsQueryOptions()),

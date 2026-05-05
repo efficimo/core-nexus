@@ -1,12 +1,12 @@
+import { type Architect, architectsRecordSchema } from "@core-nexus/types/architect";
+import { type Implant, implantsRecordSchema } from "@core-nexus/types/implant";
+import { type Sigil, sigilsRecordSchema } from "@core-nexus/types/sigil";
+import { type Skill, skillsRecordSchema } from "@core-nexus/types/skill";
+import { type Spark, sparksRecordSchema } from "@core-nexus/types/spark";
+import { AESVault, FileCipher } from "@core-nexus/user-vault";
 import { LocalStorage } from "@efficimo/storage";
 import { queryOptions } from "@tanstack/react-query";
 import type { z } from "zod";
-import { decrypt } from "@/crypto";
-import { type Architect, architectsRecordSchema } from "@/types/architect";
-import { type Implant, implantsRecordSchema } from "@/types/implant";
-import { type Sigil, sigilsRecordSchema } from "@/types/sigil";
-import { type Skill, skillsRecordSchema } from "@/types/skill";
-import { type Spark, sparksRecordSchema } from "@/types/spark";
 
 const BASE_URL = `${import.meta.env.BASE_URL}data`;
 
@@ -22,8 +22,8 @@ async function fetchData<T>(name: string, schema: z.ZodType<T>): Promise<T> {
   const encRes = await fetch(`${BASE_URL}/${name}.json.enc`);
   if (!encRes.ok) return schema.parse({});
 
-  const encrypted = (await encRes.text()).trim();
-  const json = await decrypt(encrypted, dataKey);
+  const vault = await AESVault.import(dataKey);
+  const json = await FileCipher.from(vault).decrypt((await encRes.text()).trim());
   return schema.parse(JSON.parse(json));
 }
 

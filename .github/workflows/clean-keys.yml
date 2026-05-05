@@ -1,0 +1,31 @@
+name: Clean Orphan Keys
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 1 * *'
+
+permissions:
+  actions: write
+
+jobs:
+  clean:
+    name: Nettoyage des kids orphelins
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Nettoyer les kids orphelins de NEXUS_KEYS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run key:clean
