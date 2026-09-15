@@ -1,12 +1,12 @@
 export { Badge } from "./Badge";
 export { Button } from "./Button";
+export { DuckLoader, type DuckLoaderVariant } from "./DuckLoader";
 export { EmptyState } from "./EmptyState";
 export { Field } from "./Field";
 export { HexBackground } from "./HexBackground";
 export { Input } from "./Input";
 export * from "./icons";
 export { ListRow } from "./ListRow";
-export { OrbitalOrb } from "./OrbitalOrb";
 export { Panel } from "./Panel";
 export { Slider } from "./Slider";
 export { StatusDot } from "./StatusDot";

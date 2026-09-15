@@ -23,7 +23,7 @@ export function Slider({ min, max, step, value, onChange, onClear, display }: Pr
         className="flex-1 [accent-color:var(--accent)] cursor-pointer"
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <span className="font-mono text-[0.58rem] text-text-dim min-w-[2.2rem] text-right">
+      <span className="font-mono text-sm text-text-dim min-w-[2.2rem] text-right">
         {display ?? value}
       </span>
       {onClear && (

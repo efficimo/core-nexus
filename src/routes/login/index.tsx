@@ -1,6 +1,7 @@
 import { TopBar } from "@core-nexus/components/layout/TopBar";
-import { HexBackground, OrbitalOrb, StatusDot } from "@core-nexus/components/ui";
+import { DuckLoader, DuckLogo, HexBackground, StatusDot } from "@core-nexus/components/ui";
 import { getVaultFromEntry, type UserEntry } from "@core-nexus/user-vault";
+import { asciiFold } from "@core-nexus/utils/asciiFold";
 import { cx } from "@core-nexus/utils/cx";
 import { LocalStorage } from "@efficimo/storage";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -168,7 +169,18 @@ function Login() {
             </div>
 
             <div className={styles.brandSection}>
-              <OrbitalOrb size="lg" className={styles.heroOrb} />
+              {/* Le cerveau du logo s'allume pendant la verification : c'est
+                  exactement ce que decrit la variante « boot ». */}
+              {scanning ? (
+                <DuckLoader
+                  variant="boot"
+                  size={88}
+                  label="Vérification en cours"
+                  className={styles.heroOrb}
+                />
+              ) : (
+                <DuckLogo size={88} className={styles.heroOrb} />
+              )}
               <div className={styles.brandName}>CORE NEXUS</div>
               <div className={styles.brandSub}>Système de Commandement Distribué</div>
               <div className={styles.clearanceBadge}>Niveau Habilitation : ARCHITECTE</div>
@@ -232,7 +244,7 @@ function Login() {
                 disabled={scanning || termState === "success"}
               >
                 <div className={styles.btnDot} />
-                {scanning ? "Vérification…" : "Authentifier"}
+                {asciiFold(scanning ? "Vérification…" : "Authentifier")}
               </button>
             </form>
 
@@ -252,7 +264,7 @@ function Login() {
                 <div className={styles.successRing} />
                 <div className={styles.successCore} />
               </div>
-              <div className={styles.successTitle}>ACCÈS ACCORDÉ</div>
+              <div className={styles.successTitle}>{asciiFold("ACCÈS ACCORDÉ")}</div>
               <div className={styles.successSub}>{successName}</div>
               <div className={styles.successSubFaint}>Chargement du terminal…</div>
               <div className={styles.successBarWrap}>

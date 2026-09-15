@@ -22,8 +22,17 @@ const FILL_OPTIONS: ReadonlyArray<{ value: FillValue; label: string }> = [
   { value: "currentColor", label: "currentColor" },
 ];
 
-const POINT_COLOR = "#7890ae";
-const EDGE_COLOR = "#a8bfcf";
+/* Branchees sur les tokens plutot que codees en dur, pour que l'editeur suive
+   la palette. Les attributs de presentation SVG acceptent var().
+
+   La grille reste un repere : ses points sont discrets, et le lime est garde
+   pour la seule selection — sinon les vingt-cinq pastilles passent devant la
+   forme qu'on dessine. */
+const POINT_COLOR = "var(--text-faint)";
+const POINT_SELECTED_COLOR = "var(--lime)";
+/* Clair : la grille est tracee a 0.08-0.2 d'opacite, une couleur de bordure
+   sombre y disparaitrait. */
+const EDGE_COLOR = "var(--accent-2)";
 
 function shapeToJsx(s: Shape): ReactElement {
   if (s.type === "line") {
@@ -180,7 +189,10 @@ export default function HexIconForge(): ReactElement {
         <Panel title="Grille de référence" fill className="h-full">
           <svg
             viewBox="0 0 20 20"
-            className="h-full w-auto max-w-full mx-auto block"
+            /* Plafonnee : etiree sur toute la hauteur du panneau, une grille de
+               20 unites donne un trait de 1.5 rendu a plus de 50 px, et des
+               pastilles de la taille d'un bouton. */
+            className="h-full w-auto max-w-[min(100%,460px)] max-h-[460px] mx-auto block"
             aria-label="Grille hexagonale de référence"
             fill="none"
             strokeLinecap="round"
@@ -310,15 +322,17 @@ export default function HexIconForge(): ReactElement {
                   }}
                   style={{ cursor: mode ? "pointer" : "default" }}
                 >
+                  {/* Cible de clic large, invisible : la pastille visible
+                      reste petite sans rendre le point difficile a viser. */}
                   <circle cx={x} cy={y} r="1.4" fill="transparent" />
                   <circle
                     cx={x}
                     cy={y}
-                    r={selected ? 0.85 : 0.35}
-                    fill={POINT_COLOR}
+                    r={selected ? 0.62 : 0.3}
+                    fill={selected ? POINT_SELECTED_COLOR : POINT_COLOR}
                     fillOpacity={selected ? 1 : 0.5}
-                    stroke={selected ? "white" : "none"}
-                    strokeWidth="0.2"
+                    stroke={selected ? "var(--lime-2)" : "none"}
+                    strokeWidth="0.15"
                   />
                   <text
                     x={x}
@@ -326,9 +340,10 @@ export default function HexIconForge(): ReactElement {
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill="var(--bg)"
-                    fontSize="0.25"
+                    fontSize="0.22"
                     fontFamily="monospace"
-                    fontWeight={"bold"}
+                    fontWeight="bold"
+                    opacity={selected ? 1 : 0.75}
                   >
                     {id}
                   </text>
@@ -337,7 +352,7 @@ export default function HexIconForge(): ReactElement {
             })}
           </svg>
           {mode && (
-            <p className="mt-[0.6rem] font-mono text-[0.58rem] tracking-[0.1em] uppercase text-accent-2">
+            <p className="mt-[0.6rem] font-mono text-sm tracking-wider uppercase text-accent-2">
               {hintText[mode]}
             </p>
           )}
@@ -398,7 +413,7 @@ export default function HexIconForge(): ReactElement {
 
         <Panel title={`Formes (${shapes.length})`}>
           {shapes.length === 0 ? (
-            <p className="font-mono text-[0.6rem] text-text-faint m-0">Aucune forme.</p>
+            <p className="font-mono text-base text-text-faint m-0">Aucune forme.</p>
           ) : (
             <ul className="list-none p-0 m-0 flex flex-col gap-[0.3rem]">
               {shapes.map((s) => (
@@ -406,7 +421,7 @@ export default function HexIconForge(): ReactElement {
                   key={s.id}
                   className="flex items-center justify-between gap-[0.5rem] px-[0.5rem] py-[0.3rem] bg-bg border border-border"
                 >
-                  <span className="font-mono text-[0.55rem] text-text-dim tracking-[0.06em] overflow-hidden text-ellipsis whitespace-nowrap">
+                  <span className="font-mono text-sm text-text-dim tracking-wide overflow-hidden text-ellipsis whitespace-nowrap">
                     {s.type} · {s.pts.join(" → ")}
                   </span>
                   <Button
@@ -440,7 +455,7 @@ export default function HexIconForge(): ReactElement {
                 >
                   {shapes.map(shapeToJsx)}
                 </svg>
-                <span className="font-mono text-[0.48rem] text-text-faint">{size}px</span>
+                <span className="font-mono text-2xs text-text-faint">{size}px</span>
               </div>
             ))}
           </div>
@@ -452,7 +467,7 @@ export default function HexIconForge(): ReactElement {
         <Panel title="Importer JSON">
           <div className="flex flex-col gap-[0.5rem]">
             <textarea
-              className="w-full h-[6rem] bg-bg border border-border font-mono text-[0.55rem] text-text p-[0.5rem] resize-none outline-none focus:border-accent"
+              className="w-full h-[6rem] bg-bg border border-border font-mono text-sm text-text p-[0.5rem] resize-none outline-none focus:border-accent"
               placeholder='{ "shapes": [...] }'
               value={jsonInput}
               onChange={(e) => setJsonInput(e.target.value)}

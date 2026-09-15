@@ -40,10 +40,10 @@ export function ListRow({
     >
       {icon && <div className="shrink-0 text-text-dim">{icon}</div>}
       <div className="flex-1 min-w-0">
-        <div className="text-[0.6rem] text-text whitespace-nowrap overflow-hidden text-ellipsis">
+        <div className="text-base text-text whitespace-nowrap overflow-hidden text-ellipsis">
           {label}
         </div>
-        {sub && <div className="text-[0.5rem] text-text-dim mt-[0.1rem]">{sub}</div>}
+        {sub && <div className="text-xs text-text-dim mt-[0.1rem]">{sub}</div>}
       </div>
       {aside && <div className="flex items-center gap-[0.4rem] shrink-0">{aside}</div>}
     </div>

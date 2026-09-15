@@ -1,5 +1,3 @@
-@import "@fontsource-variable/orbitron";
-@import "@fontsource/share-tech-mono";
 @import "tailwindcss";
 @import "./tokens.css";
 
@@ -23,6 +21,21 @@
   --color-accent-2: var(--accent-2);
   --color-accent-glow: var(--accent-glow);
 
+  --color-lime: var(--lime);
+  --color-lime-2: var(--lime-2);
+  --color-lime-dim: var(--lime-dim);
+  --color-lime-glow: var(--lime-glow);
+
+  /* Familles categorielles — voir tokens.css : ordre fixe, jamais recycle. */
+  --color-cat-1: var(--cat-1);
+  --color-cat-2: var(--cat-2);
+  --color-cat-3: var(--cat-3);
+  --color-cat-4: var(--cat-4);
+  --color-cat-5: var(--cat-5);
+  --color-cat-6: var(--cat-6);
+  --color-cat-7: var(--cat-7);
+  --color-cat-8: var(--cat-8);
+
   --color-connected: var(--connected);
   --color-connected-glow: var(--connected-glow);
   --color-con-dim: var(--con-dim);
@@ -33,16 +46,43 @@
   --color-purple: var(--purple);
   --color-purple-dim: var(--purple-dim);
 
-  /* Typographie */
-  --font-mono: "Share Tech Mono", monospace;
-  --font-display: "Orbitron Variable", "Orbitron", sans-serif;
+  /* Typographie — source de verite unique. Les @font-face correspondantes,
+     avec leur `size-adjust`, sont declarees dans tokens.css. */
+  --font-mono: "Nexus Body", monospace;
+  --font-display: "Nexus Display", monospace;
+
+  /* ── Echelle de taille ──────────────────────────────────────────────────
+     Ces noms remplacent l'echelle par defaut de Tailwind, qu'aucun composant
+     n'utilisait. Les pas sont volontairement courts : la racine est a 20px,
+     donc --text-xs vaut 10px. */
+  --text-3xs: 0.4rem;
+  --text-2xs: 0.45rem;
+  --text-xs: 0.5rem;
+  --text-sm: 0.55rem;
+  --text-base: 0.6rem;
+  --text-lg: 0.75rem;
+  --text-xl: 0.9rem;
+  --text-2xl: 1.1rem;
+  --text-3xl: 1.3rem;
+
+  /* ── Echelle d'interlettrage ────────────────────────────────────────────
+     Les capitales des polices bitmap ont besoin d'air ; le pas le plus serre
+     vaut deja le `widest` de Tailwind. */
+  --tracking-wide: 0.05em;
+  --tracking-wider: 0.1em;
+  --tracking-widest: 0.15em;
+  --tracking-ultra: 0.2em;
+  --tracking-max: 0.25em;
+
+  /* ── Echelle d'interlignage ─────────────────────────────────────────── */
+  --leading-tight: 1.3;
+  --leading-snug: 1.4;
+  --leading-normal: 1.55;
 
   /* Animations */
   --animate-panel-in: panel-in 0.35s var(--ease) both;
   --animate-dot-pulse: dot-pulse 2s ease-in-out infinite;
   --animate-dot-blink: dot-blink 0.6s ease-in-out infinite;
-  --animate-spin-cw: spin-cw 8s linear infinite;
-  --animate-spin-ccw: spin-ccw 12s linear infinite;
   --animate-fade-in: fade-in 0.3s var(--ease) both;
   --animate-page-enter: page-enter 0.35s var(--ease) both;
   --animate-page-scan: page-scan 2.5s linear infinite;
@@ -77,24 +117,6 @@
     }
     50% {
       opacity: 0.15;
-    }
-  }
-
-  @keyframes spin-cw {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes spin-ccw {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(-360deg);
     }
   }
 
@@ -252,6 +274,11 @@
     line-height: 1.5;
   }
 
+  /* Les deux polices sont des bitmaps : le lissage brouille la grille. */
+  body {
+    -webkit-font-smoothing: none;
+  }
+
   a {
     color: var(--accent);
     text-decoration: none;
@@ -290,31 +317,50 @@
   }
 }
 
-/* ── Panel — triangle corner & empty body ───────────────────────────────── */
+/* ── Panel — cadre a bordure degradee ────────────────────────────────────────
+   La bordure d'un pixel est obtenue par un cadre rempli du degrade, sur lequel
+   se pose un fond opaque en retrait : `border-image` ne survit pas au
+   `clip-path` qui dessine les coins biseautes. */
 
-.panel-corner::after {
+.hud-frame {
+  padding: 1px;
+  background: var(--grad);
+}
+
+.hud-frame.panel-accent {
+  background: linear-gradient(115deg, var(--accent), var(--accent-2));
+}
+.hud-frame.panel-success {
+  background: linear-gradient(115deg, var(--lime), var(--lime-2));
+}
+.hud-frame.panel-error {
+  background: linear-gradient(115deg, var(--error), #ff7a9c);
+}
+.hud-frame.panel-warn {
+  background: linear-gradient(115deg, var(--warn), #ffd27a);
+}
+.hud-frame.panel-disabled {
+  background: var(--border);
+  opacity: 0.45;
+}
+
+.hud-inner {
+  height: 100%;
+  background: var(--surface);
+}
+
+/* Crochet d'angle — sur le coin bas-droite uniquement : le coin haut-gauche
+   est occupe par l'en-tete du panneau. */
+.hud-bracket::after {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
-  width: calc(var(--cut) * 2.4);
-  height: calc(var(--cut) * 2.4);
-  background: var(--border-hi);
-  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  right: 6px;
+  bottom: 6px;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--lime);
+  border-bottom: 2px solid var(--lime);
   pointer-events: none;
-}
-
-.panel-accent::after {
-  background: var(--accent);
-}
-.panel-success::after {
-  background: var(--connected);
-}
-.panel-error::after {
-  background: var(--error);
-}
-.panel-warn::after {
-  background: var(--warn);
 }
 
 .panel-body:empty {
@@ -323,7 +369,108 @@
     -45deg,
     transparent,
     transparent 6px,
-    rgba(255, 255, 255, 0.025) 6px,
-    rgba(255, 255, 255, 0.025) 7px
+    rgba(110, 180, 255, 0.05) 6px,
+    rgba(110, 180, 255, 0.05) 7px
   );
+}
+
+/* ── Loaders — animation du « cerveau » du logo ──────────────────────────────
+   Chaque carre du motif de tete porte --i, son rang par abscisse croissante,
+   pre-calcule dans duckPaths.ts. */
+
+@keyframes duck-scan {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  18% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.1;
+  }
+}
+
+@keyframes duck-boot {
+  0% {
+    opacity: 0.08;
+  }
+  6%,
+  72% {
+    opacity: 1;
+  }
+  82%,
+  100% {
+    opacity: 0.08;
+  }
+}
+
+@keyframes duck-glitch {
+  0%,
+  60%,
+  100% {
+    fill: var(--accent);
+    opacity: 0.85;
+  }
+  64% {
+    fill: var(--error);
+    opacity: 1;
+  }
+  68% {
+    fill: var(--lime);
+    opacity: 0.3;
+  }
+  72% {
+    fill: var(--error);
+    opacity: 1;
+  }
+  76% {
+    fill: var(--accent);
+    opacity: 0.5;
+  }
+}
+
+@keyframes duck-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.duck-scan .duck-px {
+  opacity: 0.1;
+  animation: duck-scan 1.5s var(--ease) infinite;
+  animation-delay: calc(var(--i) * 0.09s);
+}
+
+.duck-boot .duck-px {
+  opacity: 0.08;
+  animation: duck-boot 2.4s linear infinite;
+  animation-delay: calc(var(--i) * 0.11s);
+}
+
+.duck-boot .duck-outline {
+  animation: duck-breathe 2.4s ease-in-out infinite;
+}
+
+.duck-glitch .duck-px {
+  animation: duck-glitch 2s steps(1, end) infinite;
+  animation-delay: calc(var(--i) * 0.04s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duck-scan *,
+  .duck-boot *,
+  .duck-glitch * {
+    /* biome-ignore lint/complexity/noImportantStyles: neutraliser une animation
+       declarée avec une specificite superieure impose !important ; c'est
+       l'usage prevu pour prefers-reduced-motion. */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem — les etats de repos
+       des animations posent une opacite faible qu'il faut ecraser. */
+    opacity: 1 !important;
+  }
 }

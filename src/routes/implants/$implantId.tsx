@@ -44,7 +44,7 @@ function ImplantDetail() {
     <Panel title={implant.name}>
       <div className="flex flex-col gap-[0.6rem]">
         {implant.icon && <HexIcon def={implant.icon} className="w-[3rem] h-[3rem] text-accent" />}
-        <p className="text-text-dim leading-[1.6]">{implant.description}</p>
+        <p className="text-text-dim leading-normal">{implant.description}</p>
         {implant.tags.length > 0 && (
           <div className="flex gap-[0.4rem] flex-wrap">
             {implant.tags.map((tag) => (

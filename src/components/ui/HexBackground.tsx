@@ -14,6 +14,12 @@ export function HexBackground({ vignette = false }: Props): ReactElement {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    /* Lu depuis les tokens plutot que code en dur, pour que le fond suive la
+       palette si l'accent change. */
+    const rgb =
+      getComputedStyle(document.documentElement).getPropertyValue("--accent-rgb").trim() ||
+      "46, 155, 255";
+
     function draw() {
       const parent = canvas!.parentElement;
       if (!parent) return;
@@ -53,14 +59,14 @@ export function HexBackground({ vignette = false }: Props): ReactElement {
             i === 0 ? ctx!.moveTo(x, y) : ctx!.lineTo(x, y);
           }
           ctx!.closePath();
-          ctx!.strokeStyle = `rgba(46,106,255,${alpha})`;
+          ctx!.strokeStyle = `rgba(${rgb},${alpha})`;
           ctx!.lineWidth = 0.5;
           ctx!.stroke();
         }
       }
 
       const grad = ctx!.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.5);
-      grad.addColorStop(0, "rgba(46,106,255,0.04)");
+      grad.addColorStop(0, `rgba(${rgb},0.05)`);
       grad.addColorStop(1, "rgba(0,0,0,0)");
       ctx!.fillStyle = grad;
       ctx!.fillRect(0, 0, w, h);

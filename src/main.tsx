@@ -4,9 +4,16 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { checkBuildVersion } from "./boot";
+import { RouteError, RoutePending } from "./components/layout/RouteStates";
 import { routeTree } from "./routeTree.gen";
+import { loadFonts } from "./styles/fonts";
+
+window.addEventListener("vite:preloadError", () => {
+  window.location.reload();
+});
 
 await checkBuildVersion();
+void loadFonts();
 
 const queryClient = new QueryClient();
 
@@ -15,6 +22,8 @@ const router = createRouter({
   routeTree,
   basepath,
   context: { queryClient },
+  defaultPendingComponent: RoutePending,
+  defaultErrorComponent: RouteError,
 });
 
 declare module "@tanstack/react-router" {

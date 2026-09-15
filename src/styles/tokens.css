@@ -1,50 +1,93 @@
 :root {
-  /* Backgrounds */
-  --bg: #07090d;
-  --surface: #0c1018;
-  --surface-2: #111620;
-  --surface-3: #121a28;
+  /* ── Fonds ──────────────────────────────────────────────────────────────
+     Bleu nuit sature plutot que le quasi-neutre precedent. */
+  --bg: #050a11;
+  --surface: #0a1521;
+  --surface-2: #0e1d2d;
+  --surface-3: #13273c;
 
-  /* Borders */
-  --border: #1a2035;
-  --border-hi: #253050;
+  /* ── Bordures ─────────────────────────────────────────────────────────── */
+  --border: #16304d;
+  --border-hi: #1f4a78;
 
-  /* Text */
-  --text: #c8d0e0;
-  --text-dim: #7890ae;
-  --text-faint: #4e6584;
+  /* ── Texte ────────────────────────────────────────────────────────────── */
+  --text: #cfe3f5;
+  --text-dim: #6f9ec6;
+  --text-faint: #456e94;
 
-  /* Accent */
-  --accent: #2e6aff;
-  --accent-2: #3d80ff;
-  --accent-glow: rgba(46, 106, 255, 0.12);
+  /* ── Accent bleu ──────────────────────────────────────────────────────── */
+  --accent: #2e9bff;
+  --accent-2: #63b8ff;
+  --accent-glow: rgba(46, 155, 255, 0.12);
+  /* Composantes brutes, pour le canvas de HexBackground qui compose ses
+     propres rgba() et ne peut pas consommer --accent tel quel. */
+  --accent-rgb: 46, 155, 255;
 
-  /* Semantic */
-  --connected: #00e676;
-  --con-dim: rgba(0, 230, 118, 0.1);
-  --connected-glow: rgba(0, 230, 118, 0.25);
-  --error: #ff2055;
-  --err-dim: rgba(255, 32, 85, 0.1);
-  --warn: #ffab00;
-  --warn-dim: rgba(255, 171, 0, 0.1);
+  /* ── Lime ───────────────────────────────────────────────────────────────
+     Seconde couleur de marque, plus seulement l'etat « connecte ».
+     --connected reste un alias : il porte le sens semantique et les
+     composants d'etat continuent de l'utiliser. */
+  --lime: #8ce02c;
+  --lime-2: #a8ee55;
+  --lime-dark: #4f8a10;
+  --lime-dim: rgba(140, 224, 44, 0.1);
+  --lime-glow: rgba(140, 224, 44, 0.3);
+  /* Composantes brutes, pour les rgba() composees a la main. */
+  --lime-rgb: 140, 224, 44;
+
+  --connected: var(--lime);
+  --con-dim: var(--lime-dim);
+  --connected-glow: var(--lime-glow);
+
+  /* ── Semantique ───────────────────────────────────────────────────────── */
+  --error: #ff2f5e;
+  --err-dim: rgba(255, 47, 94, 0.1);
+  --warn: #ffb020;
+  --warn-dim: rgba(255, 176, 32, 0.1);
   --purple: #a855f7;
   --purple-dim: rgba(168, 85, 247, 0.1);
 
-  /* Layout */
-  --topbar-h: 48px;
-  --sidebar-w: 210px;
+  /* ── Familles categorielles ─────────────────────────────────────────────
+     Huit teintes pour distinguer des entites entre elles — fronts, series,
+     tags. Distinctes des couleurs de marque (--accent, --lime), qui sont trop
+     claires pour servir de remplissage sur fond sombre, et des couleurs de
+     statut ci-dessus, dont le sens est reserve.
+
+     L'ORDRE EST LE MECANISME DE SECURITE : les slots s'attribuent dans
+     l'ordre, de --cat-1 vers --cat-8, et ne se recyclent jamais. Au-dela de
+     huit entites, regrouper les moins actives plutot qu'ajouter une teinte.
+
+     Mesure sur fond --surface (paires adjacentes, mode sombre) :
+     CVD ΔE 16.5 (cible 8), vision normale ΔE 26.2 (plancher 15).
+     Les trois premiers slots tiennent aussi en « toutes paires » — le cas des
+     nuages de points, ou n'importe quelle paire peut se toucher. */
+  --cat-1: #ca51a6; /* magenta */
+  --cat-2: #599b00; /* olive   */
+  --cat-3: #0088ed; /* bleu    */
+  --cat-4: #de4e49; /* rouge   */
+  --cat-5: #009ad3; /* cyan    */
+  --cat-6: #b47b00; /* ambre   */
+  --cat-7: #9269e4; /* violet  */
+  --cat-8: #00a785; /* teal    */
+
+  /* ── Degrade signature bleu → lime ────────────────────────────────────── */
+  --grad: linear-gradient(115deg, var(--accent) 0%, var(--accent) 30%, var(--lime) 100%);
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  --topbar-h: 52px;
+  --sidebar-w: 218px;
   --footer-h: 36px;
   --content-p: 1.25rem;
 
-  /* Corner cut sizes */
+  /* ── Coins biseautes ──────────────────────────────────────────────────── */
   --cut: 10px;
   --cut-sm: 6px;
   --cut-lg: 16px;
 
-  /* Easing */
+  /* ── Easing ───────────────────────────────────────────────────────────── */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography */
-  --font-mono: "Share Tech Mono", monospace;
-  --font-display: "Orbitron Variable", "Orbitron", sans-serif;
+  /* --font-mono et --font-display sont definies dans le bloc @theme de
+     global.css, qui les expose a la fois comme utilitaires Tailwind et comme
+     variables CSS. */
 }

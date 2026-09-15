@@ -12,7 +12,7 @@ export function Input({ label, error, className, id, ...rest }: Props): ReactEle
       {label && (
         <label
           className={cx(
-            "font-mono text-[0.5rem] tracking-[0.15em] uppercase",
+            "font-mono text-xs tracking-widest uppercase",
             error ? "text-error" : "text-text-dim",
           )}
           htmlFor={id}
@@ -23,13 +23,13 @@ export function Input({ label, error, className, id, ...rest }: Props): ReactEle
       <input
         id={id}
         className={cx(
-          "w-full px-[0.85rem] py-[0.6rem] bg-surface-2 border text-text text-[0.6rem] font-mono outline-none cut-sm placeholder:text-text-faint focus:border-accent focus:shadow-[0_0_0_1px_rgba(46,106,255,0.2),inset_0_0_12px_rgba(46,106,255,0.04)] [transition:border-color_0.15s_var(--ease),box-shadow_0.15s_var(--ease)]",
+          "w-full px-[0.85rem] py-[0.6rem] bg-surface-2 border text-text text-base font-mono outline-none cut-sm placeholder:text-text-faint focus:border-accent focus:shadow-[0_0_0_1px_rgba(46,106,255,0.2),inset_0_0_12px_rgba(46,106,255,0.04)] [transition:border-color_0.15s_var(--ease),box-shadow_0.15s_var(--ease)]",
           error ? "border-[rgba(255,32,85,0.5)]" : "border-border-hi",
           className,
         )}
         {...rest}
       />
-      {error && <span className="text-[0.48rem] text-error tracking-[0.05em]">{error}</span>}
+      {error && <span className="text-2xs text-error tracking-wide">{error}</span>}
     </div>
   );
 }

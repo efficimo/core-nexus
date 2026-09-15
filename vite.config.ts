@@ -26,8 +26,8 @@ export default defineConfig({
         name: "Core Nexus",
         short_name: "CoreNexus",
         description: "Tableau de bord Pixel Architect",
-        theme_color: "#07090d",
-        background_color: "#07090d",
+        theme_color: "#050a11",
+        background_color: "#050a11",
         display: "standalone",
         start_url: base,
         icons: [

@@ -21,7 +21,7 @@ export function ToggleGroup<T extends string>({
           key={opt.value}
           type="button"
           className={cx(
-            "inline-flex items-center px-[0.6rem] py-[0.25rem] font-mono text-[0.52rem] tracking-[0.08em] uppercase border cursor-pointer transition-all duration-[0.15s] cut-sm",
+            "inline-flex items-center px-[0.6rem] py-[0.25rem] font-mono text-xs tracking-wider uppercase border cursor-pointer transition-all duration-[0.15s] cut-sm",
             value === opt.value
               ? "border-accent text-accent-2 bg-accent-glow"
               : "border-border-hi text-text-dim bg-transparent hover:border-text-dim hover:text-text",

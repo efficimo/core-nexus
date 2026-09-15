@@ -43,17 +43,17 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
       />
 
       <div className="flex items-center gap-[0.4rem]">
-        <span className="font-mono text-[0.55rem] tracking-[0.15em] text-text-faint bg-surface-2 border border-border px-[5px] py-[1px] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))]">
+        <span className="font-mono text-sm tracking-widest text-text-faint bg-surface-2 border border-border px-[5px] py-[1px] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))]">
           {target.kind === "mission" ? target.mission.source.toUpperCase() : "FRONT"}
         </span>
         {target.kind === "mission" && target.mission.sourceRef && (
-          <span className="font-mono text-[0.55rem] text-text-faint tracking-[0.08em] flex-1">
+          <span className="font-mono text-sm text-text-faint tracking-wider flex-1">
             {target.mission.sourceRef}
           </span>
         )}
         <button
           type="button"
-          className="ml-auto bg-transparent border-0 text-text-faint text-[0.6rem] cursor-pointer px-[4px] py-[2px] leading-none transition-colors duration-150 hover:text-text"
+          className="ml-auto bg-transparent border-0 text-text-faint text-base cursor-pointer px-[4px] py-[2px] leading-none transition-colors duration-150 hover:text-text"
           onClick={onClose}
           aria-label="Fermer"
         >
@@ -61,7 +61,7 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
         </button>
       </div>
 
-      <div className="font-display text-[0.75rem] font-bold text-text tracking-[0.08em] leading-[1.3]">
+      <div className="font-display text-lg font-bold text-text tracking-wider leading-tight">
         {target.kind === "mission" ? target.mission.title : target.epic.title}
       </div>
 
@@ -72,14 +72,14 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
               className="w-[6px] h-[6px] rounded-[1px] [transform:rotate(45deg)] shrink-0"
               style={{ background: epicColor }}
             />
-            <span className="font-mono text-[0.58rem] text-text-dim tracking-[0.06em]">
+            <span className="font-mono text-sm text-text-dim tracking-wide">
               {target.epicTitle}
             </span>
           </div>
 
           {target.mission.description && (
             <p
-              className="font-mono text-[0.6rem] text-text-dim leading-[1.55] m-0 border-l-2 pl-[0.5rem]"
+              className="font-mono text-base text-text-dim leading-normal m-0 border-l-2 pl-[0.5rem]"
               style={{ borderLeftColor: "var(--epic-color, var(--border))" }}
             >
               {target.mission.description}
@@ -87,9 +87,9 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
           )}
 
           <div className="flex flex-col gap-[0.15rem]">
-            <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">ÉTAT</span>
+            <span className="font-mono text-xs text-text-faint tracking-widest">ÉTAT</span>
             <span
-              className="font-mono text-[0.6rem] tracking-[0.1em] font-semibold"
+              className="font-mono text-base tracking-wider font-semibold"
               style={{ color: epicColor }}
             >
               {target.stateLabel.toUpperCase()}
@@ -98,14 +98,12 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
 
           {target.mission.assignees.length > 0 && (
             <div className="flex flex-col gap-[0.3rem]">
-              <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">
-                ASSIGNÉS
-              </span>
+              <span className="font-mono text-xs text-text-faint tracking-widest">ASSIGNÉS</span>
               <div className="flex flex-wrap gap-[0.3rem]">
                 {target.mission.assignees.map((a) => (
                   <span
                     key={a}
-                    className="font-mono text-[0.55rem] text-text-dim bg-surface-2 border border-border-hi px-[6px] py-[1px] tracking-[0.06em] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))]"
+                    className="font-mono text-sm text-text-dim bg-surface-2 border border-border-hi px-[6px] py-[1px] tracking-wide [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))]"
                   >
                     {a}
                   </span>
@@ -115,19 +113,19 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
           )}
 
           <div className="flex flex-col gap-[0.35rem] pt-[0.2rem] border-t border-border">
-            <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">TAGS</span>
+            <span className="font-mono text-xs text-text-faint tracking-widest">TAGS</span>
             {target.mission.tags.length > 0 && (
               <div className="flex flex-wrap gap-[0.3rem]">
                 {target.mission.tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-[1px] font-mono text-[0.5rem] text-text-faint tracking-[0.06em] bg-surface-2 border border-border px-[4px] py-[1px] pl-[3px] [clip-path:polygon(0_0,calc(100%-3px)_0,100%_3px,100%_100%,3px_100%,0_calc(100%-3px))]"
+                    className="inline-flex items-center gap-[1px] font-mono text-xs text-text-faint tracking-wide bg-surface-2 border border-border px-[4px] py-[1px] pl-[3px] [clip-path:polygon(0_0,calc(100%-3px)_0,100%_3px,100%_100%,3px_100%,0_calc(100%-3px))]"
                   >
                     <span className="opacity-40 mr-[1px]">#</span>
                     {t}
                     <button
                       type="button"
-                      className="bg-transparent border-0 text-text-faint text-[0.6rem] leading-none cursor-pointer pl-[3px] py-0 opacity-50 transition-[opacity,color] duration-[120ms] hover:opacity-100 hover:text-error"
+                      className="bg-transparent border-0 text-text-faint text-base leading-none cursor-pointer pl-[3px] py-0 opacity-50 transition-[opacity,color] duration-[120ms] hover:opacity-100 hover:text-error"
                       onClick={() => onTagRemove?.(t)}
                       aria-label={`Supprimer le tag ${t}`}
                     >
@@ -140,7 +138,7 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
             <div className="flex gap-[0.3rem] items-center">
               <input
                 type="text"
-                className="flex-1 bg-surface-2 border border-border text-text-dim font-mono text-[0.55rem] tracking-[0.06em] px-[6px] py-[3px] outline-none [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color] duration-150 placeholder:text-text-faint placeholder:opacity-60 focus:[border-color:var(--epic-color,var(--accent))]"
+                className="flex-1 bg-surface-2 border border-border text-text-dim font-mono text-sm tracking-wide px-[6px] py-[3px] outline-none [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color] duration-150 placeholder:text-text-faint placeholder:opacity-60 focus:[border-color:var(--epic-color,var(--accent))]"
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={(e) => {
@@ -154,7 +152,7 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
               />
               <button
                 type="button"
-                className="bg-transparent border border-border text-text-dim text-[0.9rem] leading-none cursor-pointer px-[7px] py-[2px] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,color] duration-150 hover:[border-color:var(--epic-color,var(--accent))] hover:text-text"
+                className="bg-transparent border border-border text-text-dim text-xl leading-none cursor-pointer px-[7px] py-[2px] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,color] duration-150 hover:[border-color:var(--epic-color,var(--accent))] hover:text-text"
                 onClick={commitTag}
               >
                 +
@@ -166,7 +164,7 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
         <>
           {target.epic.description && (
             <p
-              className="font-mono text-[0.6rem] text-text-dim leading-[1.55] m-0 border-l-2 pl-[0.5rem]"
+              className="font-mono text-base text-text-dim leading-normal m-0 border-l-2 pl-[0.5rem]"
               style={{ borderLeftColor: "var(--epic-color, var(--border))" }}
             >
               {target.epic.description}
@@ -174,11 +172,11 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
           )}
 
           <div className="flex flex-col gap-[0.15rem]">
-            <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">
+            <span className="font-mono text-xs text-text-faint tracking-widest">
               DIRECTIVES ACTIVES
             </span>
             <span
-              className="font-mono text-[0.6rem] tracking-[0.1em] font-semibold"
+              className="font-mono text-base tracking-wider font-semibold"
               style={{ color: epicColor }}
             >
               {target.epic.missions.filter((m) => !m.integrated).length}
@@ -186,19 +184,19 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
           </div>
 
           <div className="flex flex-col gap-[0.15rem]">
-            <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">
+            <span className="font-mono text-xs text-text-faint tracking-widest">
               INTÉGRÉES AU NEXUS
             </span>
             <span
-              className="font-mono text-[0.6rem] tracking-[0.1em] font-semibold"
-              style={{ color: "var(--connected, #00e5a0)" }}
+              className="font-mono text-base tracking-wider font-semibold"
+              style={{ color: "var(--connected)" }}
             >
               {target.epic.missions.filter((m) => m.integrated).length}
             </span>
           </div>
 
           <div className="flex flex-col gap-[0.35rem] pt-[0.2rem] border-t border-border">
-            <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">ÉTATS</span>
+            <span className="font-mono text-xs text-text-faint tracking-widest">ÉTATS</span>
             <div className="flex flex-col gap-[0.2rem] mt-[0.2rem]">
               {target.epic.states.map((state) => {
                 const count = target.epic.missions.filter(
@@ -210,11 +208,11 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
                     className="flex items-center justify-between gap-[0.5rem] px-[0.4rem] py-[0.2rem] bg-surface-2 border-l-2 [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,0_100%)]"
                     style={{ borderLeftColor: "var(--epic-color, var(--border))" }}
                   >
-                    <span className="font-mono text-[0.5rem] tracking-[0.12em] text-text-dim">
+                    <span className="font-mono text-xs tracking-widest text-text-dim">
                       {state.label.toUpperCase()}
                     </span>
                     <span
-                      className="font-display text-[0.65rem] font-bold leading-none"
+                      className="font-display text-base font-bold leading-none"
                       style={{ color: epicColor }}
                     >
                       {count}
@@ -226,19 +224,19 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
           </div>
 
           <div className="flex flex-col gap-[0.35rem] pt-[0.2rem] border-t border-border">
-            <span className="font-mono text-[0.5rem] text-text-faint tracking-[0.15em]">TAGS</span>
+            <span className="font-mono text-xs text-text-faint tracking-widest">TAGS</span>
             {target.epic.tags.length > 0 && (
               <div className="flex flex-wrap gap-[0.3rem]">
                 {target.epic.tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-[1px] font-mono text-[0.5rem] text-text-faint tracking-[0.06em] bg-surface-2 border border-border px-[4px] py-[1px] pl-[3px] [clip-path:polygon(0_0,calc(100%-3px)_0,100%_3px,100%_100%,3px_100%,0_calc(100%-3px))]"
+                    className="inline-flex items-center gap-[1px] font-mono text-xs text-text-faint tracking-wide bg-surface-2 border border-border px-[4px] py-[1px] pl-[3px] [clip-path:polygon(0_0,calc(100%-3px)_0,100%_3px,100%_100%,3px_100%,0_calc(100%-3px))]"
                   >
                     <span className="opacity-40 mr-[1px]">#</span>
                     {t}
                     <button
                       type="button"
-                      className="bg-transparent border-0 text-text-faint text-[0.6rem] leading-none cursor-pointer pl-[3px] py-0 opacity-50 transition-[opacity,color] duration-[120ms] hover:opacity-100 hover:text-error"
+                      className="bg-transparent border-0 text-text-faint text-base leading-none cursor-pointer pl-[3px] py-0 opacity-50 transition-[opacity,color] duration-[120ms] hover:opacity-100 hover:text-error"
                       onClick={() => onTagRemove?.(t)}
                       aria-label={`Supprimer le tag ${t}`}
                     >
@@ -251,7 +249,7 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
             <div className="flex gap-[0.3rem] items-center">
               <input
                 type="text"
-                className="flex-1 bg-surface-2 border border-border text-text-dim font-mono text-[0.55rem] tracking-[0.06em] px-[6px] py-[3px] outline-none [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color] duration-150 placeholder:text-text-faint placeholder:opacity-60 focus:[border-color:var(--epic-color,var(--accent))]"
+                className="flex-1 bg-surface-2 border border-border text-text-dim font-mono text-sm tracking-wide px-[6px] py-[3px] outline-none [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color] duration-150 placeholder:text-text-faint placeholder:opacity-60 focus:[border-color:var(--epic-color,var(--accent))]"
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={(e) => {
@@ -265,7 +263,7 @@ export function MissionDetail({ target, onClose, onTagAdd, onTagRemove }: Props)
               />
               <button
                 type="button"
-                className="bg-transparent border border-border text-text-dim text-[0.9rem] leading-none cursor-pointer px-[7px] py-[2px] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,color] duration-150 hover:[border-color:var(--epic-color,var(--accent))] hover:text-text"
+                className="bg-transparent border border-border text-text-dim text-xl leading-none cursor-pointer px-[7px] py-[2px] [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,color] duration-150 hover:[border-color:var(--epic-color,var(--accent))] hover:text-text"
                 onClick={commitTag}
               >
                 +

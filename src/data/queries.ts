@@ -14,9 +14,11 @@ async function fetchData<T>(name: string, schema: z.ZodType<T>): Promise<T> {
   const dataKey = LocalStorage.get("#core-nexus/data-key");
   if (!dataKey) throw new Error("No data key found in LocalStorage.");
 
-  const jsonRes = await fetch(`${BASE_URL}/${name}.json`);
-  if (jsonRes.ok && jsonRes.headers.get("content-type")?.includes("application/json")) {
-    return schema.parse(await jsonRes.json());
+  if (import.meta.env.DEV) {
+    const jsonRes = await fetch(`${BASE_URL}/${name}.json`);
+    if (jsonRes.ok && jsonRes.headers.get("content-type")?.includes("application/json")) {
+      return schema.parse(await jsonRes.json());
+    }
   }
 
   const encRes = await fetch(`${BASE_URL}/${name}.json.enc`);

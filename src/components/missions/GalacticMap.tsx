@@ -328,18 +328,18 @@ export function GalacticMap({
       >
         <defs>
           <radialGradient id="coreGlow">
-            <stop offset="0%" stopColor="#2e6aff" stopOpacity="0.95" />
-            <stop offset="55%" stopColor="#1a3a8a" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#07090d" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.95" />
+            <stop offset="55%" stopColor="var(--surface-3)" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="var(--bg)" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="coreGlowHot">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
-            <stop offset="40%" stopColor="#2e6aff" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#07090d" stopOpacity="0" />
+            <stop offset="40%" stopColor="var(--accent)" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="var(--bg)" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="bgGlow">
-            <stop offset="0%" stopColor="#0e1828" stopOpacity="1" />
-            <stop offset="100%" stopColor="#07090d" stopOpacity="1" />
+            <stop offset="0%" stopColor="var(--surface-2)" stopOpacity="1" />
+            <stop offset="100%" stopColor="var(--bg)" stopOpacity="1" />
           </radialGradient>
           <filter id="pinGlow" x="-80%" y="-80%" width="260%" height="260%">
             <feGaussianBlur stdDeviation="2.5" result="b" />
@@ -536,8 +536,8 @@ export function GalacticMap({
           cy={CY}
           rx={INNER_R}
           ry={INNER_R * TILT}
-          fill="#07090d"
-          stroke={overCenter ? "white" : "#2e6aff"}
+          fill="var(--bg)"
+          stroke={overCenter ? "white" : "var(--accent)"}
           strokeWidth={overCenter ? "2" : "1.5"}
           strokeDasharray="6 4"
           strokeOpacity={overCenter ? "0.7" : "1"}
@@ -548,7 +548,7 @@ export function GalacticMap({
           rx={INNER_R - 14}
           ry={(INNER_R - 14) * TILT}
           fill="none"
-          stroke="#2e6aff"
+          stroke="var(--accent)"
           strokeWidth="0.8"
           strokeOpacity="0.4"
         />
@@ -562,7 +562,7 @@ export function GalacticMap({
           style={coreLabelCSS}
         >
           <span
-            className={`font-display text-[0.5rem] font-bold tracking-[0.25em] transition-[color,text-shadow] duration-200${isHot ? " [text-shadow:0_0_10px_rgba(255,255,255,0.8)]" : ""}`}
+            className={`font-display text-xs font-bold tracking-max transition-[color,text-shadow] duration-200${isHot ? " [text-shadow:0_0_10px_rgba(255,255,255,0.8)]" : ""}`}
             style={{ color: isHot ? "white" : "var(--text-dim)" }}
           >
             CORE
@@ -573,10 +573,10 @@ export function GalacticMap({
         {integratedCounters.map(({ epic, count, css }) => (
           <span
             key={epic.id}
-            className="-translate-x-1/2 -translate-y-1/2 absolute flex items-center gap-[2px] font-mono text-[0.48rem] font-semibold tracking-[0.06em] px-[4px] py-[1px] bg-[rgba(7,9,13,0.85)] border [clip-path:polygon(0_0,calc(100%-3px)_0,100%_3px,100%_100%,3px_100%,0_calc(100%-3px))]"
+            className="-translate-x-1/2 -translate-y-1/2 absolute flex items-center gap-[2px] font-mono text-2xs font-semibold tracking-wide px-[4px] py-[1px] bg-[rgba(5,10,17,0.85)] border [clip-path:polygon(0_0,calc(100%-3px)_0,100%_3px,100%_100%,3px_100%,0_calc(100%-3px))]"
             style={{ ...css, color: epic.color, borderColor: `${epic.color}55` }}
           >
-            <span className="text-[0.4rem] leading-none">◆</span>
+            <span className="text-3xs leading-none">◆</span>
             {count}
           </span>
         ))}

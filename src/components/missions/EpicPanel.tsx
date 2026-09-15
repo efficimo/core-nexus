@@ -30,10 +30,10 @@ export function EpicPanel({
       <div className="absolute top-0 right-0 w-[26px] h-[26px] bg-border-hi [clip-path:polygon(100%_0,100%_100%,0_0)] pointer-events-none" />
 
       <div className="flex items-center justify-between pb-[0.4rem] border-b border-border mb-[0.05rem]">
-        <span className="font-mono text-[0.48rem] tracking-[0.2em] text-text-faint">
+        <span className="font-mono text-2xs tracking-ultra text-text-faint">
           FRONTS DE CAMPAGNE
         </span>
-        <span className="font-display text-[0.75rem] font-bold text-accent leading-none">
+        <span className="font-display text-lg font-bold text-accent leading-none">
           {epics.length}
         </span>
       </div>
@@ -42,13 +42,13 @@ export function EpicPanel({
         (startIndex > 0 ? (
           <button
             type="button"
-            className="group flex items-center gap-[0.4rem] bg-surface-2 border border-border px-[0.5rem] py-[0.28rem] cursor-pointer [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,background] duration-150 w-full hover:bg-[rgba(46,106,255,0.08)] hover:border-[rgba(46,106,255,0.45)]"
+            className="group flex items-center gap-[0.4rem] bg-surface-2 border border-border px-[0.5rem] py-[0.28rem] cursor-pointer [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,background] duration-150 w-full hover:bg-[var(--accent-glow)] hover:border-[rgba(46,155,255,0.45)]"
             onClick={() => onStartIndexChange(Math.max(0, startIndex - EPICS_PAGE_SIZE))}
           >
-            <span className="font-mono text-[0.5rem] text-text-faint leading-none shrink-0 transition-colors duration-150 group-hover:text-accent">
+            <span className="font-mono text-xs text-text-faint leading-none shrink-0 transition-colors duration-150 group-hover:text-accent">
               ▲
             </span>
-            <span className="font-mono text-[0.44rem] tracking-[0.1em] text-text-faint flex-1 text-center whitespace-nowrap">
+            <span className="font-mono text-2xs tracking-wider text-text-faint flex-1 text-center whitespace-nowrap">
               {startIndex} FRONT{startIndex > 1 ? "S" : ""} ANTÉRIEUR{startIndex > 1 ? "S" : ""}
             </span>
           </button>
@@ -90,12 +90,12 @@ export function EpicPanel({
                 className="w-[6px] h-[6px] rounded-[1px] [transform:rotate(45deg)] shrink-0 mt-[0.2rem]"
                 style={{ background: epic.color }}
               />
-              <span className="font-display text-[0.55rem] font-bold tracking-[0.1em] text-text leading-[1.4] flex-1 line-clamp-2 text-left">
+              <span className="font-display text-sm font-bold tracking-wider text-text leading-snug flex-1 line-clamp-2 text-left">
                 {epic.title}
               </span>
               {active > 0 && (
                 <span
-                  className="font-mono text-[0.48rem] tracking-[0.04em] font-semibold shrink-0 opacity-80 mt-[0.15rem]"
+                  className="font-mono text-2xs tracking-wide font-semibold shrink-0 opacity-80 mt-[0.15rem]"
                   style={{ color: epic.color }}
                 >
                   {active}
@@ -110,13 +110,13 @@ export function EpicPanel({
         (nextCount > 0 ? (
           <button
             type="button"
-            className="group flex items-center gap-[0.4rem] bg-surface-2 border border-border px-[0.5rem] py-[0.28rem] cursor-pointer [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,background] duration-150 w-full hover:bg-[rgba(46,106,255,0.08)] hover:border-[rgba(46,106,255,0.45)]"
+            className="group flex items-center gap-[0.4rem] bg-surface-2 border border-border px-[0.5rem] py-[0.28rem] cursor-pointer [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,4px_100%,0_calc(100%-4px))] transition-[border-color,background] duration-150 w-full hover:bg-[var(--accent-glow)] hover:border-[rgba(46,155,255,0.45)]"
             onClick={() => onStartIndexChange(startIndex + EPICS_PAGE_SIZE)}
           >
-            <span className="font-mono text-[0.44rem] tracking-[0.1em] text-text-faint flex-1 text-center whitespace-nowrap">
+            <span className="font-mono text-2xs tracking-wider text-text-faint flex-1 text-center whitespace-nowrap">
               {nextCount} FRONT{nextCount > 1 ? "S" : ""} SUIVANT{nextCount > 1 ? "S" : ""}
             </span>
-            <span className="font-mono text-[0.5rem] text-text-faint leading-none shrink-0 transition-colors duration-150 group-hover:text-accent">
+            <span className="font-mono text-xs text-text-faint leading-none shrink-0 transition-colors duration-150 group-hover:text-accent">
               ▼
             </span>
           </button>

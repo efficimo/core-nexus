@@ -5,7 +5,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-auth",
     title: "Front Authentification",
     description: "Sécurisation des accès et protocoles d'identité du Core Nexus",
-    color: "#2e6aff",
+    color: "#6f9600",
     tags: ["sécurité", "backend", "critique"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -160,7 +160,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-ui",
     title: "Front Interface Tactique",
     description: "Refonte du système d'affichage et des terminaux de combat",
-    color: "#a855f7",
+    color: "#009dc2",
     tags: ["frontend", "design"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -216,7 +216,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-deploy",
     title: "Front Déploiement",
     description: "Automatisation des procédures de déploiement Nexus",
-    color: "#ffab00",
+    color: "#9769dc",
     tags: ["devops", "infra"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -261,7 +261,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-surveillance",
     title: "Front Surveillance",
     description: "Détection des anomalies et intrusions Bugs",
-    color: "#00bcd4",
+    color: "#00a2ae",
     tags: ["monitoring", "sécurité"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -297,7 +297,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-purge",
     title: "Front Purge des Bugs",
     description: "Élimination des corruptions et restauration des systèmes infectés",
-    color: "#ff2055",
+    color: "#8371e5",
     tags: ["bugfix", "critique"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -453,7 +453,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-archivage",
     title: "Front Archivage",
     description: "Conservation et indexation des données opérationnelles",
-    color: "#00e676",
+    color: "#00a498",
     tags: ["data", "lore"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -487,7 +487,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-comms",
     title: "Front Communication",
     description: "Canaux de transmission chiffrés entre les unités",
-    color: "#ff6b35",
+    color: "#6b79ea",
     tags: ["réseau", "chiffrement"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -532,7 +532,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-intel",
     title: "Front Renseignement",
     description: "Collecte et analyse des données ennemies pour anticiper les offensives",
-    color: "#e040fb",
+    color: "#00a580",
     tags: ["intel", "analyse"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -577,7 +577,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-forge",
     title: "Front Forge des Armes",
     description: "Développement et amélioration des outils offensifs du Nexus",
-    color: "#ff8f00",
+    color: "#4c81eb",
     tags: ["forge", "outils"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -612,7 +612,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-nexus-ia",
     title: "Front IA Tactique",
     description: "Intégration des modules d'intelligence artificielle dans le Nexus",
-    color: "#00e5ff",
+    color: "#00a466",
     tags: ["ia", "tactique"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -657,7 +657,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-portail",
     title: "Front Portail Nexus",
     description: "Interface publique d'accès et de recrutement des Architectes",
-    color: "#69f0ae",
+    color: "#1289e7",
     tags: ["portail", "recrutement"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -692,7 +692,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-energie",
     title: "Front Énergie Warp",
     description: "Gestion et optimisation des sources d'énergie du Nexus",
-    color: "#ffd600",
+    color: "#03a14a",
     tags: ["énergie", "warp"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -727,7 +727,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-reliques",
     title: "Front Reliques Perdues",
     description: "Récupération des fragments technologiques des Architectes anciens",
-    color: "#ef9a9a",
+    color: "#0091df",
     tags: ["reliques", "lore"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -762,7 +762,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-protocoles",
     title: "Front Protocoles Nexus",
     description: "Standardisation des procédures opérationnelles du Nexus",
-    color: "#b0bec5",
+    color: "#4d9c25",
     tags: ["protocoles", "standards"],
     states: [
       { id: "dormante", label: "Dormante" },
@@ -807,7 +807,7 @@ export const MOCK_EPICS: Epic[] = [
     id: "front-nexus-core",
     title: "Front Nexus Core",
     description: "Maintenance et évolution du cœur du système",
-    color: "#3d80ff",
+    color: "#0098d2",
     tags: ["core", "performance"],
     states: [
       { id: "dormante", label: "Dormante" },

@@ -29,10 +29,10 @@ function ArchitectDetail() {
             <Badge variant="accent">{architect.class}</Badge>
             <Badge>Niveau {architect.level}</Badge>
           </div>
-          <p className="text-text-dim italic leading-[1.6]">{architect.title}</p>
-          <p className="text-text-dim leading-[1.6]">{architect.lore}</p>
+          <p className="text-text-dim italic leading-normal">{architect.title}</p>
+          <p className="text-text-dim leading-normal">{architect.lore}</p>
           {architect.quote && (
-            <p className="text-text-faint text-[0.45rem] tracking-[0.1em]">« {architect.quote} »</p>
+            <p className="text-text-faint text-2xs tracking-wider">« {architect.quote} »</p>
           )}
           {architect.skills.length > 0 && (
             <div className="flex gap-[0.4rem] flex-wrap">

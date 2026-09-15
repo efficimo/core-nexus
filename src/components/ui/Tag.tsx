@@ -10,7 +10,9 @@ export function Tag({ children, className }: Props): ReactElement {
   return (
     <span
       className={cx(
-        "inline-flex items-center px-[0.4rem] py-[0.1rem] text-[0.45rem] font-mono tracking-[0.18em] uppercase text-text-dim border border-text-faint rounded-[1px]",
+        /* font-mono (VT323) et non font-display : les tags sont nombreux et
+           souvent longs, la police de titre y serait illisible. */
+        "inline-flex items-center px-[0.4rem] py-[0.1rem] text-xs font-mono tracking-wider uppercase text-text-dim border border-text-faint",
         className,
       )}
     >

@@ -24,7 +24,7 @@ function SparkDetail() {
         <div className="flex items-center gap-[0.5rem] flex-wrap">
           <Badge variant={statusVariant[spark.status]}>{spark.status}</Badge>
         </div>
-        <p className="text-text-dim leading-[1.6]">{spark.description}</p>
+        <p className="text-text-dim leading-normal">{spark.description}</p>
         {spark.tags.length > 0 && (
           <div className="flex gap-[0.4rem] flex-wrap">
             {spark.tags.map((tag) => (

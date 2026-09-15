@@ -136,40 +136,32 @@ function MissionsPage() {
     <div className="grid [grid-template-rows:auto_1fr] [grid-template-columns:240px_1fr_260px] gap-y-[0.75rem] gap-x-4 h-full overflow-hidden">
       <div className="[grid-column:1/-1] flex items-end justify-between">
         <div className="flex flex-col gap-[0.15rem]">
-          <span className="font-mono text-[0.5rem] tracking-[0.25em] text-text-faint">
-            CARTE GALACTIQUE
-          </span>
-          <h1 className="font-display text-[1.1rem] font-bold tracking-[0.12em] text-text m-0">
+          <span className="font-mono text-xs tracking-max text-text-faint">CARTE GALACTIQUE</span>
+          <h1 className="font-display text-2xl font-bold tracking-widest text-text m-0">
             Directives de Campagne
           </h1>
         </div>
         <div className="flex items-center gap-[1.2rem]">
           <span className="flex flex-col items-end gap-[0.1rem]">
-            <span className="font-display text-[1.3rem] font-bold text-accent leading-none">
+            <span className="font-display text-3xl font-bold text-accent leading-none">
               {epics.length}
             </span>
-            <span className="font-mono text-[0.45rem] tracking-[0.2em] text-text-faint">
-              FRONTS
-            </span>
+            <span className="font-mono text-2xs tracking-ultra text-text-faint">FRONTS</span>
           </span>
           <span className="flex flex-col items-end gap-[0.1rem]">
-            <span className="font-display text-[1.3rem] font-bold text-accent leading-none">
+            <span className="font-display text-3xl font-bold text-accent leading-none">
               {totalMissions}
             </span>
-            <span className="font-mono text-[0.45rem] tracking-[0.2em] text-text-faint">
-              DIRECTIVES
-            </span>
+            <span className="font-mono text-2xs tracking-ultra text-text-faint">DIRECTIVES</span>
           </span>
           <span className="flex flex-col items-end gap-[0.1rem]">
             <span
-              className="font-display text-[1.3rem] font-bold leading-none"
+              className="font-display text-3xl font-bold leading-none"
               style={{ color: "var(--connected)" }}
             >
               {integrated}
             </span>
-            <span className="font-mono text-[0.45rem] tracking-[0.2em] text-text-faint">
-              INTÉGRÉES
-            </span>
+            <span className="font-mono text-2xs tracking-ultra text-text-faint">INTÉGRÉES</span>
           </span>
         </div>
       </div>
