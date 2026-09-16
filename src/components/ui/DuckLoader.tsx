@@ -1,6 +1,6 @@
 import { cx } from "@core-nexus/utils/cx";
 import type { CSSProperties, ReactElement } from "react";
-import { DUCK_FEET, DUCK_OUTLINE, DUCK_PIXELS, DUCK_VIEWBOX } from "./icons/duckPaths";
+import { DUCK_OUTLINE, DUCK_PIXELS, DUCK_VIEWBOX } from "./icons/duckPaths";
 
 export type DuckLoaderVariant = "scan" | "boot" | "glitch";
 
@@ -60,11 +60,6 @@ export function DuckLoader({
         fill="currentColor"
         className="duck-outline"
       />
-      <g fill="var(--logo-accent)">
-        {DUCK_FEET.map((p) => (
-          <path key={p.t} d={p.d} transform={p.t} />
-        ))}
-      </g>
       <g fill="var(--logo-accent)">
         {/* Cle sur le transform : plusieurs carres du motif partagent le meme
             `d`, seule leur translation les distingue. */}

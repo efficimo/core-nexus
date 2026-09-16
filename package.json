@@ -24,10 +24,8 @@
   },
   "dependencies": {
     "@efficimo/cipher": "^0.1.0",
-    "@efficimo/observable": "^0.2.0",
-    "@efficimo/observable-react": "^0.2.0",
-    "@efficimo/storage": "^0.1.0",
-    "@efficimo/storage-react": "^0.1.0",
+    "@efficimo/observable": "^0.5.2",
+    "@efficimo/storage": "^0.3.1",
     "@fontsource/press-start-2p": "^5.3.0",
     "@fontsource/vt323": "^5.3.0",
     "@tailwindcss/vite": "^4.2.4",
